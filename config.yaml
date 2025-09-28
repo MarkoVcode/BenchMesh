@@ -1,3 +1,4 @@
+version: 1
 devices:
   - id: eol-1              # unique ID for this device used in WS and MQTT topics
     name: "OWON OEL"       # friendly name for UI more details about device will come from SCPI query if available

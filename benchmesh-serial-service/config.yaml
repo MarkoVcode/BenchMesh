@@ -1,0 +1,38 @@
+version: 1
+devices:
+  - id: eol-1
+    name: "OWON OEL"
+    driver: owon_oel
+    port: /dev/ttyOEL1515
+    baud: 115200
+    serial: 8N1
+    seol: "\n"
+    reol: "\n"
+    model: OEL1515
+  - id: psu-1
+    name: "OWON SPM"
+    driver: owon_spm
+    port: /dev/ttySPM3103
+    baud: 115200
+    serial: 8N1
+    seol: "\n"
+    reol: "\n"
+    model: SPM3103
+  - id: tenmapsu-1
+    name: "TENMA PSU"
+    driver: tenma_psu
+    port: /dev/tty722540
+    baud: 115200
+    serial: 8N1
+    seol: "\r\n"
+    reol: "\n"
+    model: 72-2540
+  - id: dmm-1
+    name: "OWON XDM"
+    driver: owon_xdm
+    port: /dev/ttyXDM1241
+    baud: 115200
+    serial: 8N1
+    seol: "\r\n"
+    reol: "\n"
+    model: XDM1241

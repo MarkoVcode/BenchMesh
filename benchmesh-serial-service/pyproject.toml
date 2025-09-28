@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "benchmesh-serial-service"
+version = "0.1.0"
+description = "A service to manage multiple serial connections for various devices."
+authors = ["Your Name <youremail@example.com>"]
+license = "MIT"
+
+packages = [
+  { include = "benchmesh_service", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyserial = "^3.5"
+pydantic = "^1.8"
+loguru = "^0.5.3"
+pyyaml = "^6.0.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
