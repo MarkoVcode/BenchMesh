@@ -1,0 +1,24 @@
+{
+  "$schema": "benchmesh.schema.instrument.profile.v1.json",
+  "vendor": "OWON",
+  "family": "DGE",
+  "version": "1.0.0",
+  "models": {
+    "DGE2070": {
+      "id_patterns": [
+        "OWON,DGE2070"
+      ],
+      "classes": [
+        "AFG"
+      ],
+      "instrument_class": {
+        "AFG": {
+          "features": {
+            "lock": true,
+            "channels": 2
+          }
+        }
+      }
+    }
+  }
+}

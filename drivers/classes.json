@@ -1,0 +1,34 @@
+{
+  "$schema": "https://benchmesh.app/schemas/instrument.clases.v1.json",
+  "version": "1.0.0",
+  "classes": {
+    "DMM": {
+      "description": "Digital Multimeter",
+      "reference": "https://en.wikipedia.org/wiki/Multimeter"
+    },
+    "AFG": {
+      "description": "Arbitrary Function Generator",
+      "reference": "https://en.wikipedia.org/wiki/Function_generator"
+    },
+    "PSU": {
+      "description": "Power Supply Unit",
+      "reference": "https://en.wikipedia.org/wiki/Regulated_power_supply#D.C._variable_bench_supply"
+    },
+    "ELL": {
+      "description": "Electronic Load",
+      "reference": "https://en.wikipedia.org/wiki/Electronic_load"
+    },
+    "OSC": {
+      "description": "Oscilloscope",
+      "reference": "https://en.wikipedia.org/wiki/Oscilloscope"
+    },
+    "LCR": {
+      "description": "LCR Meter",
+      "reference": "https://en.wikipedia.org/wiki/LCR_meter"
+    },
+    "SAL": {
+      "description": "Spectrum Analyzer",
+      "reference": "https://en.wikipedia.org/wiki/Spectrum_analyzer"
+    }
+  }
+}

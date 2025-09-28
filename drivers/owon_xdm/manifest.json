@@ -1,0 +1,391 @@
+{
+  "$schema": "benchmesh.schema.instrument.profile.v1.json",
+  "vendor": "OWON",
+  "family": "XDM",
+  "version": "1.0.0",
+  "models": {
+    "XDM1241": {
+      "id_patterns": [
+        "OWON,XDM1241"
+      ],
+      "classes": [
+        "DMM"
+      ],
+      "instrument_class": {
+        "DMM": {
+          "features": {
+            "channels": 1,
+            "modes": [
+              "VOLTage:DC",
+              "VOLTage:AC",
+              "CURRent:DC",
+              "CURRent:AC",
+              "RESistance",
+              "FRESistance",
+              "CAPacitance",
+              "DIODe",
+              "CONTinuity",
+              "TEMPerature",
+              "FREQuency",
+              "PERiod"
+            ],
+            "hold": true,
+            "delta": true,
+            "DB:REFerence": [
+              50,
+              75,
+              93,
+              110,
+              124,
+              125,
+              135,
+              150,
+              250,
+              300,
+              500,
+              600,
+              800,
+              900,
+              1000,
+              1200,
+              8000
+            ],
+            "DBM:REFerence": [
+              50,
+              75,
+              93,
+              110,
+              124,
+              125,
+              135,
+              150,
+              250,
+              300,
+              500,
+              600,
+              800,
+              900,
+              1000,
+              1200,
+              8000
+            ],
+            "TEMPerature:RTD:display": [
+              {
+                "value": "C",
+                "display": "Celsius"
+              },
+              {
+                "value": "F",
+                "display": "Fahrenheit"
+              },
+              {
+                "value": "K",
+                "display": "Kelvin"
+              }
+            ],
+            "speed": [
+              {
+                "value": "F",
+                "display": "fast"
+              },
+              {
+                "value": "M",
+                "display": "normal"
+              },
+              {
+                "value": "L",
+                "display": "slow"
+              }
+            ]
+          },
+          "RANGe": {
+            "CAPacitance": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "50E-9",
+                "display": "50nF"
+              },
+              {
+                "value": "500E-9",
+                "display": "500nF"
+              },
+              {
+                "value": "5E-6",
+                "display": "5µF"
+              },
+              {
+                "value": "50E-6",
+                "display": "50µF"
+              },
+              {
+                "value": "500E-6",
+                "display": "500µF"
+              },
+              {
+                "value": "5E-3",
+                "display": "5mF"
+              },
+              {
+                "value": "50E-3",
+                "display": "50mF"
+              }
+            ],
+            "FRESistance": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "500",
+                "display": "500Ω"
+              },
+              {
+                "value": "5E3",
+                "display": "5KΩ"
+              },
+              {
+                "value": "50E3",
+                "display": "50KΩ"
+              },
+              {
+                "value": "500E3",
+                "display": "500KΩ"
+              },
+              {
+                "value": "5E6",
+                "display": "5MΩ"
+              },
+              {
+                "value": "50E6",
+                "display": "50MΩ"
+              },
+              {
+                "value": "500E6",
+                "display": "500MΩ"
+              }
+            ],
+            "RESistance": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "500",
+                "display": "500Ω"
+              },
+              {
+                "value": "5E3",
+                "display": "5KΩ"
+              },
+              {
+                "value": "50E3",
+                "display": "50KΩ"
+              },
+              {
+                "value": "500E3",
+                "display": "500KΩ"
+              },
+              {
+                "value": "5E6",
+                "display": "5MΩ"
+              },
+              {
+                "value": "50E6",
+                "display": "50MΩ"
+              },
+              {
+                "value": "500E6",
+                "display": "500MΩ"
+              }
+            ],
+            "CURRent:AC": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "500E-6",
+                "display": "500µA"
+              },
+              {
+                "value": "5E-3",
+                "display": "5mA"
+              },
+              {
+                "value": "50E-3",
+                "display": "50mA"
+              },
+              {
+                "value": "500E-3",
+                "display": "500mA"
+              },
+              {
+                "value": "5",
+                "display": "5A"
+              },
+              {
+                "value": "10",
+                "display": "10A"
+              }
+            ],
+            "CURRent:DC": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "500E-6",
+                "display": "500µA"
+              },
+              {
+                "value": "5E-3",
+                "display": "5mA"
+              },
+              {
+                "value": "50E-3",
+                "display": "50mA"
+              },
+              {
+                "value": "500E-3",
+                "display": "500mA"
+              },
+              {
+                "value": "5",
+                "display": "5A"
+              },
+              {
+                "value": "10",
+                "display": "10A"
+              }
+            ],
+            "VOLTage:AC": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "500E-3",
+                "display": "500mV"
+              },
+              {
+                "value": "5",
+                "display": "5V"
+              },
+              {
+                "value": "50",
+                "display": "50V"
+              },
+              {
+                "value": "500",
+                "display": "500V"
+              },
+              {
+                "value": "750",
+                "display": "750V"
+              }
+            ],
+            "VOLTage:DC": [
+              {
+                "value": "AUTO",
+                "display": "AUTO"
+              },
+              {
+                "value": "MIN",
+                "display": "MINimum"
+              },
+              {
+                "value": "MAX",
+                "display": "MAXimum"
+              },
+              {
+                "value": "50E-3",
+                "display": "50mV"
+              },
+              {
+                "value": "500E-3",
+                "display": "500mV"
+              },
+              {
+                "value": "5",
+                "display": "5V"
+              },
+              {
+                "value": "50",
+                "display": "50V"
+              },
+              {
+                "value": "500",
+                "display": "500V"
+              },
+              {
+                "value": "1000",
+                "display": "1000V"
+              }
+            ],
+            "TEMPerature": [
+              {
+                "value": "KITS90",
+                "display": "KITS90"
+              },
+              {
+                "value": "PT100",
+                "display": "PT100"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

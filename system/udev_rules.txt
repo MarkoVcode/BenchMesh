@@ -1,0 +1,19 @@
+# FTDI FT232R (has serial) → /dev/ttyFTDI0
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AL036DJT", SYMLINK+="ttyOEL1515", MODE="0660", GROUP="dialout"
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="23a3", ATTRS{serial}=="DDAKb135B02", SYMLINK+="ttyDodgy", MODE="0660", GROUP="dialout"
+# Nuvoton CDC-ACM (has serial) → /dev/tty722540
+ACTION=="add", SUBSYSTEM=="tty", KERNEL=="ttyACM*", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="5011", ATTRS{serial}=="A02014090305", SYMLINK+="tty722540", MODE="0660", GROUP="dialout"
+
+# CH341 on a specific port chain (pin to 1-1.3.1.1) → /dev/ttySPM3103
+# Also mark the event so the generic rule below won't run.
+#ACTION=="add", SUBSYSTEM=="tty", KERNEL=="ttyUSB*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTR{bcdDevice}=="8134", ENV{CH341_ROLE}="spm3103", SYMLINK+="ttySPM3103", MODE="0660", GROUP="dialout"
+
+# Generic CH341 (any port, only if the specific one above didn't match) → /dev/ttyXDM1241
+#ACTION=="add", SUBSYSTEM=="tty", KERNEL=="ttyUSB*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTR{bcdDevice}=="0264", ENV{CH341_ROLE}!="spm3103", SYMLINK+="ttyXDM1241", MODE="0660", GROUP="dialout"
+
+# CH34x on firmware 0x0264  ->  /dev/ttyDev1
+SUBSYSTEM=="tty", KERNEL=="ttyUSB*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{bcdDevice}=="0264", SYMLINK+="ttyXDM1241", MODE="0660", GROUP="dialout"
+
+# CH34x on firmware 0x8134  ->  /dev/ttyDev2
+SUBSYSTEM=="tty", KERNEL=="ttyUSB*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{bcdDevice}=="8134", SYMLINK+="ttySPM3103", MODE="0660", GROUP="dialout"
+

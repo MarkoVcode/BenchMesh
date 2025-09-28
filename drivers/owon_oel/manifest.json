@@ -1,0 +1,99 @@
+{
+  "$schema": "benchmesh.schema.instrument.profile.v1.json",
+  "vendor": "OWON",
+  "family": "OEL",
+  "version": "1.0.0",
+  "models": {
+    "OEL1515": {
+      "id_patterns": [
+        "OWON,OEL1515"
+      ],
+      "classes": [
+        "ELL"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "channels": 1,
+            "parallel": false,
+            "dynamic_list": true,
+            "remote_sense": false,
+            "slew_presets": [
+              "SLOW",
+              "NORM",
+              "FAST"
+            ],
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 150.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 15.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 150.0
+              }
+            }
+          },
+          "modes": {
+            "CC": {
+              "setpoint": {
+                "unit": "A",
+                "min": 0.0,
+                "max": 15.0,
+                "step": 0.001,
+                "ui_step": 0.01
+              },
+              "protection": {
+                "ovp": {
+                  "unit": "V",
+                  "min": 0,
+                  "max": 150,
+                  "step": 0.1
+                }
+              }
+            },
+            "CV": {
+              "setpoint": {
+                "unit": "V",
+                "min": 0.0,
+                "max": 150.0,
+                "step": 0.01,
+                "ui_step": 0.1
+              },
+              "protection": {
+                "ocp": {
+                  "unit": "A",
+                  "min": 0,
+                  "max": 15,
+                  "step": 0.01
+                }
+              }
+            },
+            "CR": {
+              "setpoint": {
+                "unit": "Ω",
+                "min": 0.05,
+                "max": 1000,
+                "step": 0.01,
+                "ui_step": 0.1
+              }
+            },
+            "CP": {
+              "setpoint": {
+                "unit": "W",
+                "min": 0.5,
+                "max": 200,
+                "step": 0.1,
+                "ui_step": 1.0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
