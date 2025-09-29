@@ -3,8 +3,7 @@ import time
 import threading
 import yaml
 import logging
-from typing import List, Dict, Optional
-from src.benchmesh_service.logger import setup_logger
+from typing import Dict
 from .logger import setup_logger
 
 logger = logging.getLogger(__name__)
