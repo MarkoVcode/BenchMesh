@@ -29,16 +29,7 @@ class SerialManager:
         for device in self.devices:
             print("Establishing connections to devices...", device)
             try:
-                ser = serial.Serial(
-                    port=device['port'],
-                    baudrate=device['baud'],
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    timeout=1.0
-                )
-                self.connections[device['id']] = ser
-                self.logger.info(f"Established connection to {device['name']} on {device['port']}")
+                self.reconnect(device)
             except Exception as e:
                 self.logger.info(f"Failed to connect to {device['name']} on {device['port']}: {e}")
 
@@ -55,14 +46,47 @@ class SerialManager:
                     self.reconnect(device_id)
             time.sleep(0.5)
 
-    def reconnect(self, device_id):
-        device = next((d for d in self.devices if d['id'] == device_id), None)
-        if device:
-            try:
-                self.connections[device_id].close()
-                self.establish_connections()
-            except Exception as e:
-                self.logger.error(f"Reconnection failed for {device['name']}: {e}")
+    def reconnect(self, device_or_id):
+        """
+        Attempt to (re)open a connection for a single device.
+        Accepts either the device dict or its id string. Returns the new serial
+        connection on success, or None on failure.
+        """
+        if isinstance(device_or_id, dict):
+            dev = device_or_id
+            device_id = dev.get('id')
+        else:
+            device_id = device_or_id
+            dev = next((d for d in self.devices if d.get('id') == device_id), None)
+
+        if not dev or not device_id:
+            return None
+
+        # Close existing connection if present
+        try:
+            old = self.connections.get(device_id)
+            if old:
+                old.close()
+        except Exception:
+            pass
+
+        # Open fresh connection for this device only
+        try:
+            ser = serial.Serial(
+                port=dev['port'],
+                baudrate=dev['baud'],
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=1.0
+            )
+            self.connections[device_id] = ser
+            self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
+            return ser
+        except Exception as e:
+            self.logger.error(f"Reconnection failed for {dev.get('name', device_id)}: {e}")
+            self.connections[device_id] = None
+            return None
 
     def start(self):
         self.establish_connections()
