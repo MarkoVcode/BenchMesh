@@ -1,9 +1,9 @@
 import serial, time
 
 ser = serial.Serial(
- #   port='/dev/ttyOEL1515',       # or '/dev/ttyUSB0'
+    port='/dev/ttyOEL1515',       # or '/dev/ttyUSB0'
  #   port='/dev/ttySPM3103',
-    port='/dev/ttyXDM1241',
+ #   port='/dev/ttyXDM1241',
     #port='/dev/tty722540',
     baudrate=115200,     # match instrument
     #baudrate=9600,     # match instrument

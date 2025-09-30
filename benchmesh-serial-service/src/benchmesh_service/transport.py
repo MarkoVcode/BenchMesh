@@ -26,12 +26,17 @@ class SerialTransport:
         self.timeout = timeout
         self.seol = seol.encode() if isinstance(seol, str) else (seol or b'')
         self.reol = reol.encode() if isinstance(reol, str) else (reol or b'')
+        self.xonxoff=False
+        self.rtscts=False
+        self.dsrdtr=False 
         self._ser: Optional[serial.Serial] = None
         bytesize, parity, stopbits = parse_serial_mode(serial_mode)
-        self._kwargs = dict(port=self.port, baudrate=self.baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=self.timeout)
+        self._kwargs = dict(port=self.port, baudrate=self.baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=self.timeout, xonxoff=self.xonxoff, rtscts=self.rtscts, dsrdtr=self.dsrdtr)
 
     def open(self):
         self._ser = serial.Serial(**self._kwargs)
+        self._ser.setDTR(False)   #is needed for USB-RS232 adapters
+        self._ser.setRTS(False)
         time.sleep(0.05)
         return self
 

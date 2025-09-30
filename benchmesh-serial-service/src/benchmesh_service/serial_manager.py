@@ -126,8 +126,10 @@ class SerialManager:
                 self.logger.info(f"Failed to connect to {device.get('name', device.get('id'))} on {device.get('port')}: {e}")
 
     def _try_identify(self, drv):
+        print(drv.identify())
         try:
             if hasattr(drv, 'identify'):
+                print(drv.identify())
                 return drv.identify()
             t = getattr(drv, 't', None)
             if t:
@@ -272,13 +274,14 @@ class SerialManager:
             self.connections[dev_id] = None
 
     def check_status(self):
+        print("Checking status.")
         now = time.time()
         for dev in self.devices:
             dev_id = dev.get('id')
             if not dev_id:
                 continue
             drv = self.connections.get(dev_id)
-
+            print(drv.identify())
             if drv is None:
                 last_attempt = self.last_open_attempt.get(dev_id, 0.0)
                 if now - last_attempt >= 2.0:
