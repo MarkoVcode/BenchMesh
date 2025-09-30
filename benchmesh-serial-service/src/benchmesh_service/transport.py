@@ -78,11 +78,16 @@ class SerialTransport:
             # Normalize to a single line without trailing EOLs
             lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
             return lines[0] if lines else ''
+        # Skip any leading EOL noise, then read until configured EOL
         buf = bytearray()
+        skipping = True
         while len(buf) < max_bytes:
             b = self._ser.read(1)
             if not b:
                 break
+            if skipping and b in (b'\r', b'\n'):
+                continue
+            skipping = False
             buf += b
             if buf.endswith(self.reol):
                 break
