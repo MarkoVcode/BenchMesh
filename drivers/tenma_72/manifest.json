@@ -6,11 +6,16 @@
   "models": {
     "72-2540": {
       "id_patterns": [
-        "TENMA,72-2540"
+        "TENMA 72-2540"
       ],
       "classes": [
         "PSU"
       ],
+      "connection": {
+        "seol": "",
+        "reol": "",
+        "connection_verification_command": "*IDN?"
+      },
       "instrument_class": {
         "PSU": {
           "features": {

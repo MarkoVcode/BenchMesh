@@ -12,6 +12,11 @@
         "PSU",
         "DMM"
       ],
+      "connection": {
+        "seol": "\r",
+        "reol": "\r",
+        "connection_verification_command": "*IDN?"
+      },
       "instrument_class": {
         "PSU": {
           "features": {
