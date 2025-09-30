@@ -1,4 +1,4 @@
-from ..transport import SerialTransport
+from ...transport import SerialTransport
 
 class OwonOEL:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):

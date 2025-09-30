@@ -1,5 +1,5 @@
-from ..transport import SerialTransport
-from ..logger import logger
+from ...transport import SerialTransport
+from ...logger import logger
 
 class TenmaPSU:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='', reol=''):

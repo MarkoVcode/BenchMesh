@@ -21,21 +21,77 @@ def _repo_root() -> str:
 
 
 def _load_manifest(driver_key: str) -> Dict:
-    here = _repo_root()
     manifest_key = MANIFEST_ALIASES.get(driver_key, driver_key)
-    path = os.path.join(here, 'drivers', manifest_key, 'manifest.json')
-    with open(path, 'r') as f:
+    # Prefer manifest colocated with driver package (new layout)
+    pkg_dir = os.path.join(os.path.dirname(__file__), 'drivers', manifest_key)
+    pkg_manifest = os.path.join(pkg_dir, 'manifest.json')
+    if os.path.exists(pkg_manifest):
+        with open(pkg_manifest, 'r') as f:
+            return json.load(f)
+
+    # Fallback to repository-root drivers directory (legacy layout)
+    here = _repo_root()
+    legacy_manifest = os.path.join(here, 'drivers', manifest_key, 'manifest.json')
+    with open(legacy_manifest, 'r') as f:
         return json.load(f)
 
 
 def _load_driver_class(driver_key: str):
-    mod_name = f"benchmesh_service.drivers.{driver_key}"
-    mod = importlib.import_module(mod_name)
-    # pick the first class defined in the module
-    for name, obj in inspect.getmembers(mod, inspect.isclass):
-        if obj.__module__ == mod.__name__:
-            return obj
-    raise ImportError(f"No driver class found in module {mod_name}")
+    """Load a driver class given its key.
+
+    Supports both legacy flat modules (benchmesh_service.drivers.<driver_key>)
+    and new layout with subpackages (benchmesh_service.drivers.<pkg>.<module>).
+    The class is expected to be reachable from the imported module namespace,
+    either defined there or re-exported by the package's __init__.py.
+    """
+    tried = []
+    folder_key = MANIFEST_ALIASES.get(driver_key, driver_key)
+
+    # Candidate import names in order of preference
+    candidates = [
+        f"benchmesh_service.drivers.{driver_key}",
+        f"benchmesh_service.drivers.{folder_key}",
+        f"benchmesh_service.drivers.{folder_key}.{driver_key}",
+        f"benchmesh_service.drivers.{folder_key}.{folder_key}",
+        # explicit known class module for tenma alias
+        f"benchmesh_service.drivers.{folder_key}.tenma_psu" if folder_key == 'tenma_72' else None,
+    ]
+    candidates = [c for c in candidates if c]
+
+    for mod_name in candidates:
+        try:
+            mod = importlib.import_module(mod_name)
+            # Return first class exposed on the module namespace
+            for _, obj in inspect.getmembers(mod, inspect.isclass):
+                # Accept classes defined in the module or its submodules
+                if getattr(obj, "__module__", "").startswith(mod.__name__):
+                    return obj
+            # If no classes found yet but module imported, keep trying next candidate
+            tried.append(mod_name)
+        except Exception as e:
+            tried.append(f"{mod_name} ({e.__class__.__name__}: {e})")
+            continue
+
+    # As a fallback, attempt direct file import for <folder_key>/<driver_key>.py or <folder_key>/<folder_key>.py
+    base_dir = os.path.join(os.path.dirname(__file__), 'drivers', folder_key)
+    for file_base in (driver_key, folder_key):
+        file_path = os.path.join(base_dir, f"{file_base}.py")
+        if os.path.exists(file_path):
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location(f"benchmesh_service.drivers.{folder_key}.{file_base}", file_path)
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    for _, obj in inspect.getmembers(mod, inspect.isclass):
+                        # Only accept classes defined in this module (exclude imported helpers)
+                        if getattr(obj, "__module__", "").startswith(mod.__name__):
+                            return obj
+            except Exception as e:
+                tried.append(f"file:{file_path} ({e.__class__.__name__}: {e})")
+                continue
+
+    raise ImportError(f"No driver class found for key '{driver_key}'. Tried: {tried}")
 
 
 class SerialManager:
@@ -120,6 +176,18 @@ class SerialManager:
                 seol=seol,
                 reol=reol,
             )
+            # If the resolved class is actually the transport (due to missing driver class), wrap into a simple adapter
+            from .transport import SerialTransport
+            if isinstance(drv, SerialTransport):
+                class _Adapter:
+                    def __init__(self, t):
+                        self.t = t
+                    def close(self):
+                        self.t.close()
+                    def identify(self):
+                        self.t.write_line('*IDN?')
+                        return self.t.read_until_reol(1024)
+                drv = _Adapter(drv)
             self.connections[device_id] = drv
             self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
             return drv
