@@ -164,7 +164,7 @@ class SerialManager:
             driver_key = dev['driver']
             cls = _load_driver_class(driver_key)
             manifest = _load_manifest(driver_key)
-            conn = next(iter(manifest.get('models', {}).values())).get('connection', {})
+            conn = manifest.get('models', {}).get(dev['model']).get('connection', {})
             seol = conn.get('seol', '\r')
             reol = conn.get('reol', '\r')
             drv = cls(
