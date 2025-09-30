@@ -51,10 +51,9 @@ def _load_driver_class(driver_key: str):
     candidates = [
         f"benchmesh_service.drivers.{driver_key}",
         f"benchmesh_service.drivers.{folder_key}",
-        f"benchmesh_service.drivers.{folder_key}.{driver_key}",
-        f"benchmesh_service.drivers.{folder_key}.{folder_key}",
+        f"benchmesh_service.drivers.{folder_key}.driver",
         # explicit known class module for tenma alias
-        f"benchmesh_service.drivers.{folder_key}.tenma_psu" if folder_key == 'tenma_72' else None,
+        f"benchmesh_service.drivers.{folder_key}.driver" if folder_key == 'tenma_72' else None,
     ]
     candidates = [c for c in candidates if c]
 
@@ -74,11 +73,10 @@ def _load_driver_class(driver_key: str):
 
     # As a fallback, attempt direct file import for <folder_key>/<driver_key>.py or <folder_key>/<folder_key>.py
     base_dir = os.path.join(os.path.dirname(__file__), 'drivers', folder_key)
-    for file_base in (driver_key, folder_key):
+    for file_base in (driver_key, folder_key, 'driver'):
         file_path = os.path.join(base_dir, f"{file_base}.py")
         if os.path.exists(file_path):
             try:
-                import importlib.util
                 spec = importlib.util.spec_from_file_location(f"benchmesh_service.drivers.{folder_key}.{file_base}", file_path)
                 if spec and spec.loader:
                     mod = importlib.util.module_from_spec(spec)

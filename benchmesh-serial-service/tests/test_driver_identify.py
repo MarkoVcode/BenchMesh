@@ -7,10 +7,10 @@ SRC_DIR = os.path.abspath(os.path.join(THIS_DIR, '..', 'src'))
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-from benchmesh_service.drivers.owon_oel.owon_oel import OwonOEL
-from benchmesh_service.drivers.owon_spm.owon_spm import OWONSPM
-from benchmesh_service.drivers.owon_xdm.owon_xdm import OWONXDM
-from benchmesh_service.drivers.tenma_72.tenma_psu import TenmaPSU
+from benchmesh_service.drivers.owon_oel.driver import OwonOEL
+from benchmesh_service.drivers.owon_spm.driver import OWONSPM
+from benchmesh_service.drivers.owon_xdm.driver import OWONXDM
+from benchmesh_service.drivers.tenma_72.driver import TenmaPSU
 
 
 class FakeSerial:

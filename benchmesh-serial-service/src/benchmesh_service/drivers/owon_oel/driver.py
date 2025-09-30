@@ -15,4 +15,4 @@ class OwonOEL:
         return self.t.read(size)
 
     def close(self):
-        self.t.close()
+        self.t.close()  
