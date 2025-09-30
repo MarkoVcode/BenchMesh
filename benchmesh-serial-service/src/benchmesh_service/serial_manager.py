@@ -1,28 +1,65 @@
-import serial
+import json
+import os
 import time
 import threading
-import yaml
 import logging
-from typing import Dict
+import importlib
+import inspect
+from typing import Dict, List, Any
+import yaml
 from .logger import setup_logger
 
 logger = logging.getLogger(__name__)
 
+MANIFEST_ALIASES = {
+    'tenma_psu': 'tenma_72',
+}
+
+
+def _repo_root() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+
+
+def _load_manifest(driver_key: str) -> Dict:
+    here = _repo_root()
+    manifest_key = MANIFEST_ALIASES.get(driver_key, driver_key)
+    path = os.path.join(here, 'drivers', manifest_key, 'manifest.json')
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
+def _load_driver_class(driver_key: str):
+    mod_name = f"benchmesh_service.drivers.{driver_key}"
+    mod = importlib.import_module(mod_name)
+    # pick the first class defined in the module
+    for name, obj in inspect.getmembers(mod, inspect.isclass):
+        if obj.__module__ == mod.__name__:
+            return obj
+    raise ImportError(f"No driver class found in module {mod_name}")
+
+
 class SerialManager:
-    def __init__(self, config_file):
-        print("Initializing SerialManager with config:", config_file)
+    def __init__(self, config_source: Any):
+        print("Initializing SerialManager with config:", config_source)
         self.logger = setup_logger()
-        self.devices = config_file
-        self.connections = {}
+        self.devices: List[Dict] = self._load_devices(config_source)
+        self.connections: Dict[str, object] = {}
         self.keep_running = True
         self.last_open_attempt: Dict[str, float] = {}
         self.last_ok: Dict[str, float] = {}
 
         self.establish_connections()
-    # def load_config(self, config_file):
-    #     with open(config_file, 'r') as file:
-    #         config = yaml.safe_load(file)
-    #     return config['devices']
+
+    def _load_devices(self, source: Any) -> List[Dict]:
+        if isinstance(source, list):
+            return source
+        # treat as path
+        cfg_path = source if isinstance(source, str) else os.path.join(_repo_root(), 'config.yaml')
+        if not os.path.isabs(cfg_path):
+            cfg_path = os.path.join(_repo_root(), cfg_path)
+        with open(cfg_path, 'r') as f:
+            cfg = yaml.safe_load(f)
+        return cfg.get('devices', [])
 
     def establish_connections(self):
         print("Establishing connections to devices...")
@@ -31,13 +68,14 @@ class SerialManager:
             try:
                 self.reconnect(device)
             except Exception as e:
-                self.logger.info(f"Failed to connect to {device['name']} on {device['port']}: {e}")
+                self.logger.info(f"Failed to connect to {device.get('name', device.get('id'))} on {device.get('port')}: {e}")
 
     def monitor_connections(self):
         print("Starting connection monitor thread.")
         while self.keep_running:
-            for device_id, connection in self.connections.items():
-                if connection.is_open:
+            for device_id, drv in self.connections.items():
+                is_open = getattr(getattr(drv, 't', None), 'is_open', False)
+                if is_open:
                     self.logger.info(f"{device_id} is connected.")
                     self.last_ok[device_id] = 0.0
                     self.last_open_attempt[device_id] = 0.0
@@ -47,11 +85,6 @@ class SerialManager:
             time.sleep(0.5)
 
     def reconnect(self, device_or_id):
-        """
-        Attempt to (re)open a connection for a single device.
-        Accepts either the device dict or its id string. Returns the new serial
-        connection on success, or None on failure.
-        """
         if isinstance(device_or_id, dict):
             dev = device_or_id
             device_id = dev.get('id')
@@ -62,27 +95,34 @@ class SerialManager:
         if not dev or not device_id:
             return None
 
-        # Close existing connection if present
+        # Close existing driver if present
         try:
             old = self.connections.get(device_id)
             if old:
-                old.close()
+                close = getattr(old, 'close', None)
+                if callable(close):
+                    close()
         except Exception:
             pass
 
-        # Open fresh connection for this device only
+        # Create driver instance using manifest EOL settings and config serial params
         try:
-            ser = serial.Serial(
-                port=dev['port'],
-                baudrate=dev['baud'],
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=1.0
+            driver_key = dev['driver']
+            cls = _load_driver_class(driver_key)
+            manifest = _load_manifest(driver_key)
+            conn = next(iter(manifest.get('models', {}).values())).get('connection', {})
+            seol = conn.get('seol', '\r')
+            reol = conn.get('reol', '\r')
+            drv = cls(
+                dev['port'],
+                dev.get('baud', 115200),
+                serial_mode=dev.get('serial', '8N1'),
+                seol=seol,
+                reol=reol,
             )
-            self.connections[device_id] = ser
+            self.connections[device_id] = drv
             self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
-            return ser
+            return drv
         except Exception as e:
             self.logger.error(f"Reconnection failed for {dev.get('name', device_id)}: {e}")
             self.connections[device_id] = None
@@ -95,78 +135,63 @@ class SerialManager:
 
     def stop(self):
         self.keep_running = False
-        for connection in self.connections.values():
-            connection.close()
+        for drv in self.connections.values():
+            try:
+                drv.close()
+            except Exception:
+                pass
         self.logger.info("All connections closed.")
 
     def close_connections(self):
-            for dev_id, ser in list(self.connections.items()):
-                if ser:
-                    try:
-                        ser.close()
-                        logger.info("Closed connection %s", dev_id)
-                    except Exception:
-                        logger.exception("Error closing %s", dev_id)
-                self.connections[dev_id] = None
-    
+        for dev_id, drv in list(self.connections.items()):
+            if drv:
+                try:
+                    drv.close()
+                    logger.info("Closed connection %s", dev_id)
+                except Exception:
+                    logger.exception("Error closing %s", dev_id)
+            self.connections[dev_id] = None
+
     def check_status(self):
-        """
-        Ensure each configured device has a working connection.
-        Called periodically (main() schedules every 0.5s).
-        """
         now = time.time()
         for dev in self.devices:
             dev_id = dev.get('id')
             if not dev_id:
                 continue
-            ser = self.connections.get(dev_id)
+            drv = self.connections.get(dev_id)
 
-            # If no connection, try to open (with simple backoff)
-            if ser is None:
+            if drv is None:
                 last_attempt = self.last_open_attempt.get(dev_id, 0.0)
-                # backoff 2s between attempts
                 if now - last_attempt >= 2.0:
                     self.last_open_attempt[dev_id] = now
-                    new_ser = self.reconnect(dev)
-                    if new_ser:
+                    new_drv = self.reconnect(dev)
+                    if new_drv:
                         print("Opened connection to", dev_id)
-                        self.connections[dev_id] = new_ser
+                        self.connections[dev_id] = new_drv
                         self.last_ok[dev_id] = 0.0
                 continue
 
-            # If we have a connection, probe it
             try:
-                seol = dev.get('seol', "\r")
-                # Try SCPI identity probe first, fall back to EOL if write fails
-                try:
-                    ser.write(b'*IDN?\r')
-                except Exception:
-                    try:
-                        ser.write(seol.encode('utf-8') if isinstance(seol, str) else b'\r')
-                    except Exception:
-                        pass
-
-                # brief wait then read
-                time.sleep(0.05)
-                resp = b''
-                try:
-                    resp = ser.read(256)
-                except Exception as e:
-                    # read failed -> treat as lost connection
-                    raise
-
-                if resp:
-                    self.last_ok[dev_id] = now
-                    logger.debug("Probe OK %s -> %s", dev_id, resp)
+                ident = None
+                if hasattr(drv, 'identify'):
+                    ident = drv.identify()
                 else:
-                    # no response — keep connection but log debug
+                    # fallback: try to access transport
+                    t = getattr(drv, 't', None)
+                    if t:
+                        t.write_line('*IDN?')
+                        ident = t.read_until_reol(256)
+
+                if ident:
+                    self.last_ok[dev_id] = now
+                    logger.debug("Probe OK %s -> %s", dev_id, ident)
+                else:
                     logger.debug("No response from %s on probe", dev_id)
 
             except Exception as e:
                 logger.warning("Connection error for %s: %s", dev_id, e)
-                # close and mark for reopen
                 try:
-                    ser.close()
+                    drv.close()
                 except Exception:
                     pass
                 self.connections[dev_id] = None

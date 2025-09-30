@@ -1,45 +1,18 @@
-import serial
-import time
+from ..transport import SerialTransport
 
 class OwonOEL:
-    def __init__(self, port, baudrate=115200):
-        self.port = port
-        self.baudrate = baudrate
-        self.ser = None
-        self.connect()
+    def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
+        self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
-    def connect(self):
-        self.ser = serial.Serial(
-            port=self.port,
-            baudrate=self.baudrate,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            timeout=1.0
-        )
-        time.sleep(0.2)
+    def identify(self):
+        self.t.write_line('*IDN?')
+        return self.t.read_until_reol(1024)
 
-    def write(self, command):
-        if self.ser and self.ser.is_open:
-            self.ser.write(command)
+    def write(self, data: bytes):
+        self.t.write(data)
 
     def read(self, size=1024):
-        if self.ser and self.ser.is_open:
-            return self.ser.read(size)
-        return None
-
-    def check_status(self):
-        if self.ser and self.ser.is_open:
-            try:
-                self.ser.write(b'*IDN?\r')
-                time.sleep(0.2)
-                reply = self.ser.read(1024)
-                return reply
-            except Exception as e:
-                print(f"Error checking status: {e}")
-                self.connect()  # Attempt to reconnect on error
-        return None
+        return self.t.read(size)
 
     def close(self):
-        if self.ser:
-            self.ser.close()
+        self.t.close()
