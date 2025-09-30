@@ -101,6 +101,7 @@ class SerialManager:
         self.keep_running = True
         self.last_open_attempt: Dict[str, float] = {}
         self.last_ok: Dict[str, float] = {}
+        self.last_probe: Dict[str, float] = {}
 
         self.establish_connections()
 
@@ -124,18 +125,62 @@ class SerialManager:
             except Exception as e:
                 self.logger.info(f"Failed to connect to {device.get('name', device.get('id'))} on {device.get('port')}: {e}")
 
+    def _try_identify(self, drv):
+        try:
+            if hasattr(drv, 'identify'):
+                return drv.identify()
+            t = getattr(drv, 't', None)
+            if t:
+                t.write_line('*IDN?')
+                return t.read_until_reol(256)
+        except Exception as e:
+            logger.warning("Identify failed: %s", e)
+            raise
+        return None
+
     def monitor_connections(self):
         print("Starting connection monitor thread.")
         while self.keep_running:
-            for device_id, drv in self.connections.items():
-                is_open = getattr(getattr(drv, 't', None), 'is_open', False)
+            now = time.time()
+            # iterate over configured devices to ensure we attempt reopens too
+            for dev in self.devices:
+                device_id = dev.get('id')
+                if not device_id:
+                    continue
+                drv = self.connections.get(device_id)
+                is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
+
                 if is_open:
-                    self.logger.info(f"{device_id} is connected.")
-                    self.last_ok[device_id] = 0.0
-                    self.last_open_attempt[device_id] = 0.0
-                else:
-                    self.logger.warning(f"{device_id} is not connected. Attempting to reconnect...")
-                    self.reconnect(device_id)
+                    # Periodic health probe every 15 seconds; only healthy if instrument responds
+                    last_probe = self.last_probe.get(device_id, 0.0)
+                    if now - last_probe >= 15.0:
+                        try:
+                            ident = self._try_identify(drv)
+                            if ident:
+                                self.last_ok[device_id] = now
+                                self.last_probe[device_id] = now
+                                logger.debug("Periodic probe OK %s -> %s", device_id, ident)
+                            else:
+                                logger.warning("Periodic probe returned no data for %s; marking disconnected", device_id)
+                                try:
+                                    drv.close()
+                                except Exception:
+                                    pass
+                                self.connections[device_id] = None
+                        except Exception:
+                            # any error -> mark disconnected and allow reconnect on schedule
+                            try:
+                                drv.close()
+                            except Exception:
+                                pass
+                            self.connections[device_id] = None
+                            self.last_probe[device_id] = now
+                # If not open or marked None -> try to reconnect every 2 seconds
+                if not is_open or self.connections.get(device_id) is None:
+                    last_attempt = self.last_open_attempt.get(device_id, 0.0)
+                    if now - last_attempt >= 2.0:
+                        self.last_open_attempt[device_id] = now
+                        self.reconnect(dev)
             time.sleep(0.5)
 
     def reconnect(self, device_or_id):
@@ -164,7 +209,15 @@ class SerialManager:
             driver_key = dev['driver']
             cls = _load_driver_class(driver_key)
             manifest = _load_manifest(driver_key)
-            conn = manifest.get('models', {}).get(dev['model']).get('connection', {})
+            models = manifest.get('models', {}) or {}
+            conn = {}
+            if isinstance(models, dict) and models:
+                model_key = dev.get('model')
+                if model_key and isinstance(models.get(model_key), dict):
+                    conn = models[model_key].get('connection', {}) or {}
+                else:
+                    # Fallback to the first model's connection if not specified
+                    conn = next(iter(models.values())).get('connection', {}) or {}
             seol = conn.get('seol', '\r')
             reol = conn.get('reol', '\r')
             drv = cls(
