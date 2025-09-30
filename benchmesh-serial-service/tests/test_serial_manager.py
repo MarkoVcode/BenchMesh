@@ -45,22 +45,27 @@ def make_devices(n=3):
         devs.append({
             'id': f'dev-{i+1}',
             'name': f'Device {i+1}',
-            'driver': 'dummy',
+            'driver': 'owon_oel',
             'port': f'/dev/ttyFAKE{i+1}',
             'baud': 115200,
             'serial': '8N1',
-            'seol': '\r',
-            'reol': '\n',
         })
     return devs
 
 
+def _get_underlying_serial(m: SerialManager, dev_id: str) -> FakeSerial:
+    drv = m.connections[dev_id]
+    return getattr(getattr(drv, 't', None), '_ser', None)
+
+
 def test_establish_connections_opens_all_devices():
     devices = make_devices(4)
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
     assert set(m.connections.keys()) == {d['id'] for d in devices}
-    for dev_id, ser in m.connections.items():
+    for dev_id, drv in m.connections.items():
+        assert hasattr(drv, 't') and getattr(drv.t, 'is_open', False)
+        ser = _get_underlying_serial(m, dev_id)
         assert isinstance(ser, FakeSerial)
         assert ser.is_open is True
 
@@ -73,7 +78,7 @@ def test_establish_connections_tolerates_failures_and_continues():
             raise Exception('open failed')
         return FakeSerial(**kw)
 
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=serial_factory):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=serial_factory):
         m = SerialManager(devices)
     # two should be connected; the failing one may be absent or present with None
     assert devices[0]['id'] in m.connections
@@ -83,7 +88,7 @@ def test_establish_connections_tolerates_failures_and_continues():
 
 def test_check_status_probes_and_leaves_connection_on_no_response():
     devices = make_devices(1)
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
     # No response by default -> connection should remain, just logs
     m.check_status()
@@ -92,9 +97,9 @@ def test_check_status_probes_and_leaves_connection_on_no_response():
 
 def test_check_status_sets_none_on_read_exception():
     devices = make_devices(1)
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
-    ser = m.connections[devices[0]['id']]
+    ser = _get_underlying_serial(m, devices[0]['id'])
     ser._raise_on_read = True
     m.check_status()
     assert m.connections[devices[0]['id']] is None
@@ -102,11 +107,11 @@ def test_check_status_sets_none_on_read_exception():
 
 def test_check_status_writes_probe():
     devices = make_devices(1)
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
-    ser = m.connections[devices[0]['id']]
     m.check_status()
-    # Should have attempted to write a probe (*IDN? or EOL)
+    ser = _get_underlying_serial(m, devices[0]['id'])
+    # Should have attempted to write a probe (*IDN?)
     assert any(w for w in ser._written), 'Expected at least one write during probe'
 
 
@@ -121,11 +126,11 @@ def test_reconnect_backoff_and_successful_reopen(monkeypatch):
             super().__init__(**kw)
 
     # First create manager with a working connection
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
         m = SerialManager(devices)
 
     # Simulate a read failure to drop the connection to None
-    ser = m.connections[devices[0]['id']]
+    ser = _get_underlying_serial(m, devices[0]['id'])
     ser._raise_on_read = True
     m.check_status()
     assert m.connections[devices[0]['id']] is None
@@ -138,7 +143,7 @@ def test_reconnect_backoff_and_successful_reopen(monkeypatch):
 
     # After backoff is satisfied, patch Serial again to succeed and ensure reopen happens
     time.sleep(2.05)
-    with patch('benchmesh_service.serial_manager.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
         m.check_status()
 
     assert m.connections[devices[0]['id']] is not None
