@@ -66,11 +66,15 @@ class SerialTransport:
             raise RuntimeError('Transport not open')
         return self._ser.read(size)
 
-    def read_until_reol(self, max_bytes: int = 4096) -> bytes:
+    def read_until_reol(self, max_bytes: int = 4096) -> str:
         if not self._ser:
             raise RuntimeError('Transport not open')
         if not self.reol:
-            return self._ser.read(max_bytes)
+            data = self._ser.read(max_bytes)
+            try:
+                return data.decode('utf-8', errors='ignore').rstrip('\r\n')
+            except Exception:
+                return ''
         buf = bytearray()
         while len(buf) < max_bytes:
             b = self._ser.read(1)
@@ -79,4 +83,7 @@ class SerialTransport:
             buf += b
             if buf.endswith(self.reol):
                 break
-        return bytes(buf)
+        try:
+            return bytes(buf).decode('utf-8', errors='ignore').rstrip('\r\n')
+        except Exception:
+            return ''

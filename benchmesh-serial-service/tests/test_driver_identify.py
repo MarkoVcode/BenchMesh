@@ -14,7 +14,7 @@ from benchmesh_service.drivers.tenma_72.driver import TenmaPSU
 
 
 class FakeSerial:
-    def __init__(self, port, baudrate=115200, bytesize=None, parity=None, stopbits=None, timeout=1.0):
+    def __init__(self, port, baudrate=115200, bytesize=None, parity=None, stopbits=None, timeout=1.0, xonxoff=False, rtscts=False, dsrdtr=False):
         self.port = port
         self.baudrate = baudrate
         self.is_open = True
@@ -24,6 +24,12 @@ class FakeSerial:
 
     def write(self, data: bytes):
         self._writes.append(bytes(data))
+
+    def setDTR(self, flag: bool):
+        pass
+
+    def setRTS(self, flag: bool):
+        pass
 
     def read(self, n: int = 1) -> bytes:
         if not self._buf:
@@ -39,21 +45,21 @@ class FakeSerial:
 def test_identify_owon_oel_uses_cr_eol():
     with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         d = OwonOEL('/dev/ttyFAKE1', 115200, serial_mode='8N1', seol='\r', reol='\r')
-        idn = d.identify().decode('utf-8', errors='ignore')
+        idn = d.identify()
     assert 'VENDOR' in idn
 
 
 def test_identify_owon_spm_uses_cr_eol():
     with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         d = OWONSPM('/dev/ttyFAKE2', 115200, serial_mode='8N1', seol='\r', reol='\r')
-        idn = d.identify().decode('utf-8', errors='ignore')
+        idn = d.identify()
     assert 'VENDOR' in idn
 
 
 def test_identify_owon_xdm_uses_cr_eol():
     with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         d = OWONXDM('/dev/ttyFAKE3', 115200, serial_mode='8N1', seol='\r', reol='\r')
-        idn = d.identify().decode('utf-8', errors='ignore')
+        idn = d.identify()
     assert 'VENDOR' in idn
 
 
@@ -66,5 +72,5 @@ def test_identify_tenma_empty_eol():
 
     with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: TenmaFake(**kw)):
         d = TenmaPSU('/dev/ttyFAKE4', 9600, serial_mode='8N1', seol='', reol='')
-        idn = d.identify().decode('utf-8', errors='ignore')
+        idn = d.identify()
     assert 'TENMA' in idn or 'OK' in idn

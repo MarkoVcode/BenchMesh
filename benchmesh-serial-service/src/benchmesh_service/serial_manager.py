@@ -281,7 +281,6 @@ class SerialManager:
             if not dev_id:
                 continue
             drv = self.connections.get(dev_id)
-            print(drv.identify())
             if drv is None:
                 last_attempt = self.last_open_attempt.get(dev_id, 0.0)
                 if now - last_attempt >= 2.0:

@@ -12,7 +12,7 @@ from benchmesh_service.serial_manager import SerialManager
 
 
 class FakeSerial:
-    def __init__(self, port, baudrate=115200, bytesize=None, parity=None, stopbits=None, timeout=1.0):
+    def __init__(self, port, baudrate=115200, bytesize=None, parity=None, stopbits=None, timeout=1.0, xonxoff=False, rtscts=False, dsrdtr=False):
         self.port = port
         self.baudrate = baudrate
         self.is_open = True
@@ -28,6 +28,12 @@ class FakeSerial:
         data = self._buf[:size]
         self._buf = self._buf[size:]
         return data
+
+    def setDTR(self, flag: bool):
+        pass
+
+    def setRTS(self, flag: bool):
+        pass
 
     def close(self):
         self.is_open = False
