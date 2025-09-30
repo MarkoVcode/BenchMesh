@@ -72,9 +72,12 @@ class SerialTransport:
         if not self.reol:
             data = self._ser.read(max_bytes)
             try:
-                return data.decode('utf-8', errors='ignore').rstrip('\r\n')
+                text = data.decode('utf-8', errors='ignore')
             except Exception:
                 return ''
+            # Normalize to a single line without trailing EOLs
+            lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+            return lines[0] if lines else ''
         buf = bytearray()
         while len(buf) < max_bytes:
             b = self._ser.read(1)
@@ -84,6 +87,10 @@ class SerialTransport:
             if buf.endswith(self.reol):
                 break
         try:
-            return bytes(buf).decode('utf-8', errors='ignore').rstrip('\r\n')
+            text = bytes(buf).decode('utf-8', errors='ignore')
         except Exception:
             return ''
+        # Strip configured EOL and normalize any CR/LF variations to a single line
+        text = text.rstrip('\r\n')
+        lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+        return lines[0] if lines else ''
