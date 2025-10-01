@@ -13,7 +13,22 @@ class OWONSPM:
         return self.t.read_until_reol(1024)  
 
     def poll_status(self):
-        return {"A": "B"}
+        raw = self.read_status() or ""
+        if isinstance(raw, bytes):
+            raw = raw.decode(errors='ignore')
+        parts = raw.strip().split()
+        result = {}
+        keys = ["UOUT", "IOUT", "POUT", "OVP", "OCP", "OTP", "OM"]
+        for idx, key in enumerate(keys):
+            if idx < len(parts):
+                val = parts[idx]
+                if idx < 3:
+                    try:
+                        val = float(val)
+                    except Exception:
+                        pass
+                result[key] = val
+        return result
 
     def write(self, text: str):
         self.t.write_line(text)
