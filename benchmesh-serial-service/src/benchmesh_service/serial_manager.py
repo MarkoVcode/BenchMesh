@@ -160,23 +160,19 @@ class SerialManager:
                 is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
 
                 if is_open:
-                    # Periodic health probe every 15 seconds; only healthy if instrument responds
-                    last_probe = self.last_probe.get(device_id, 0.0)
-                    if now - last_probe >= 15.0:
+                    # Poll device status every 2 seconds (legacy monitor path)
+                    last_poll = self.last_probe.get(device_id, 0.0)
+                    if now - last_poll >= 2.0:
                         try:
-                            ident = self._try_identify(drv)
-                            if ident:
-                                self.last_ok[device_id] = now
-                                self.last_probe[device_id] = now
-                                self._update_registry(device_id, 'IDN', ident)
-                                logger.debug("Periodic probe OK %s -> %s", device_id, ident)
+                            status = None
+                            if hasattr(drv, 'poll_status'):
+                                status = drv.poll_status()
                             else:
-                                logger.warning("Periodic probe returned no data for %s; marking disconnected", device_id)
-                                try:
-                                    drv.close()
-                                except Exception:
-                                    pass
-                                self.connections[device_id] = None
+                                status = {}
+                            self._update_registry(device_id, 'status', status)
+                            self.last_ok[device_id] = now
+                            self.last_probe[device_id] = now
+                            logger.debug("Polled status for %s -> %s", device_id, status)
                         except Exception:
                             # any error -> mark disconnected and allow reconnect on schedule
                             try:
@@ -216,23 +212,21 @@ class SerialManager:
                 drv = self.connections.get(dev_id)
                 is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
                 if is_open:
-                    last_probe = self.last_probe.get(dev_id, 0.0)
-                    if now - last_probe >= 15.0:
+                    # Poll device status every 2 seconds
+                    last_poll = self.last_probe.get(dev_id, 0.0)
+                    if now - last_poll >= 2.0:
                         try:
-                            ident = self._try_identify(drv)
-                            if ident:
-                                self.last_ok[dev_id] = now
-                                self.last_probe[dev_id] = now
-                                self._update_registry(dev_id, 'IDN', ident)
-                                logger.debug("Periodic probe OK %s -> %s", dev_id, ident)
+                            status = None
+                            if hasattr(drv, 'poll_status'):
+                                status = drv.poll_status()
                             else:
-                                logger.warning("Periodic probe returned no data for %s; marking disconnected", dev_id)
-                                try:
-                                    drv.close()
-                                except Exception:
-                                    pass
-                                self.connections[dev_id] = None
-                        except Exception:
+                                status = {}
+                            self._update_registry(dev_id, 'status', status)
+                            self.last_ok[dev_id] = now
+                            self.last_probe[dev_id] = now
+                            logger.debug("Polled status for %s -> %s", dev_id, status)
+                        except Exception as e:
+                            logger.warning("Status poll failed for %s: %s; marking disconnected", dev_id, e)
                             try:
                                 drv.close()
                             except Exception:
@@ -313,6 +307,16 @@ class SerialManager:
                             return self.t.read_until_reol(1024)
                     drv = _Adapter(drv)
                 self.connections[device_id] = drv
+                # Perform one-time identify on (re)connect
+                try:
+                    ident = self._try_identify(drv)
+                    if ident:
+                        self._update_registry(device_id, 'IDN', ident)
+                        self.last_ok[device_id] = time.time()
+                        self.last_probe[device_id] = self.last_ok[device_id]
+                        logger.debug("Identify on (re)connect %s -> %s", device_id, ident)
+                except Exception as e:
+                    logger.warning("Identify on (re)connect failed for %s: %s", device_id, e)
                 self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
                 return drv
             except Exception as e:

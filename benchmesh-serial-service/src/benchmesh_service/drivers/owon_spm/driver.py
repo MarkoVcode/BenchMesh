@@ -12,6 +12,9 @@ class OWONSPM:
         self.t.write_line('MEAS:ALL:INFO?')
         return self.t.read_until_reol(1024)  
 
+    def poll_status(self):
+        return {"A": "B"}
+
     def write(self, text: str):
         self.t.write_line(text)
 
