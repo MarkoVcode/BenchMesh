@@ -29,10 +29,10 @@ class OWONSPM:
         return self.t.read_until_reol(1024)
 
     def poll_status(self):
-        raw = self.read_status() or ""
+        raw = self.query_status() or ""
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
-        parts = raw.strip().split()
+        parts = raw.strip().split(',')
         result = {}
         keys = ["VOUT", "IOUT", "POUT", "OVP", "OCP", "OTP", "OM"]
         for idx, key in enumerate(keys):
@@ -67,23 +67,23 @@ class OWONSPM:
         return self.t.read_until_reol(1024)
 
     def set_voltage(self, value):  #volts
-        self.t.write_line('VOLT ' + value)
+        self.t.write_line('VOLT ' + str(value))
         return self.t.read_until_reol(1024)
     
     def set_current(self, value):  #amps
-        self.t.write_line('CURR ' + value)
+        self.t.write_line('CURR ' + str(value))
         return self.t.read_until_reol(1024)
 
-    def set_remote(self):
+    def set_remote(self):               #not sure about the usecase
         self.t.write_line('SYST:REM')
         return self.t.read_until_reol(1024)
 
-    def unset_remote(self):
+    def unset_remote(self):             #not sure about the usecase
         self.t.write_line('SYST:LOC')
         return self.t.read_until_reol(1024)        
 
     def set_ocp_value(self, value):
-        self.t.write_line('CURR:LIM ' + value)
+        self.t.write_line('CURR:LIM ' + str(value))
         return self.t.read_until_reol(1024)
     
     def query_ocp(self):
@@ -91,7 +91,7 @@ class OWONSPM:
         return self.t.read_until_reol(1024)
 
     def set_ovp_value(self, value):
-        self.t.write_line('VOLT:LIM ' + value)
+        self.t.write_line('VOLT:LIM ' + str(value))
         return self.t.read_until_reol(1024)
     
     def query_ovp(self):
