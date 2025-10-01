@@ -147,6 +147,13 @@ Examples
 - Call a method with kwargs (JSON object):
   python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output true --kwargs '{"ch":1}' --config config.yaml
 
+Other Examples:
+- python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
+- python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method read_status --config config.yaml
+- python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output --config config.yaml true
+- python -m benchmesh_service.tools.driver_cli call --id spm-1 --method poll_status --config config.yaml
+- ython -m benchmesh_service.tools.driver_cli call --id some-id --method set_voltage 5.0 --kwargs '{"ch":1}' --config config.yaml
+
 Notes
 - Only the targeted device is instantiated to keep testing isolated.
 - Results are printed as JSON when the return type is a collection; otherwise as text.

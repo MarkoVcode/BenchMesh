@@ -12,9 +12,18 @@ def _resolve_config_path(config: str | None) -> str:
     if config is None:
         # default to repo-root config.yaml
         return os.path.join(_repo_root(), 'config.yaml')
-    if not os.path.isabs(config):
-        return os.path.join(_repo_root(), config)
-    return config
+    if os.path.isabs(config):
+        return config
+    # Prefer path relative to the current working directory if it exists
+    cwd_candidate = os.path.abspath(config)
+    if os.path.exists(cwd_candidate):
+        return cwd_candidate
+    # Fallback to repo-root relative path
+    repo_candidate = os.path.join(_repo_root(), config)
+    if os.path.exists(repo_candidate):
+        return repo_candidate
+    # As last resort, return the CWD-resolved path
+    return cwd_candidate
 
 
 def _load_devices_from_config(config_path: str) -> List[Dict[str, Any]]:
@@ -163,18 +172,23 @@ def cmd_methods(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    # Define common options so they can appear before or after subcommands
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument('--config', help='Path to config.yaml (default: repo root config.yaml)')
+
     p = argparse.ArgumentParser(description='BenchMesh driver manual test tool')
+    # Also allow --config before the subcommand
     p.add_argument('--config', help='Path to config.yaml (default: repo root config.yaml)')
     sub = p.add_subparsers(dest='cmd', required=True)
 
-    p_list = sub.add_parser('list', help='List devices from config')
+    p_list = sub.add_parser('list', parents=[common], help='List devices from config')
     p_list.set_defaults(func=cmd_list)
 
-    p_methods = sub.add_parser('methods', help='List public methods of a device driver')
+    p_methods = sub.add_parser('methods', parents=[common], help='List public methods of a device driver')
     p_methods.add_argument('--id', required=True, help='Device id (from config)')
     p_methods.set_defaults(func=cmd_methods)
 
-    p_call = sub.add_parser('call', help='Call a method on a device driver')
+    p_call = sub.add_parser('call', parents=[common], help='Call a method on a device driver')
     p_call.add_argument('--id', required=True, help='Device id (from config)')
     p_call.add_argument('--method', required=True, help='Method name to call')
     p_call.add_argument('args', nargs='*', help='Positional args (auto-coerced)')
