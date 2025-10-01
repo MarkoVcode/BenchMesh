@@ -14,8 +14,20 @@
       "connection": {
         "seol": "",
         "reol": "",
-        "connection_verification_command": "*IDN?"
+        "def_conn_ver_command": "*IDN?"
       },
+      "pooling": [
+        {
+        "command": "VOUT1?",
+        "name": "output_voltage_1",
+        "every": 0.9
+        },
+        {
+        "command": "IOUT1?",
+        "name": "output_current_1",
+        "every": 0.9
+        }
+      ],
       "instrument_class": {
         "PSU": {
           "features": {

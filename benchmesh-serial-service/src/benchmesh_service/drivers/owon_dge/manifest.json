@@ -14,7 +14,7 @@
       "connection": {
         "seol": "\r",
         "reol": "\r",
-        "connection_verification_command": "*IDN?"
+        "def_conn_ver_command": "*IDN?"
       },
       "instrument_class": {
         "AFG": {

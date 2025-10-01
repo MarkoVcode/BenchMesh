@@ -15,8 +15,15 @@
       "connection": {
         "seol": "\r",
         "reol": "\r",
-        "connection_verification_command": "*IDN?"
+        "def_conn_ver_command": "*IDN?"
       },
+      "pooling": [
+        {
+        "command": "MEAS:ALL:INFO?",
+        "name": "status_1",
+        "every": 0.9
+        }
+      ],
       "instrument_class": {
         "PSU": {
           "features": {
