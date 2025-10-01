@@ -38,3 +38,13 @@ def get_status():
     total = len(device_ids)
     connected = sum(1 for did in device_ids if _manager.connections.get(did))
     return {"devices_total": total, "connected": connected, "disconnected": total - connected}
+
+@app.get("/instruments", summary="List instruments and last IDN", response_model=list)
+def list_instruments():
+    global _manager
+    items = []
+    if _manager and getattr(_manager, 'registry', None):
+        for dev_id, data in _manager.registry.items():
+            items.append({"id": dev_id, "IDN": data.get("IDN")})
+    return items
+

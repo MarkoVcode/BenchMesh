@@ -104,6 +104,8 @@ class SerialManager:
         self.last_probe: Dict[str, float] = {}
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
         self.dev_threads: Dict[str, threading.Thread] = {}
+        self.registry: Dict[str, Dict[str, Any]] = {d.get('id'): {} for d in self.devices if d.get('id')}
+        self._last_registry_log: float = 0.0
 
         self.establish_connections()
 
@@ -140,6 +142,11 @@ class SerialManager:
             raise
         return None
 
+    def _update_registry(self, dev_id: str, key: str, value: Any):
+        if dev_id not in self.registry:
+            self.registry[dev_id] = {}
+        self.registry[dev_id][key] = value
+
     def monitor_connections(self):
         print("Starting connection monitor thread.")
         while self.keep_running:
@@ -161,6 +168,7 @@ class SerialManager:
                             if ident:
                                 self.last_ok[device_id] = now
                                 self.last_probe[device_id] = now
+                                self._update_registry(device_id, 'IDN', ident)
                                 logger.debug("Periodic probe OK %s -> %s", device_id, ident)
                             else:
                                 logger.warning("Periodic probe returned no data for %s; marking disconnected", device_id)
@@ -183,6 +191,14 @@ class SerialManager:
                     if now - last_attempt >= 2.0:
                         self.last_open_attempt[device_id] = now
                         self.reconnect(dev)
+
+            # Periodically dump registry at DEBUG
+            if now - self._last_registry_log >= 5.0:
+                self._last_registry_log = now
+                try:
+                    logger.debug("Registry snapshot: %s", json.dumps(self.registry, ensure_ascii=False))
+                except Exception:
+                    logger.debug("Registry snapshot (repr): %r", self.registry)
 
     def _device_worker(self, dev_id: str):
         while self.keep_running:
@@ -207,6 +223,7 @@ class SerialManager:
                             if ident:
                                 self.last_ok[dev_id] = now
                                 self.last_probe[dev_id] = now
+                                self._update_registry(dev_id, 'IDN', ident)
                                 logger.debug("Periodic probe OK %s -> %s", dev_id, ident)
                             else:
                                 logger.warning("Periodic probe returned no data for %s; marking disconnected", dev_id)
@@ -227,6 +244,14 @@ class SerialManager:
                     if now - last_attempt >= 2.0:
                         self.last_open_attempt[dev_id] = now
                         self.reconnect(dev)
+            # Periodically dump registry at DEBUG (per-device)
+            if time.time() - self._last_registry_log >= 5.0:
+                self._last_registry_log = time.time()
+                try:
+                    logger.debug("Registry snapshot: %s", json.dumps(self.registry, ensure_ascii=False))
+                except Exception:
+                    logger.debug("Registry snapshot (repr): %r", self.registry)
+
             time.sleep(0.5)
 
     def reconnect(self, device_or_id):
@@ -367,6 +392,7 @@ class SerialManager:
 
                 if ident:
                     self.last_ok[dev_id] = now
+                    self._update_registry(dev_id, 'IDN', ident)
                     logger.debug("Probe OK %s -> %s", dev_id, ident)
                 else:
                     logger.debug("No response from %s on probe", dev_id)
