@@ -19,7 +19,7 @@
       },
       "pooling": [
         {
-        "command": "MEAS:ALL:INFO?",
+        "command": "read_status",
         "name": "status_1",
         "every": 0.9
         }

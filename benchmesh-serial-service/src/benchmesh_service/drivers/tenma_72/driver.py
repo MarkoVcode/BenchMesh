@@ -9,6 +9,14 @@ class TenmaPSU:
     def identify(self):
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
+    
+    def read_output_voltage(self):
+        self.t.write_line('VOUT1?')
+        return self.t.read_until_reol(1024)
+    
+    def read_output_current(self):
+        self.t.write_line('IOUT1?')
+        return self.t.read_until_reol(1024)   
 
     def write(self, text: str):
         self.t.write_line(text)

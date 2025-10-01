@@ -8,6 +8,10 @@ class OWONSPM:
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
 
+    def read_status(self):
+        self.t.write_line('MEAS:ALL:INFO?')
+        return self.t.read_until_reol(1024)  
+
     def write(self, text: str):
         self.t.write_line(text)
 

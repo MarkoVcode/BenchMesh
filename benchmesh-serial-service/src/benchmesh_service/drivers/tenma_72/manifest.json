@@ -18,14 +18,14 @@
       },
       "pooling": [
         {
-        "command": "VOUT1?",
+        "method": "read_output_voltage",
         "name": "output_voltage_1",
-        "every": 0.9
+        "interval": 0.9
         },
         {
-        "command": "IOUT1?",
+        "method": "read_output_current",
         "name": "output_current_1",
-        "every": 0.9
+        "interval": 0.9
         }
       ],
       "instrument_class": {
