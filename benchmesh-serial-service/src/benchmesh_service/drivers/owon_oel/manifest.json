@@ -11,6 +11,11 @@
       "classes": [
         "ELL"
       ],
+      "connection": {
+        "seol": "\r",
+        "reol": "\r",
+        "connection_verification_command": "*IDN?"
+      },
       "instrument_class": {
         "ELL": {
           "features": {
