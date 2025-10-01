@@ -10,12 +10,33 @@ class TenmaPSU:
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
     
-    def read_output_voltage(self):
+    def query_output_voltage(self):
         self.t.write_line('VOUT1?')
         return self.t.read_until_reol(1024)
     
-    def read_output_current(self):
+    def query_output_current(self):
         self.t.write_line('IOUT1?')
+        return self.t.read_until_reol(1024)
+
+    def query_output_power(self):
+        ##to be implemented
+        self.t.write_line('IOUT1?')
+        return self.t.read_until_reol(1024)
+
+    def query_voltage(self):
+        self.t.write_line('VSET1?')
+        return self.t.read_until_reol(1024)
+    
+    def query_current(self):
+        self.t.write_line('ISET1?')
+        return self.t.read_until_reol(1024)
+
+    def set_voltage(self, value):  #volts
+        self.t.write_line('VSET1:' + value)
+        return self.t.read_until_reol(1024)
+    
+    def set_current(self, value):  #amps
+        self.t.write_line('ISET1:' + value)
         return self.t.read_until_reol(1024)
 
     def read_status(self):
@@ -69,8 +90,47 @@ class TenmaPSU:
         v = self.read_output_voltage()
         i = self.read_output_current()
         s = self.read_status()
-        return {"VOUT1": v, "IOUT1": i, "status": s}
-        
+        return {"VOUT1": v, "IOUT1": i, "status": s}   
+    
+    def set_ocp(self):
+        self.t.write_line('OCP1')
+        return self.t.read_until_reol(1024)
+    
+    def unset_ocp(self):
+        self.t.write_line('OCP0')
+        return self.t.read_until_reol(1024)
+
+    def set_ovp(self):
+        self.t.write_line('OVP1')
+        return self.t.read_until_reol(1024)
+    
+    def unset_ovp(self):
+        self.t.write_line('OVP0')
+        return self.t.read_until_reol(1024)
+
+    def set_output(self):
+        self.t.write_line('OUT1')
+        return self.t.read_until_reol(1024)
+    
+    def unset_output(self):
+        self.t.write_line('OUT0')
+        return self.t.read_until_reol(1024)
+    
+    def set_beep(self):
+        self.t.write_line('BEEP1')
+        return self.t.read_until_reol(1024)
+
+    def unset_beep(self):
+        self.t.write_line('BEEP0')
+        return self.t.read_until_reol(1024)
+
+    def save_memory(self, bank):  #bank 1-5
+        self.t.write_line('SAV' + bank)
+        return self.t.read_until_reol(1024)
+
+    def recall_memory(self, bank):  #bank 1-5
+        self.t.write_line('RCL' + bank)
+        return self.t.read_until_reol(1024)
 
     def write(self, text: str):
         self.t.write_line(text)
