@@ -120,3 +120,35 @@ Notes
   - Reconnect backoff: ~2s between attempts per device
 
 If you’d like, I can export these to PlantUML or generate SVG/PNG artifacts, or embed these diagrams into the repo (e.g., docs/architecture.md).
+
+Manual driver testing (CLI)
+The repository includes a small CLI to manually test driver methods while honoring config.yaml and manifests.
+
+- Module: benchmesh_service.tools.driver_cli
+- Location: benchmesh-serial-service/src/benchmesh_service/tools/driver_cli.py
+
+Usage
+- Ensure you run commands from repo root so Python can resolve benchmesh_service from benchmesh-serial-service/src.
+- If needed, set PYTHONPATH=benchmesh-serial-service/src
+
+Examples
+- List devices from config.yaml:
+  python -m benchmesh_service.tools.driver_cli list --config config.yaml
+
+- List available methods for a device (by id):
+  python -m benchmesh_service.tools.driver_cli methods --id tenmapsu-1 --config config.yaml
+
+- Call a method without args:
+  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
+
+- Call a method with positional args (auto-coerced int/float/bool):
+  python -m benchmesh_service.tools.driver_cli call --id spm-1 --method set_voltage 5.0 --config config.yaml
+
+- Call a method with kwargs (JSON object):
+  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output true --kwargs '{"ch":1}' --config config.yaml
+
+Notes
+- Only the targeted device is instantiated to keep testing isolated.
+- Results are printed as JSON when the return type is a collection; otherwise as text.
+- Bytes responses are decoded to text when possible.
+
