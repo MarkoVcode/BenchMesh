@@ -102,6 +102,8 @@ class SerialManager:
         self.last_open_attempt: Dict[str, float] = {}
         self.last_ok: Dict[str, float] = {}
         self.last_probe: Dict[str, float] = {}
+        self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
+        self.dev_threads: Dict[str, threading.Thread] = {}
 
         self.establish_connections()
 
@@ -126,10 +128,8 @@ class SerialManager:
                 self.logger.info(f"Failed to connect to {device.get('name', device.get('id'))} on {device.get('port')}: {e}")
 
     def _try_identify(self, drv):
-        print(drv.identify())
         try:
             if hasattr(drv, 'identify'):
-                print(drv.identify())
                 return drv.identify()
             t = getattr(drv, 't', None)
             if t:
@@ -183,6 +183,50 @@ class SerialManager:
                     if now - last_attempt >= 2.0:
                         self.last_open_attempt[device_id] = now
                         self.reconnect(dev)
+
+    def _device_worker(self, dev_id: str):
+        while self.keep_running:
+            lock = self.dev_locks.get(dev_id)
+            if not lock:
+                time.sleep(0.5)
+                continue
+            with lock:
+                # Single-device status check and reconnect logic
+                now = time.time()
+                dev = next((d for d in self.devices if d.get('id') == dev_id), None)
+                if not dev:
+                    time.sleep(0.5)
+                    continue
+                drv = self.connections.get(dev_id)
+                is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
+                if is_open:
+                    last_probe = self.last_probe.get(dev_id, 0.0)
+                    if now - last_probe >= 15.0:
+                        try:
+                            ident = self._try_identify(drv)
+                            if ident:
+                                self.last_ok[dev_id] = now
+                                self.last_probe[dev_id] = now
+                                logger.debug("Periodic probe OK %s -> %s", dev_id, ident)
+                            else:
+                                logger.warning("Periodic probe returned no data for %s; marking disconnected", dev_id)
+                                try:
+                                    drv.close()
+                                except Exception:
+                                    pass
+                                self.connections[dev_id] = None
+                        except Exception:
+                            try:
+                                drv.close()
+                            except Exception:
+                                pass
+                            self.connections[dev_id] = None
+                            self.last_probe[dev_id] = now
+                if not is_open or self.connections.get(dev_id) is None:
+                    last_attempt = self.last_open_attempt.get(dev_id, 0.0)
+                    if now - last_attempt >= 2.0:
+                        self.last_open_attempt[dev_id] = now
+                        self.reconnect(dev)
             time.sleep(0.5)
 
     def reconnect(self, device_or_id):
@@ -196,66 +240,84 @@ class SerialManager:
         if not dev or not device_id:
             return None
 
-        # Close existing driver if present
-        try:
-            old = self.connections.get(device_id)
-            if old:
-                close = getattr(old, 'close', None)
-                if callable(close):
-                    close()
-        except Exception:
-            pass
+        lock = self.dev_locks.setdefault(device_id, threading.RLock())
+        with lock:
+            # Close existing driver if present
+            try:
+                old = self.connections.get(device_id)
+                if old:
+                    close = getattr(old, 'close', None)
+                    if callable(close):
+                        close()
+            except Exception:
+                pass
 
-        # Create driver instance using manifest EOL settings and config serial params
-        try:
-            driver_key = dev['driver']
-            cls = _load_driver_class(driver_key)
-            manifest = _load_manifest(driver_key)
-            models = manifest.get('models', {}) or {}
-            conn = {}
-            if isinstance(models, dict) and models:
-                model_key = dev.get('model')
-                if model_key and isinstance(models.get(model_key), dict):
-                    conn = models[model_key].get('connection', {}) or {}
-                else:
-                    # Fallback to the first model's connection if not specified
-                    conn = next(iter(models.values())).get('connection', {}) or {}
-            seol = conn.get('seol', '\r')
-            reol = conn.get('reol', '\r')
-            drv = cls(
-                dev['port'],
-                dev.get('baud', 115200),
-                serial_mode=dev.get('serial', '8N1'),
-                seol=seol,
-                reol=reol,
-            )
-            # If the resolved class is actually the transport (due to missing driver class), wrap into a simple adapter
-            from .transport import SerialTransport
-            if isinstance(drv, SerialTransport):
-                class _Adapter:
-                    def __init__(self, t):
-                        self.t = t
-                    def close(self):
-                        self.t.close()
-                    def identify(self):
-                        self.t.write_line('*IDN?')
-                        return self.t.read_until_reol(1024)
-                drv = _Adapter(drv)
-            self.connections[device_id] = drv
-            self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
-            return drv
-        except Exception as e:
-            self.logger.error(f"Reconnection failed for {dev.get('name', device_id)}: {e}")
-            self.connections[device_id] = None
-            return None
+            # Create driver instance using manifest EOL settings and config serial params
+            try:
+                driver_key = dev['driver']
+                cls = _load_driver_class(driver_key)
+                manifest = _load_manifest(driver_key)
+                models = manifest.get('models', {}) or {}
+                conn = {}
+                if isinstance(models, dict) and models:
+                    model_key = dev.get('model')
+                    if model_key and isinstance(models.get(model_key), dict):
+                        conn = models[model_key].get('connection', {}) or {}
+                    else:
+                        # Fallback to the first model's connection if not specified
+                        conn = next(iter(models.values())).get('connection', {}) or {}
+                seol = conn.get('seol', '\r')
+                reol = conn.get('reol', '\r')
+                drv = cls(
+                    dev['port'],
+                    dev.get('baud', 115200),
+                    serial_mode=dev.get('serial', '8N1'),
+                    seol=seol,
+                    reol=reol,
+                )
+                # If the resolved class is actually the transport (due to missing driver class), wrap into a simple adapter
+                from .transport import SerialTransport
+                if isinstance(drv, SerialTransport):
+                    class _Adapter:
+                        def __init__(self, t):
+                            self.t = t
+                        def close(self):
+                            self.t.close()
+                        def identify(self):
+                            self.t.write_line('*IDN?')
+                            return self.t.read_until_reol(1024)
+                    drv = _Adapter(drv)
+                self.connections[device_id] = drv
+                self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
+                return drv
+            except Exception as e:
+                self.logger.error(f"Reconnection failed for {dev.get('name', device_id)}: {e}")
+                self.connections[device_id] = None
+                return None
 
     def start(self):
         self.establish_connections()
-        monitor_thread = threading.Thread(target=self.monitor_connections)
-        monitor_thread.start()
+        # Start one worker thread per device for concurrent monitoring
+        for dev in self.devices:
+            dev_id = dev.get('id')
+            if not dev_id:
+                continue
+            if dev_id in self.dev_threads and self.dev_threads[dev_id].is_alive():
+                continue
+            t = threading.Thread(target=self._device_worker, args=(dev_id,), name=f"dev-worker-{dev_id}", daemon=True)
+            self.dev_threads[dev_id] = t
+            t.start()
+        # Keep legacy monitor if needed for any global duties (optional). Can be disabled if redundant.
+        # threading.Thread(target=self.monitor_connections, daemon=True).start()
 
     def stop(self):
         self.keep_running = False
+        # Join worker threads
+        for dev_id, t in list(self.dev_threads.items()):
+            try:
+                t.join(timeout=1.0)
+            except Exception:
+                pass
         for drv in self.connections.values():
             try:
                 drv.close()
