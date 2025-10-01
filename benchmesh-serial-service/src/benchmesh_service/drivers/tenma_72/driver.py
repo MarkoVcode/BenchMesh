@@ -70,6 +70,7 @@ class TenmaPSU:
         i = self.read_output_current()
         s = self.read_status()
         return {"VOUT1": v, "IOUT1": i, "status": s}
+        
 
     def write(self, text: str):
         self.t.write_line(text)
