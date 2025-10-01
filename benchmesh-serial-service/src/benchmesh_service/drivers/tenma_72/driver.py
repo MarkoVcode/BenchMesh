@@ -66,7 +66,10 @@ class TenmaPSU:
         }
 
     def poll_status(self):
-        return {"A": "B"}
+        v = self.read_output_voltage()
+        i = self.read_output_current()
+        s = self.read_status()
+        return {"VOUT1": v, "IOUT1": i, "status": s}
 
     def write(self, text: str):
         self.t.write_line(text)
