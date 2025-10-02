@@ -107,10 +107,16 @@ class TenmaPSU:
         }
 
     def poll_status(self):
+        p = None
         v = self.query_output_voltage()
         i = self.query_output_current()
+        fv = self._parse_numeric(v)
+        fi = self._parse_numeric(i)
+        if fv is None or fi is None:
+            p = None
+        p = fv * fi
         s = self.query_status()
-        result = {"VOUT1": v, "IOUT1": i}
+        result = {"VOUT1": v, "IOUT1": i, "POUT1": p}
         if isinstance(s, dict):
             result.update(s)
         return result   
