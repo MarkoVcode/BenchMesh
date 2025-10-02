@@ -1,3 +1,4 @@
+import re
 from ...transport import SerialTransport
 from ...logger import logger
 
@@ -18,10 +19,29 @@ class TenmaPSU:
         self.t.write_line('IOUT1?')
         return self.t.read_until_reol(1024)
 
+    def _parse_numeric(self, s):
+        if s is None:
+            return None
+        if isinstance(s, bytes):
+            try:
+                s = s.decode('utf-8', 'ignore')
+            except Exception:
+                return None
+        s = str(s).strip()
+        m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", s)
+        try:
+            return float(m.group(0)) if m else None
+        except Exception:
+            return None
+
     def query_output_power(self):
-        ##to be implemented calculation of V*I
-        self.t.write_line('IOUT1?')
-        return self.t.read_until_reol(1024)
+        v = self.query_output_voltage()
+        i = self.query_output_current()
+        fv = self._parse_numeric(v)
+        fi = self._parse_numeric(i)
+        if fv is None or fi is None:
+            return None
+        return fv * fi
 
     def query_voltage(self):
         self.t.write_line('VSET1?')
@@ -90,7 +110,10 @@ class TenmaPSU:
         v = self.query_output_voltage()
         i = self.query_output_current()
         s = self.query_status()
-        return {"VOUT1": v, "IOUT1": i, "status": s}   
+        result = {"VOUT1": v, "IOUT1": i}
+        if isinstance(s, dict):
+            result.update(s)
+        return result   
     
     def set_ocp(self):
         self.t.write_line('OCP1')
