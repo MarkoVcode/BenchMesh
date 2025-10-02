@@ -118,12 +118,12 @@ def call_driver_get(klass: str, device_id: str, channel: str, method: str):
     try:
         if lock:
             with lock:
-                getattr(drv, method)()
+                value = getattr(drv, method)()
         else:
-            getattr(drv, method)()
+            value = getattr(drv, method)()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
-    return Response(status_code=204)
+    return {"path": f"/instruments/{klass}/{device_id}/{channel}/{method}", "value": value}
 
 
 @app.post("/instruments/{klass}/{device_id}/{channel}/{method}/{param}", summary="Call driver method (write)")

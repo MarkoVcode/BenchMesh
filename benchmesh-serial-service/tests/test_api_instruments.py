@@ -48,8 +48,12 @@ def client_with_fake_mgr(monkeypatch):
 
 def test_get_instrument_method_success(client_with_fake_mgr):
     client, fake = client_with_fake_mgr
-    r = client.get("/instruments/PSU/tenmapsu-1/1/identify")
-    assert r.status_code == 204
+    path = "/instruments/PSU/tenmapsu-1/1/identify"
+    r = client.get(path)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["path"] == path
+    assert body["value"] == "FAKE,IDN"
     assert ("identify", ()) in fake.connections["tenmapsu-1"].calls
 
 
