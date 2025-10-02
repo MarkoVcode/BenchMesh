@@ -120,11 +120,23 @@ def list_instruments():
                 model_cfg = next(iter(models.values()))
             if isinstance(model_cfg, dict):
                 inst_class_block = model_cfg.get('instrument_class') or {}
-                for klass, klass_cfg in inst_class_block.items():
-                    features = (klass_cfg or {}).get('features') or {}
-                    channels = int(features.get('channels', 1) or 1)
+                declared_classes = model_cfg.get('classes') or []
+                # Union of keys present in instrument_class and declared classes list
+                klass_keys = set(inst_class_block.keys()) | {c for c in declared_classes if isinstance(c, str)}
+                valid = _load_valid_classes()
+                for klass in sorted(klass_keys):
+                    # Only include known 3-letter classes
+                    if klass not in valid:
+                        continue
+                    klass_cfg = inst_class_block.get(klass) or {}
+                    features = klass_cfg.get('features') or {}
+                    try:
+                        channels = int(features.get('channels', 1) or 1)
+                    except Exception:
+                        channels = 1
+                    channels = max(1, channels)
                     # Build channel paths
-                    ch_paths = [f"/instruments/{klass}/{dev_id}/{i+1}" for i in range(max(1, channels))]
+                    ch_paths = [f"/instruments/{klass}/{dev_id}/{i+1}" for i in range(channels)]
                     classes_list.append({
                         "class": klass,
                         "channels": ch_paths,
