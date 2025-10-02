@@ -13,7 +13,6 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: true
                 type: object
                 title: Response Get Status Status Get
   /instruments:
@@ -34,30 +33,30 @@ paths:
       summary: Call driver method (read-only)
       operationId: call_driver_get_instruments__klass___device_id___channel___method__get
       parameters:
-      - name: klass
-        in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Klass
-      - name: device_id
+        name: klass
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Device Id
-      - name: channel
+        name: device_id
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Channel
-      - name: method
+        name: channel
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Method
+        name: method
+        in: path
       responses:
         '200':
           description: Successful Response
@@ -75,36 +74,36 @@ paths:
       summary: Call driver method (write)
       operationId: call_driver_post_instruments__klass___device_id___channel___method___param__post
       parameters:
-      - name: klass
-        in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Klass
-      - name: device_id
+        name: klass
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Device Id
-      - name: channel
+        name: device_id
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Channel
-      - name: method
+        name: channel
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Method
-      - name: param
+        name: method
         in: path
-        required: true
+      - required: true
         schema:
           type: string
           title: Param
+        name: param
+        in: path
       responses:
         '200':
           description: Successful Response

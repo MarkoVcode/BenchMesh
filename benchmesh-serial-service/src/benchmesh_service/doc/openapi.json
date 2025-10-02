@@ -15,7 +15,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Get Status Status Get"
                 }
@@ -51,40 +50,40 @@
         "operationId": "call_driver_get_instruments__klass___device_id___channel___method__get",
         "parameters": [
           {
-            "name": "klass",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Klass"
-            }
+            },
+            "name": "klass",
+            "in": "path"
           },
           {
-            "name": "device_id",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Device Id"
-            }
+            },
+            "name": "device_id",
+            "in": "path"
           },
           {
-            "name": "channel",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Channel"
-            }
+            },
+            "name": "channel",
+            "in": "path"
           },
           {
-            "name": "method",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Method"
-            }
+            },
+            "name": "method",
+            "in": "path"
           }
         ],
         "responses": {
@@ -115,49 +114,49 @@
         "operationId": "call_driver_post_instruments__klass___device_id___channel___method___param__post",
         "parameters": [
           {
-            "name": "klass",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Klass"
-            }
+            },
+            "name": "klass",
+            "in": "path"
           },
           {
-            "name": "device_id",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Device Id"
-            }
+            },
+            "name": "device_id",
+            "in": "path"
           },
           {
-            "name": "channel",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Channel"
-            }
+            },
+            "name": "channel",
+            "in": "path"
           },
           {
-            "name": "method",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Method"
-            }
+            },
+            "name": "method",
+            "in": "path"
           },
           {
-            "name": "param",
-            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Param"
-            }
+            },
+            "name": "param",
+            "in": "path"
           }
         ],
         "responses": {
