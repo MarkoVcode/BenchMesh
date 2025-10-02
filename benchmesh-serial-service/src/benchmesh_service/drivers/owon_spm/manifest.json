@@ -26,7 +26,7 @@
       "instrument_class": {
         "PSU": {
           "features": {
-            "channels": 2,
+            "channels": 1,
             "memory_banks": 4,
             "memory_storage": [
               "V",
