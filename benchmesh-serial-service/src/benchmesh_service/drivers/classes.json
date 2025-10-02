@@ -6,8 +6,8 @@
       "description": "Digital Multimeter",
       "reference": "https://en.wikipedia.org/wiki/Multimeter"
     },
-    "AFG": {
-      "description": "Arbitrary Function Generator",
+    "AWG": {
+      "description": "Arbitrary Waveform Generator",
       "reference": "https://en.wikipedia.org/wiki/Function_generator"
     },
     "PSU": {
