@@ -1,0 +1,151 @@
+openapi: 3.1.0
+info:
+  title: BenchMesh Serial Service
+  version: 0.1.0
+paths:
+  /status:
+    get:
+      summary: Service status
+      operationId: get_status_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Get Status Status Get
+  /instruments:
+    get:
+      summary: List instruments and last IDN
+      operationId: list_instruments_instruments_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items: {}
+                type: array
+                title: Response List Instruments Instruments Get
+  /instruments/{klass}/{device_id}/{channel}/{method}:
+    get:
+      summary: Call driver method (read-only)
+      operationId: call_driver_get_instruments__klass___device_id___channel___method__get
+      parameters:
+      - name: klass
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Klass
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Device Id
+      - name: channel
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel
+      - name: method
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Method
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /instruments/{klass}/{device_id}/{channel}/{method}/{param}:
+    post:
+      summary: Call driver method (write)
+      operationId: call_driver_post_instruments__klass___device_id___channel___method___param__post
+      parameters:
+      - name: klass
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Klass
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Device Id
+      - name: channel
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Channel
+      - name: method
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Method
+      - name: param
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Param
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
