@@ -1,8 +1,8 @@
 import os
 import json
-from typing import Any
+from typing import Any, Dict, List
 from fastapi import FastAPI, HTTPException, Response
-from .serial_manager import SerialManager
+from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
 
 app = FastAPI(title="BenchMesh Serial Service", version="0.1.0")
@@ -89,9 +89,50 @@ def get_status():
 def list_instruments():
     global _manager
     items = []
-    if _manager and getattr(_manager, 'registry', None):
-        for dev_id, data in _manager.registry.items():
-            items.append({"id": dev_id, "IDN": data.get("IDN")})
+    if not _manager:
+        return items
+
+    registry = getattr(_manager, 'registry', {}) or {}
+    for dev in _manager.devices:
+        dev_id = dev.get('id')
+        if not dev_id:
+            continue
+        entry: Dict[str, Any] = {"id": dev_id}
+        reg_data = registry.get(dev_id, {})
+        if 'IDN' in reg_data:
+            entry['IDN'] = reg_data['IDN']
+
+        # Attempt to populate classes/channels from manifest based on device driver and model
+        try:
+            driver_key = dev.get('driver')
+            manifest = _load_manifest(driver_key) if driver_key else None
+        except Exception:
+            manifest = None
+        classes_list: List[Dict[str, Any]] = []
+        if isinstance(manifest, dict):
+            models = manifest.get('models') or {}
+            model_key = dev.get('model')
+            model_cfg = None
+            if model_key and isinstance(models.get(model_key), dict):
+                model_cfg = models.get(model_key)
+            elif isinstance(models, dict) and models:
+                # fallback to first model entry
+                model_cfg = next(iter(models.values()))
+            if isinstance(model_cfg, dict):
+                inst_class_block = model_cfg.get('instrument_class') or {}
+                for klass, klass_cfg in inst_class_block.items():
+                    features = (klass_cfg or {}).get('features') or {}
+                    channels = int(features.get('channels', 1) or 1)
+                    # Build channel paths
+                    ch_paths = [f"/instruments/{klass}/{dev_id}/{i+1}" for i in range(max(1, channels))]
+                    classes_list.append({
+                        "class": klass,
+                        "channels": ch_paths,
+                    })
+        if classes_list:
+            entry['classes'] = classes_list
+
+        items.append(entry)
     return items
 
 

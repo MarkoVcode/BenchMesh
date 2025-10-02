@@ -18,13 +18,7 @@
       },
       "pooling": [
         {
-        "method": "read_output_voltage",
-        "name": "output_voltage_1",
-        "interval": 0.9
-        },
-        {
-        "method": "read_output_current",
-        "name": "output_current_1",
+        "method": "poll_status",
         "interval": 0.9
         }
       ],

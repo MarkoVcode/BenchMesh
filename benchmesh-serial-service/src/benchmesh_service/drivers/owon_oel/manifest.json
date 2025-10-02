@@ -18,24 +18,8 @@
       },
       "pooling": [
         {
-          "command": "MEAS:VOLT?",
-          "name": "output_voltage_1",
-          "every": 0.9
-        },
-        {
-          "command": "MEAS:CURR?",
-          "name": "output_current_1",
-          "every": 0.9
-        },
-        {
-          "command": "MEAS:POWer?",
-          "name": "output_power_1",
-          "every": 0.9
-        },
-        {
-          "command": "MEAS:ALL:INFO?",
-          "name": "output_status_1",
-          "every": 0.9
+        "method": "poll_status",
+        "interval": 0.9
         }
       ],
       "instrument_class": {
