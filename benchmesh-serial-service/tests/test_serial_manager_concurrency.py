@@ -108,7 +108,7 @@ def test_single_reconnect_attempt_per_window():
                 class T:
                     is_open = True
                 t = T()
-                def poll_status(self):
+                def poll_status(self, channel=1):
                     return {"ok": True}
                 def close(self):
                     pass
@@ -153,7 +153,7 @@ def test_poll_failure_drops_connection_and_triggers_reconnect():
                 class T:
                     is_open = True
                 t = T()
-                def poll_status(self):
+                def poll_status(self, channel=1):
                     return {"ok": True}
                 def close(self):
                     pass

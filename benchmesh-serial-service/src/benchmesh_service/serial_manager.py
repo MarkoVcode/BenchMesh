@@ -36,6 +36,42 @@ def _load_manifest(driver_key: str) -> Dict:
         return json.load(f)
 
 
+
+
+def _get_channel_count(dev: dict) -> int:
+    try:
+        driver_key = dev.get("driver")
+        manifest = _load_manifest(driver_key) if driver_key else None
+        if not isinstance(manifest, dict):
+            return 1
+        models = manifest.get("models") or {}
+        model_key = dev.get("model")
+        model_cfg = None
+        if model_key and isinstance(models.get(model_key), dict):
+            model_cfg = models.get(model_key)
+        elif isinstance(models, dict) and models:
+            model_cfg = next(iter(models.values()))
+        if not isinstance(model_cfg, dict):
+            return 1
+        inst_class_block = model_cfg.get("instrument_class") or {}
+        declared_classes = model_cfg.get("classes") or []
+        klass_keys = set(inst_class_block.keys()) | {c for c in declared_classes if isinstance(c, str)}
+        # Prefer PSU if present; otherwise pick first available class entry
+        preferred = ["PSU", "DMM", "ELL", "AFG"]
+        chosen = None
+        for k in preferred:
+            if k in inst_class_block:
+                chosen = k
+                break
+        if not chosen:
+            chosen = next(iter(inst_class_block.keys()), None)
+        if not chosen:
+            return 1
+        features = (inst_class_block.get(chosen) or {}).get("features") or {}
+        ch = int(features.get("channels", 1) or 1)
+        return max(1, ch)
+    except Exception:
+        return 1
 def _load_driver_class(driver_key: str):
     """Load a driver class given its key.
 
@@ -105,6 +141,7 @@ class SerialManager:
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
         self.dev_threads: Dict[str, threading.Thread] = {}
         self.registry: Dict[str, Dict[str, Any]] = {d.get('id'): {} for d in self.devices if d.get('id')}
+        self.dev_channels: Dict[str, int] = {}
         self._last_registry_log: float = 0.0
 
         self.establish_connections()
@@ -164,12 +201,22 @@ class SerialManager:
                     last_poll = self.last_probe.get(device_id, 0.0)
                     if now - last_poll >= 2.0:
                         try:
-                            status = None
-                            if hasattr(drv, 'poll_status'):
-                                status = drv.poll_status(1)
-                            else:
-                                status = {}
-                            self._update_registry(device_id, 'status', status)
+                            # Determine channel count for this device and poll per channel
+                            ch_count = self.dev_channels.get(device_id)
+                            if not ch_count:
+                                ch_count = _get_channel_count(dev)
+                                self.dev_channels[device_id] = ch_count
+                            # poll each channel and store under status_ch{n}
+                            for ch in range(1, max(1, ch_count)+1):
+                                try:
+                                    if hasattr(drv, 'poll_status'):
+                                        status = drv.poll_status(ch)
+                                    else:
+                                        status = {}
+                                    key = f'status_ch{ch}'
+                                    self._update_registry(device_id, key, status)
+                                except Exception as _e:
+                                    raise
                             self.last_ok[device_id] = now
                             self.last_probe[device_id] = now
                             logger.debug("Polled status for %s -> %s", device_id, status)
