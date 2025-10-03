@@ -9,6 +9,9 @@ class OWONXDM:
         return self.t.read_until_reol(1024)
 
     def poll_status(self, channel: int):
+        raw = self.identify() or ""
+        if raw is "" or raw is None:
+            return None
         return {"A": "B"}
 
     def write(self, data: bytes):

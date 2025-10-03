@@ -91,6 +91,7 @@ class TenmaPSU:
         }
 
     def poll_status(self, channel: int):
+        print ("Polling status for channel", channel)
         p = None
         v = self.query_output_voltage(channel)
         i = self.query_output_current(channel)

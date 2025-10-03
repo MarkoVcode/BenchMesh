@@ -30,6 +30,8 @@ class OWONSPM:
 
     def poll_status(self, channel: int):
         raw = self.query_status(channel) or ""
+        if raw is "" or raw is None:
+            return None
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
@@ -44,7 +46,10 @@ class OWONSPM:
                     except Exception:
                         pass
                 result[key] = val
+        print("POLL STATUS EXECUTED")
         return result
+
+
 
     def set_output(self, channel: int):
         self.t.write_line('OUTP ON')
