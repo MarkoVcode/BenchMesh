@@ -8,28 +8,28 @@ class OWONSPM:
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
 
-    def query_output_voltage(self):
+    def query_output_voltage(self, channel: int):
         self.t.write_line('MEAS:VOLT?')
         return self.t.read_until_reol(1024)
     
-    def query_output_current(self):
+    def query_output_current(self, channel: int):
         self.t.write_line('MEAS:CURR?')
         return self.t.read_until_reol(1024)
 
-    def query_output_power(self):
+    def query_output_power(self, channel: int):
         self.t.write_line('MEAS:POW?')
         return self.t.read_until_reol(1024)
 
-    def query_status(self):
+    def query_status(self, channel: int):
         self.t.write_line('MEAS:ALL:INFO?')
         return self.t.read_until_reol(1024)
 
-    def query_output_all(self):
+    def query_output_all(self, channel: int):
         self.t.write_line('MEASure:ALL?')
         return self.t.read_until_reol(1024)
 
-    def poll_status(self):
-        raw = self.query_status() or ""
+    def poll_status(self, channel: int):
+        raw = self.query_status(channel) or ""
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
@@ -46,55 +46,55 @@ class OWONSPM:
                 result[key] = val
         return result
 
-    def set_output(self):
+    def set_output(self, channel: int):
         self.t.write_line('OUTP ON')
         return self.t.read_until_reol(1024)
     
-    def unset_output(self):
+    def unset_output(self, channel: int):
         self.t.write_line('OUTP OFF')
         return self.t.read_until_reol(1024)
 
-    def query_output(self):
+    def query_output(self, channel: int):
         self.t.write_line('OUTP?')
         return self.t.read_until_reol(1024) 
 
-    def query_voltage(self):
+    def query_voltage(self, channel: int):
         self.t.write_line('VOLT?')
         return self.t.read_until_reol(1024)
     
-    def query_current(self):
+    def query_current(self, channel: int):
         self.t.write_line('CURR?')
         return self.t.read_until_reol(1024)
 
-    def set_voltage(self, value):  #volts
+    def set_voltage(self, channel: int, value):  #volts
         self.t.write_line('VOLT ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def set_current(self, value):  #amps
+    def set_current(self, channel: int, value):  #amps
         self.t.write_line('CURR ' + str(value))
         return self.t.read_until_reol(1024)
 
-    def set_remote(self):               #not sure about the usecase
+    def set_remote(self, channel: int):               #not sure about the usecase
         self.t.write_line('SYST:REM')
         return self.t.read_until_reol(1024)
 
-    def unset_remote(self):             #not sure about the usecase
+    def unset_remote(self, channel: int):             #not sure about the usecase
         self.t.write_line('SYST:LOC')
         return self.t.read_until_reol(1024)        
 
-    def set_ocp_value(self, value):
+    def set_ocp_value(self, channel: int, value):
         self.t.write_line('CURR:LIM ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def query_ocp(self):
+    def query_ocp(self, channel: int):
         self.t.write_line('CURR:LIM?')
         return self.t.read_until_reol(1024)
 
-    def set_ovp_value(self, value):
+    def set_ovp_value(self, channel: int, value):
         self.t.write_line('VOLT:LIM ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def query_ovp(self):
+    def query_ovp(self, channel: int):
         self.t.write_line('VOLT:LIM?')
         return self.t.read_until_reol(1024)
 

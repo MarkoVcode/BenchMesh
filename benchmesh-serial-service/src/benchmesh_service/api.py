@@ -168,12 +168,26 @@ def call_driver_get(klass: str, device_id: str, channel: str, method: str):
 
     # Execute under device lock to avoid races with polling
     lock = _manager.dev_locks.get(device_id) if _manager else None
+    import inspect
+    ch = int(channel)
+    func = getattr(drv, method)
     try:
         if lock:
             with lock:
-                value = getattr(drv, method)()
+                sig = inspect.signature(func)
+                params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+                # Bound method: signature excludes self
+                if len(params) >= 1:
+                    value = func(ch)
+                else:
+                    value = func()
         else:
-            value = getattr(drv, method)()
+            sig = inspect.signature(func)
+            params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+            if len(params) >= 1:
+                value = func(ch)
+            else:
+                value = func()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
     return {"path": f"/instruments/{klass}/{device_id}/{channel}/{method}", "value": value}
@@ -197,15 +211,32 @@ def call_driver_post(klass: str, device_id: str, channel: str, method: str, para
     if not hasattr(drv, method) or not callable(getattr(drv, method)):
         raise HTTPException(status_code=400, detail="Unknown or non-callable driver method")
 
+    import inspect
     arg = _coerce_arg(param)
+    ch = int(channel)
+    func = getattr(drv, method)
 
     lock = _manager.dev_locks.get(device_id) if _manager else None
     try:
         if lock:
             with lock:
-                getattr(drv, method)(arg)
+                sig = inspect.signature(func)
+                params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+                if len(params) >= 2:
+                    func(ch, arg)
+                elif len(params) == 1:
+                    func(arg)
+                else:
+                    func()
         else:
-            getattr(drv, method)(arg)
+            sig = inspect.signature(func)
+            params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+            if len(params) >= 2:
+                func(ch, arg)
+            elif len(params) == 1:
+                func(arg)
+            else:
+                func()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
     return Response(status_code=204)

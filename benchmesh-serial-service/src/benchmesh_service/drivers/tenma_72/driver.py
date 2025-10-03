@@ -10,40 +10,40 @@ class TenmaPSU:
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
     
-    def query_output_voltage(self):
+    def query_output_voltage(self, channel: int):
         self.t.write_line('VOUT1?')
         return self.t.read_until_reol(1024)
     
-    def query_output_current(self):
+    def query_output_current(self, channel: int):
         self.t.write_line('IOUT1?')
         return self.t.read_until_reol(1024)
 
-    def query_output_power(self):
-        v = self.query_output_voltage()
-        i = self.query_output_current()
+    def query_output_power(self, channel: int):
+        v = self.query_output_voltage(channel)
+        i = self.query_output_current(channel)
         fv = self._parse_numeric(v)
         fi = self._parse_numeric(i)
         if fv is None or fi is None:
             return None
         return fv * fi
 
-    def query_voltage(self):
+    def query_voltage(self, channel: int):
         self.t.write_line('VSET1?')
         return self.t.read_until_reol(1024)
     
-    def query_current(self):
+    def query_current(self, channel: int):
         self.t.write_line('ISET1?')
         return self.t.read_until_reol(1024)
 
-    def set_voltage(self, value):  #volts
+    def set_voltage(self, channel: int, value):  #volts
         self.t.write_line('VSET1:' + str(value))
         return self.t.read_until_reol(1024)
     
-    def set_current(self, value):  #amps
+    def set_current(self, channel: int, value):  #amps
         self.t.write_line('ISET1:' + str(value))
         return self.t.read_until_reol(1024)
 
-    def query_status(self):
+    def query_status(self, channel: int):
         """
         Query and parse the binary STATUS response.
 
@@ -90,58 +90,58 @@ class TenmaPSU:
             "outEnabled": out,
         }
 
-    def poll_status(self):
+    def poll_status(self, channel: int):
         p = None
-        v = self.query_output_voltage()
-        i = self.query_output_current()
+        v = self.query_output_voltage(channel)
+        i = self.query_output_current(channel)
         fv = self._parse_numeric(v)
         fi = self._parse_numeric(i)
         if fv is None or fi is None:
             p = None
         p = fv * fi
-        s = self.query_status()
+        s = self.query_status(channel)
         result = {"VOUT1": v, "IOUT1": i, "POUT1": p}
         if isinstance(s, dict):
             result.update(s)
         return result   
     
-    def set_ocp(self):
+    def set_ocp(self, channel: int):
         self.t.write_line('OCP1')
         return self.t.read_until_reol(1024)
     
-    def unset_ocp(self):
+    def unset_ocp(self, channel: int):
         self.t.write_line('OCP0')
         return self.t.read_until_reol(1024)
 
-    def set_ovp(self):
+    def set_ovp(self, channel: int):
         self.t.write_line('OVP1')
         return self.t.read_until_reol(1024)
     
-    def unset_ovp(self):
+    def unset_ovp(self, channel: int):
         self.t.write_line('OVP0')
         return self.t.read_until_reol(1024)
 
-    def set_output(self):
+    def set_output(self, channel: int):
         self.t.write_line('OUT1')
         return self.t.read_until_reol(1024)
     
-    def unset_output(self):
+    def unset_output(self, channel: int):
         self.t.write_line('OUT0')
         return self.t.read_until_reol(1024)
     
-    def set_beep(self):           #doesnt work
+    def set_beep(self, channel: int):           #doesnt work
         self.t.write_line('BEEP1')
         return self.t.read_until_reol(1024)
 
-    def unset_beep(self):         #doesnt work
+    def unset_beep(self, channel: int):         #doesnt work
         self.t.write_line('BEEP0')
         return self.t.read_until_reol(1024)
 
-    def save_memory(self, bank):  #bank 1-5 - doesnt work
+    def save_memory(self, channel: int, bank):  #bank 1-5 - doesnt work
         self.t.write_line('SAV' + str(bank))
         return self.t.read_until_reol(1024)
 
-    def recall_memory(self, bank):  #bank 1-5
+    def recall_memory(self, channel: int, bank):  #bank 1-5
         self.t.write_line('RCL' + str(bank))
         self.t.read_until_reol(1024)
         return

@@ -8,7 +8,7 @@ class OwonOEL:
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
 
-    def poll_status(self):
+    def poll_status(self, channel: int):
         return {"A": "B"}
 
     def write(self, data: bytes):

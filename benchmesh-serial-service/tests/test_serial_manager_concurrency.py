@@ -70,7 +70,7 @@ def test_per_device_threads_poll_independently():
         for d in devices:
             drv = _get_driver(m, d['id'])
             def _make_stub(dev_id):
-                def stub():
+                def stub(channel=1):
                     calls[dev_id] += 1
                     events[dev_id].set()
                     return {"ok": True, "dev": dev_id}
@@ -134,7 +134,7 @@ def test_poll_failure_drops_connection_and_triggers_reconnect():
 
         # Cause poll_status to fail
         drv = _get_driver(m, dev_id)
-        def failing_poll():
+        def failing_poll(channel=1):
             raise RuntimeError('boom')
         drv.poll_status = failing_poll  # type: ignore[attr-defined]
         # Ensure the device worker tries immediately but prevent instant reconnect

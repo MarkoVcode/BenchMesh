@@ -15,7 +15,7 @@ class FakeDriver:
         self.calls.append(("identify", ()))
         return "FAKE,IDN"
 
-    def set_output(self, v):
+    def set_output(self, ch, v):
         self.calls.append(("set_output", (v,)))
         self.last_arg = v
         return None

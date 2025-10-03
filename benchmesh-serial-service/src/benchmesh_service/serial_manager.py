@@ -166,7 +166,7 @@ class SerialManager:
                         try:
                             status = None
                             if hasattr(drv, 'poll_status'):
-                                status = drv.poll_status()
+                                status = drv.poll_status(1)
                             else:
                                 status = {}
                             self._update_registry(device_id, 'status', status)
@@ -218,7 +218,7 @@ class SerialManager:
                         try:
                             status = None
                             if hasattr(drv, 'poll_status'):
-                                status = drv.poll_status()
+                                status = drv.poll_status(1)
                             else:
                                 status = {}
                             self._update_registry(dev_id, 'status', status)
