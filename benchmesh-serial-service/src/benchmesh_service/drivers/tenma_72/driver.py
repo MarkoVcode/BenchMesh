@@ -1,6 +1,5 @@
 import re
 from ...transport import SerialTransport
-from ...logger import logger
 
 class TenmaPSU:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='', reol=''):
@@ -18,21 +17,6 @@ class TenmaPSU:
     def query_output_current(self):
         self.t.write_line('IOUT1?')
         return self.t.read_until_reol(1024)
-
-    def _parse_numeric(self, s):
-        if s is None:
-            return None
-        if isinstance(s, bytes):
-            try:
-                s = s.decode('utf-8', 'ignore')
-            except Exception:
-                return None
-        s = str(s).strip()
-        m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", s)
-        try:
-            return float(m.group(0)) if m else None
-        except Exception:
-            return None
 
     def query_output_power(self):
         v = self.query_output_voltage()
@@ -161,6 +145,21 @@ class TenmaPSU:
         self.t.write_line('RCL' + str(bank))
         self.t.read_until_reol(1024)
         return
+
+    def _parse_numeric(self, s):
+        if s is None:
+            return None
+        if isinstance(s, bytes):
+            try:
+                s = s.decode('utf-8', 'ignore')
+            except Exception:
+                return None
+        s = str(s).strip()
+        m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", s)
+        try:
+            return float(m.group(0)) if m else None
+        except Exception:
+            return None
 
     def write(self, text: str):
         self.t.write_line(text)

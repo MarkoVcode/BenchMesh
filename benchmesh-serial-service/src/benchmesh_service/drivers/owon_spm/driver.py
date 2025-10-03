@@ -8,10 +8,6 @@ class OWONSPM:
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
 
-    def query_status(self):
-        self.t.write_line('MEAS:ALL:INFO?')
-        return self.t.read_until_reol(1024)
-
     def query_output_voltage(self):
         self.t.write_line('MEAS:VOLT?')
         return self.t.read_until_reol(1024)
@@ -22,6 +18,10 @@ class OWONSPM:
 
     def query_output_power(self):
         self.t.write_line('MEAS:POW?')
+        return self.t.read_until_reol(1024)
+
+    def query_status(self):
+        self.t.write_line('MEAS:ALL:INFO?')
         return self.t.read_until_reol(1024)
 
     def query_output_all(self):
