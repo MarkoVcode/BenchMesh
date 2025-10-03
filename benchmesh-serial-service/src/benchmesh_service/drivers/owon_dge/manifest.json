@@ -23,7 +23,7 @@
         }
       ],
       "instrument_class": {
-        "AFG": {
+        "AWG": {
           "features": {
             "lock": true,
             "channels": 2
