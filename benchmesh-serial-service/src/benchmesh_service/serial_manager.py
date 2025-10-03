@@ -10,6 +10,8 @@ import yaml
 from .logger import setup_logger
 
 logger = logging.getLogger(__name__)
+IDENTIFY_INTERVAL = 1.0
+
 
 MANIFEST_ALIASES = {
     'tenma_psu': 'tenma_72',
@@ -72,6 +74,33 @@ def _get_channel_count(dev: dict) -> int:
         return max(1, ch)
     except Exception:
         return 1
+
+
+def _get_poll_interval(dev: dict) -> float:
+    try:
+        driver_key = dev.get("driver")
+        manifest = _load_manifest(driver_key) if driver_key else None
+        if not isinstance(manifest, dict):
+            return 2.0
+        models = manifest.get("models") or {}
+        model_key = dev.get("model")
+        model_cfg = None
+        if model_key and isinstance(models.get(model_key), dict):
+            model_cfg = models.get(model_key)
+        elif isinstance(models, dict) and models:
+            model_cfg = next(iter(models.values()))
+        if not isinstance(model_cfg, dict):
+            return 2.0
+        pooling = model_cfg.get("pooling") or []
+        for entry in pooling:
+            try:
+                if entry.get("method") == "poll_status":
+                    return float(entry.get("interval", 2.0))
+            except Exception:
+                continue
+        return 2.0
+    except Exception:
+        return 2.0
 def _load_driver_class(driver_key: str):
     """Load a driver class given its key.
 
@@ -142,6 +171,7 @@ class SerialManager:
         self.dev_threads: Dict[str, threading.Thread] = {}
         self.registry: Dict[str, Dict[str, Any]] = {d.get('id'): {} for d in self.devices if d.get('id')}
         self.dev_channels: Dict[str, int] = {}
+        self.dev_poll_interval: Dict[str, float] = {}
         self._last_registry_log: float = 0.0
 
         self.establish_connections()
@@ -184,6 +214,20 @@ class SerialManager:
             self.registry[dev_id] = {}
         self.registry[dev_id][key] = value
 
+    def _clear_disconnected_registry(self, dev_id: str):
+        data = self.registry.get(dev_id)
+        if not isinstance(data, dict):
+            self.registry[dev_id] = {}
+            return
+        # Remove IDN and all per-channel status entries
+        if 'IDN' in data:
+            del data['IDN']
+        for k in [k for k in list(data.keys()) if isinstance(k, str) and k.startswith('status_ch')]:
+            try:
+                del data[k]
+            except Exception:
+                pass
+
     def monitor_connections(self):
         print("Starting connection monitor thread.")
         while self.keep_running:
@@ -196,10 +240,14 @@ class SerialManager:
                 drv = self.connections.get(device_id)
                 is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
 
-                if is_open:
-                    # Poll device status every 2 seconds (legacy monitor path)
+                if is_open and self.registry.get(device_id, {}).get('IDN'):
+                    # Poll device status per manifest interval
+                    poll_iv = self.dev_poll_interval.get(device_id)
+                    if not poll_iv:
+                        poll_iv = _get_poll_interval(dev)
+                        self.dev_poll_interval[device_id] = poll_iv
                     last_poll = self.last_probe.get(device_id, 0.0)
-                    if now - last_poll >= 2.0:
+                    if now - last_poll >= poll_iv:
                         try:
                             # Determine channel count for this device and poll per channel
                             ch_count = self.dev_channels.get(device_id)
@@ -207,19 +255,32 @@ class SerialManager:
                                 ch_count = _get_channel_count(dev)
                                 self.dev_channels[device_id] = ch_count
                             # poll each channel and store under status_ch{n}
+                            polled_any = False
                             for ch in range(1, max(1, ch_count)+1):
                                 try:
-                                    if hasattr(drv, 'poll_status'):
-                                        status = drv.poll_status(ch)
-                                    else:
-                                        status = {}
-                                    key = f'status_ch{ch}'
-                                    self._update_registry(device_id, key, status)
+                                    status = drv.poll_status(ch) if hasattr(drv, 'poll_status') else {}
                                 except Exception as _e:
-                                    raise
-                            self.last_ok[device_id] = now
-                            self.last_probe[device_id] = now
-                            logger.debug("Polled status for %s -> %s", device_id, status)
+                                    status = {}
+                                # If status is falsy (empty dict/None), treat as link drop
+                                if not status:
+                                    # Link considered down: clear IDN and per-channel statuses, stop polling
+                                    self._clear_disconnected_registry(device_id)
+                                    polled_any = False
+                                    break
+                                key = f'status_ch{ch}'
+                                self._update_registry(device_id, key, status)
+                                polled_any = True
+                            if polled_any:
+                                self.last_ok[device_id] = now
+                                self.last_probe[device_id] = now
+                                logger.debug("Polled status for %s (channels=%s)", device_id, ch_count)
+                            else:
+                                # Consider link down: close and mark disconnected; do not update last_probe to allow immediate identify
+                                try:
+                                    drv.close()
+                                except Exception:
+                                    pass
+                                self.connections[device_id] = None
                         except Exception:
                             # any error -> mark disconnected and allow reconnect on schedule
                             try:
@@ -229,11 +290,27 @@ class SerialManager:
                             self.connections[device_id] = None
                             self.last_probe[device_id] = now
                 # If not open or marked None -> try to reconnect every 2 seconds
-                if not is_open or self.connections.get(device_id) is None:
+                # If link not open, try to (re)identify at a fixed cadence without calling other methods
+                if not is_open or self.connections.get(device_id) is None or not self.registry.get(device_id, {}).get('IDN'):
                     last_attempt = self.last_open_attempt.get(device_id, 0.0)
-                    if now - last_attempt >= 2.0:
+                    if now - last_attempt >= IDENTIFY_INTERVAL:
                         self.last_open_attempt[device_id] = now
-                        self.reconnect(dev)
+                        try:
+                            # Attempt reconnect if driver missing or closed
+                            if not is_open or self.connections.get(device_id) is None:
+                                self.reconnect(dev)
+                            # If we have a driver and transport is open, try identify only
+                            drv = self.connections.get(device_id)
+                            is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
+                            if drv and is_open:
+                                ident = self._try_identify(drv)
+                                if ident:
+                                    self._update_registry(device_id, 'IDN', ident)
+                                    self.last_ok[device_id] = now
+                                    self.last_probe[device_id] = now
+                        except Exception:
+                            # ignore, will retry
+                            pass
 
             # Periodically dump registry at DEBUG
             if now - self._last_registry_log >= 5.0:
@@ -258,33 +335,55 @@ class SerialManager:
                     continue
                 drv = self.connections.get(dev_id)
                 is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
-                if is_open:
-                    # Poll device status every 2 seconds
+                if is_open and self.registry.get(dev_id, {}).get('IDN'):
+                    # Poll device status per manifest interval
+                    poll_iv = self.dev_poll_interval.get(dev_id)
+                    if not poll_iv:
+                        poll_iv = _get_poll_interval(dev)
+                        self.dev_poll_interval[dev_id] = poll_iv
                     last_poll = self.last_probe.get(dev_id, 0.0)
-                    if now - last_poll >= 2.0:
+                    if now - last_poll >= poll_iv:
                         try:
                             # Determine channel count and poll each channel
                             ch_count = self.dev_channels.get(dev_id)
                             if not ch_count:
                                 ch_count = _get_channel_count(dev)
                                 self.dev_channels[dev_id] = ch_count
+                            polled_any = False
                             for ch in range(1, max(1, ch_count)+1):
-                                st = {}
-                                if hasattr(drv, 'poll_status'):
-                                    st = drv.poll_status(ch)
+                                try:
+                                    st = drv.poll_status(ch) if hasattr(drv, 'poll_status') else {}
+                                except Exception:
+                                    st = {}
+                                if not st:
+                                    self._clear_disconnected_registry(dev_id)
+                                    polled_any = False
+                                    break
                                 key = f"status_ch{ch}"
                                 self._update_registry(dev_id, key, st)
-                            self.last_ok[dev_id] = now
-                            self.last_probe[dev_id] = now
-                            logger.debug("Polled status for %s (channels=%s)", dev_id, ch_count)
+                                polled_any = True
+                            if polled_any:
+                                self.last_ok[dev_id] = now
+                                self.last_probe[dev_id] = now
+                                logger.debug("Polled status for %s (channels=%s)", dev_id, ch_count)
+                            else:
+                                # Consider link down: clear IDN and per-channel statuses, close and mark disconnected
+                                self._clear_disconnected_registry(dev_id)
+                                try:
+                                    drv.close()
+                                except Exception:
+                                    pass
+                                self.connections[dev_id] = None
                         except Exception as e:
                             logger.warning("Status poll failed for %s: %s; marking disconnected", dev_id, e)
+                            # On poll exception, clear IDN and per-channel statuses, close, and mark disconnected
+                            self._clear_disconnected_registry(dev_id)
                             try:
                                 drv.close()
                             except Exception:
                                 pass
                             self.connections[dev_id] = None
-                            self.last_probe[dev_id] = now
+                            # do not update last_probe to allow immediate identify attempts
                 if not is_open or self.connections.get(dev_id) is None:
                     last_attempt = self.last_open_attempt.get(dev_id, 0.0)
                     if now - last_attempt >= 2.0:
@@ -322,6 +421,10 @@ class SerialManager:
                         close()
             except Exception:
                 pass
+
+                # If link not open or reconnection failed -> clear registry to reflect disconnected state
+                if self.connections.get(device_id) is None:
+                    self._clear_disconnected_registry(device_id)
 
             # Create driver instance using manifest EOL settings and config serial params
             try:
@@ -374,6 +477,8 @@ class SerialManager:
             except Exception as e:
                 self.logger.error(f"Reconnection failed for {dev.get('name', device_id)}: {e}")
                 self.connections[device_id] = None
+                # Ensure registry reflects disconnected state
+                self._clear_disconnected_registry(device_id)
                 return None
 
     def start(self):

@@ -76,7 +76,9 @@ def test_per_device_threads_poll_independently():
                     return {"ok": True, "dev": dev_id}
                 return stub
             drv.poll_status = _make_stub(d['id'])  # type: ignore[attr-defined]
-            # Force immediate poll on next loop by resetting last_probe after start/identify
+            # Provide IDN to enable polling and force immediate poll on next loop
+            m.registry[d['id']]['IDN'] = 'FAKE,IDN'
+            m.dev_poll_interval[d['id']] = 0.1
             m.last_probe[d['id']] = 0.0
 
         # Wait for first poll to occur for each device
@@ -138,11 +140,17 @@ def test_poll_failure_drops_connection_and_triggers_reconnect():
             raise RuntimeError('boom')
         drv.poll_status = failing_poll  # type: ignore[attr-defined]
         # Ensure the device worker tries immediately but prevent instant reconnect
+        # Mark as identified so worker will poll and then drop on failure
+        m.registry[dev_id]['IDN'] = 'FAKE,IDN'
+
         m.last_probe[dev_id] = 0.0
+        # speed up poll interval for test determinism
+        m.dev_poll_interval[dev_id] = 0.1
+
         m.last_open_attempt[dev_id] = time.time()
 
         # Allow worker loop to run and drop connection
-        time.sleep(0.8)
+        time.sleep(1.1)
         assert m.connections[dev_id] is None, "Expected connection to be dropped after poll failure"
 
         # Now install a reconnect spy and allow immediate reconnect
