@@ -263,15 +263,20 @@ class SerialManager:
                     last_poll = self.last_probe.get(dev_id, 0.0)
                     if now - last_poll >= 2.0:
                         try:
-                            status = None
-                            if hasattr(drv, 'poll_status'):
-                                status = drv.poll_status(1)
-                            else:
-                                status = {}
-                            self._update_registry(dev_id, 'status', status)
+                            # Determine channel count and poll each channel
+                            ch_count = self.dev_channels.get(dev_id)
+                            if not ch_count:
+                                ch_count = _get_channel_count(dev)
+                                self.dev_channels[dev_id] = ch_count
+                            for ch in range(1, max(1, ch_count)+1):
+                                st = {}
+                                if hasattr(drv, 'poll_status'):
+                                    st = drv.poll_status(ch)
+                                key = f"status_ch{ch}"
+                                self._update_registry(dev_id, key, st)
                             self.last_ok[dev_id] = now
                             self.last_probe[dev_id] = now
-                            logger.debug("Polled status for %s -> %s", dev_id, status)
+                            logger.debug("Polled status for %s (channels=%s)", dev_id, ch_count)
                         except Exception as e:
                             logger.warning("Status poll failed for %s: %s; marking disconnected", dev_id, e)
                             try:
