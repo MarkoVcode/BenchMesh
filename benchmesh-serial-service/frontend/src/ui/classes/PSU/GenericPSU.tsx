@@ -57,9 +57,9 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber label={<Label symbol="U" unit="V"/>} value={"00000"} />
-          <ReadonlyBigNumber label={<Label symbol="I" unit="A"/>} value={"00000"} />
-          <ReadonlyBigNumber label={<Label symbol="P" unit="W"/>} value={"00000"} />
+          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={"00000"} channelPath={channelPath} />
+          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={"00000"} channelPath={channelPath} />
+          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={"00000"} channelPath={channelPath} />
         </div>
       </div>
     </div>
@@ -129,20 +129,30 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
               console.debug('SET failed', err)
             }
           }}>SET</button>
-          <span className="psu-api" title={channelPath}>API</span>
+          <span className="psu-api" title={
+            kind === 'U' ? `GET ${channelPath}/query_voltage` :
+            kind === 'I' ? `GET ${channelPath}/query_current` : (channelPath || '')
+          }>API</span>
         </>
       )}
     </div>
   )
 }
 
-function ReadonlyBigNumber({ label, value }: { label: React.ReactNode, value: string }) {
+function ReadonlyBigNumber({ kind, label, value, channelPath }: { kind?: 'U' | 'I' | 'P', label: React.ReactNode, value: string, channelPath?: string }) {
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
       <span className="psu-number readonly" aria-hidden>
         <span>{value || '0'}</span>
       </span>
+      {channelPath && (
+        <span className="psu-api" title={
+          kind === 'U' ? `GET ${channelPath}/query_output_voltage` :
+          kind === 'I' ? `GET ${channelPath}/query_output_current` :
+          kind === 'P' ? `GET ${channelPath}/query_output_power` : ''
+        }>API</span>
+      )}
     </div>
   )
 }
