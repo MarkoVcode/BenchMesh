@@ -78,7 +78,8 @@ def test_per_device_threads_poll_independently():
             drv.poll_status = _make_stub(d['id'])  # type: ignore[attr-defined]
             # Provide IDN to enable polling and force immediate poll on next loop
             m.registry[d['id']]['IDN'] = 'FAKE,IDN'
-            m.dev_poll_interval[d['id']] = 0.1
+            m.dev_class_poll_interval[d['id']] = {'ELL': 0.1}
+            m.last_probe_class[d['id']] = {'ELL': 0.0}
             m.last_probe[d['id']] = 0.0
 
         # Wait for first poll to occur for each device
@@ -144,8 +145,9 @@ def test_poll_failure_drops_connection_and_triggers_reconnect():
         m.registry[dev_id]['IDN'] = 'FAKE,IDN'
 
         m.last_probe[dev_id] = 0.0
-        # speed up poll interval for test determinism
-        m.dev_poll_interval[dev_id] = 0.1
+        # speed up poll interval for test determinism (per-class now)
+        m.dev_class_poll_interval[dev_id] = {'ELL': 0.1}
+        m.last_probe_class[dev_id] = {'ELL': 0.0}
 
         m.last_open_attempt[dev_id] = time.time()
 

@@ -16,14 +16,14 @@
         "reol": "",
         "def_conn_ver_command": "*IDN?"
       },
-      "pooling": [
-        {
-        "method": "poll_status",
-        "interval": 0.9
-        }
-      ],
       "instrument_class": {
         "PSU": {
+          "pooling": [
+            {
+              "method": "poll_status",
+              "interval": 0.9
+            }
+          ],
           "features": {
             "lock": true,
             "channels": 2,

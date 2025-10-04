@@ -77,8 +77,9 @@ def test_poll_empty_clears_idn_and_stops_poll_until_identify():
 
         # Mark as identified so worker will poll
         m.registry[dev_id]['IDN'] = 'FAKE,IDN'
-        # Speed up polling
-        m.dev_poll_interval[dev_id] = 0.1
+        # Speed up polling (per-class now)
+        m.dev_class_poll_interval[dev_id] = {'ELL': 0.1}
+        m.last_probe_class[dev_id] = {'ELL': 0.0}
         m.last_probe[dev_id] = 0.0
 
         # Wait for the empty result to be observed
@@ -116,9 +117,10 @@ def test_no_polling_when_idn_missing():
             return {'ok': True}
         drv.poll_status = spy_poll  # type: ignore[attr-defined]
 
-        # Ensure IDN is missing and interval is small
+        # Ensure IDN is missing and interval is small (per-class now)
         m.registry[dev_id].pop('IDN', None)
-        m.dev_poll_interval[dev_id] = 0.1
+        m.dev_class_poll_interval[dev_id] = {'ELL': 0.1}
+        m.last_probe_class[dev_id] = {'ELL': 0.0}
         m.last_probe[dev_id] = 0.0
 
         # Allow time for potential polling; should not be called without IDN
@@ -144,9 +146,10 @@ def test_polling_starts_only_after_idn_set():
             return {'ok': True}
         drv.poll_status = spy_poll  # type: ignore[attr-defined]
 
-        # Ensure IDN missing and fast interval
+        # Ensure IDN missing and fast interval (per-class now)
         m.registry[dev_id].pop('IDN', None)
-        m.dev_poll_interval[dev_id] = 0.1
+        m.dev_class_poll_interval[dev_id] = {'ELL': 0.1}
+        m.last_probe_class[dev_id] = {'ELL': 0.0}
         m.last_probe[dev_id] = 0.0
 
         time.sleep(0.4)
@@ -179,7 +182,8 @@ def test_polling_starts_only_after_idn_set():
         m.registry[dev_id]['IDN'] = 'FAKE,IDN'
         # Provide a stable poll_status stub that always returns a value
         drv.poll_status = lambda channel=1: {'ok': True}  # type: ignore[attr-defined]
-        m.dev_poll_interval[dev_id] = 0.1
+        m.dev_class_poll_interval[dev_id] = {'ELL': 0.1}
+        m.last_probe_class[dev_id] = {'ELL': 0.0}
         m.last_probe[dev_id] = 0.0
 
         # Allow some time for polling cycles

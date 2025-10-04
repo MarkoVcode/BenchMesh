@@ -1,4 +1,10 @@
 import threading
+import os, sys
+THIS_DIR = os.path.dirname(__file__)
+SRC_DIR = os.path.abspath(os.path.join(THIS_DIR, '..', 'src'))
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
 import types
 import pytest
 from fastapi.testclient import TestClient

@@ -5,7 +5,7 @@ import threading
 import logging
 import importlib
 import inspect
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import yaml
 from .logger import setup_logger
 
@@ -40,12 +40,14 @@ def _load_manifest(driver_key: str) -> Dict:
 
 
 
-def _get_channel_count(dev: dict) -> int:
+def _get_class_channel_counts(dev: dict) -> Dict[str, int]:
+    """Return mapping of class -> channel count for a device from manifest."""
+    out: Dict[str, int] = {}
     try:
         driver_key = dev.get("driver")
         manifest = _load_manifest(driver_key) if driver_key else None
         if not isinstance(manifest, dict):
-            return 1
+            return out
         models = manifest.get("models") or {}
         model_key = dev.get("model")
         model_cfg = None
@@ -54,34 +56,28 @@ def _get_channel_count(dev: dict) -> int:
         elif isinstance(models, dict) and models:
             model_cfg = next(iter(models.values()))
         if not isinstance(model_cfg, dict):
-            return 1
+            return out
         inst_class_block = model_cfg.get("instrument_class") or {}
-        declared_classes = model_cfg.get("classes") or []
-        klass_keys = set(inst_class_block.keys()) | {c for c in declared_classes if isinstance(c, str)}
-        # Prefer PSU if present; otherwise pick first available class entry
-        preferred = ["PSU", "DMM", "ELL", "AFG"]
-        chosen = None
-        for k in preferred:
-            if k in inst_class_block:
-                chosen = k
-                break
-        if not chosen:
-            chosen = next(iter(inst_class_block.keys()), None)
-        if not chosen:
-            return 1
-        features = (inst_class_block.get(chosen) or {}).get("features") or {}
-        ch = int(features.get("channels", 1) or 1)
-        return max(1, ch)
+        for klass, cfg in (inst_class_block or {}).items():
+            features = (cfg or {}).get("features") or {}
+            try:
+                ch = int(features.get("channels", 1) or 1)
+            except Exception:
+                ch = 1
+            out[str(klass)] = max(1, ch)
+        return out
     except Exception:
-        return 1
+        return out
 
 
-def _get_poll_interval(dev: dict) -> float:
+def _get_class_poll_intervals(dev: dict) -> Dict[str, float]:
+    """Return mapping of class -> poll interval (seconds), defaults to 2.0 if not specified."""
+    out: Dict[str, float] = {}
     try:
         driver_key = dev.get("driver")
         manifest = _load_manifest(driver_key) if driver_key else None
         if not isinstance(manifest, dict):
-            return 2.0
+            return out
         models = manifest.get("models") or {}
         model_key = dev.get("model")
         model_cfg = None
@@ -90,17 +86,23 @@ def _get_poll_interval(dev: dict) -> float:
         elif isinstance(models, dict) and models:
             model_cfg = next(iter(models.values()))
         if not isinstance(model_cfg, dict):
-            return 2.0
-        pooling = model_cfg.get("pooling") or []
-        for entry in pooling:
-            try:
-                if entry.get("method") == "poll_status":
-                    return float(entry.get("interval", 2.0))
-            except Exception:
-                continue
-        return 2.0
+            return out
+        inst_class_block = model_cfg.get("instrument_class") or {}
+        for klass, cfg in (inst_class_block or {}).items():
+            pooling = (cfg or {}).get("pooling") or (cfg or {}).get("polling") or []
+            # pooling can be a list of entries, pick poll_status if present
+            iv = 2.0
+            for entry in pooling:
+                try:
+                    if entry.get("method") == "poll_status":
+                        iv = float(entry.get("interval", iv))
+                        break
+                except Exception:
+                    continue
+            out[str(klass)] = iv
+        return out
     except Exception:
-        return 2.0
+        return out
 def _load_driver_class(driver_key: str):
     """Load a driver class given its key.
 
@@ -170,6 +172,11 @@ class SerialManager:
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
         self.dev_threads: Dict[str, threading.Thread] = {}
         self.registry: Dict[str, Dict[str, Any]] = {d.get('id'): {} for d in self.devices if d.get('id')}
+        # Per-class settings
+        self.dev_class_channels: Dict[str, Dict[str, int]] = {}
+        self.dev_class_poll_interval: Dict[str, Dict[str, float]] = {}
+        self.last_probe_class: Dict[str, Dict[str, float]] = {}
+        # Legacy per-device fields (kept for compatibility, not used in new per-class polling)
         self.dev_channels: Dict[str, int] = {}
         self.dev_poll_interval: Dict[str, float] = {}
         self._last_registry_log: float = 0.0
@@ -209,24 +216,51 @@ class SerialManager:
             raise
         return None
 
-    def _update_registry(self, dev_id: str, key: str, value: Any):
+    def _update_registry(self, dev_id: str, key: str, value: Any, klass: str | None = None):
         if dev_id not in self.registry:
             self.registry[dev_id] = {}
-        self.registry[dev_id][key] = value
+        if klass:
+            bucket = self.registry[dev_id].setdefault(klass, {})
+            bucket[key] = value
+        else:
+            self.registry[dev_id][key] = value
 
-    def _clear_disconnected_registry(self, dev_id: str):
-        data = self.registry.get(dev_id)
-        if not isinstance(data, dict):
+    def remove_registry_item(self, dev_id: str, key: str | None = None, prefix: bool = False, klass: str | None = None):
+        """Remove item(s) from the registry.
+        - key is None: clear all keys for the device (or class bucket if klass specified)
+        - prefix True: remove all keys that start with the given key string
+        - otherwise: remove the exact key if present
+        """
+        if dev_id not in self.registry or not isinstance(self.registry.get(dev_id), dict):
             self.registry[dev_id] = {}
             return
-        # Remove IDN and all per-channel status entries
-        if 'IDN' in data:
-            del data['IDN']
-        for k in [k for k in list(data.keys()) if isinstance(k, str) and k.startswith('status_ch')]:
-            try:
-                del data[k]
-            except Exception:
-                pass
+        target = self.registry[dev_id]
+        if klass:
+            target = target.setdefault(klass, {})
+        if key is None:
+            # Clear entire device bucket or class bucket
+            if klass:
+                self.registry[dev_id][klass] = {}
+            else:
+                self.registry[dev_id] = {}
+            return
+        if prefix:
+            for k in list(target.keys()):
+                if isinstance(k, str) and k.startswith(key):
+                    target.pop(k, None)
+            return
+        target.pop(key, None)
+
+    def clear_device_registry(self, dev_id: str):
+        self.remove_registry_item(dev_id, None)
+
+    def _clear_disconnected_registry(self, dev_id: str):
+        # Remove IDN and all per-class status entries when link drops
+        self.remove_registry_item(dev_id, 'IDN')
+        # Clear status under all classes
+        for klass in list((self.registry.get(dev_id) or {}).keys()):
+            if isinstance(klass, str) and len(klass) == 3:  # class buckets like PSU/DMM/ELL
+                self.remove_registry_item(dev_id, 'status_ch', prefix=True, klass=klass)
 
     def monitor_connections(self):
         print("Starting connection monitor thread.")
@@ -241,54 +275,48 @@ class SerialManager:
                 is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
 
                 if is_open and self.registry.get(device_id, {}).get('IDN'):
-                    # Poll device status per manifest interval
-                    poll_iv = self.dev_poll_interval.get(device_id)
-                    if not poll_iv:
-                        poll_iv = _get_poll_interval(dev)
-                        self.dev_poll_interval[device_id] = poll_iv
-                    last_poll = self.last_probe.get(device_id, 0.0)
-                    if now - last_poll >= poll_iv:
+                    # Per-class polling: iterate over instrument classes
+                    if device_id not in self.dev_class_channels:
+                        self.dev_class_channels[device_id] = _get_class_channel_counts(dev)
+                    if device_id not in self.dev_class_poll_interval:
+                        self.dev_class_poll_interval[device_id] = _get_class_poll_intervals(dev)
+                    lp = self.last_probe_class.setdefault(device_id, {})
+                    for klass, ch_count in (self.dev_class_channels.get(device_id) or {}).items():
+                        poll_iv = (self.dev_class_poll_interval.get(device_id) or {}).get(klass, 2.0)
+                        last_poll = lp.get(klass, 0.0)
+                        if now - last_poll < poll_iv:
+                            continue
                         try:
-                            # Determine channel count for this device and poll per channel
-                            ch_count = self.dev_channels.get(device_id)
-                            if not ch_count:
-                                ch_count = _get_channel_count(dev)
-                                self.dev_channels[device_id] = ch_count
-                            # poll each channel and store under status_ch{n}
                             polled_any = False
-                            for ch in range(1, max(1, ch_count)+1):
+                            for ch in range(1, max(1, ch_count) + 1):
                                 try:
                                     status = drv.poll_status(ch) if hasattr(drv, 'poll_status') else {}
-                                except Exception as _e:
+                                except Exception:
                                     status = {}
-                                # If status is falsy (empty dict/None), treat as link drop
                                 if not status:
-                                    # Link considered down: clear IDN and per-channel statuses, stop polling
                                     self._clear_disconnected_registry(device_id)
                                     polled_any = False
                                     break
                                 key = f'status_ch{ch}'
-                                self._update_registry(device_id, key, status)
+                                self._update_registry(device_id, key, status, klass=klass)
                                 polled_any = True
                             if polled_any:
                                 self.last_ok[device_id] = now
-                                self.last_probe[device_id] = now
-                                logger.debug("Polled status for %s (channels=%s)", device_id, ch_count)
+                                lp[klass] = now
+                                logger.debug("Polled %s status for %s (channels=%s)", klass, device_id, ch_count)
                             else:
-                                # Consider link down: close and mark disconnected; do not update last_probe to allow immediate identify
                                 try:
                                     drv.close()
                                 except Exception:
                                     pass
                                 self.connections[device_id] = None
                         except Exception:
-                            # any error -> mark disconnected and allow reconnect on schedule
                             try:
                                 drv.close()
                             except Exception:
                                 pass
                             self.connections[device_id] = None
-                            self.last_probe[device_id] = now
+                            lp[klass] = now
                 # If not open or marked None -> try to reconnect every 2 seconds
                 # If link not open, try to (re)identify at a fixed cadence without calling other methods
                 if not is_open or self.connections.get(device_id) is None or not self.registry.get(device_id, {}).get('IDN'):
@@ -336,19 +364,18 @@ class SerialManager:
                 drv = self.connections.get(dev_id)
                 is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
                 if is_open and self.registry.get(dev_id, {}).get('IDN'):
-                    # Poll device status per manifest interval
-                    poll_iv = self.dev_poll_interval.get(dev_id)
-                    if not poll_iv:
-                        poll_iv = _get_poll_interval(dev)
-                        self.dev_poll_interval[dev_id] = poll_iv
-                    last_poll = self.last_probe.get(dev_id, 0.0)
-                    if now - last_poll >= poll_iv:
+                    # Per-class polling in worker
+                    if dev_id not in self.dev_class_channels:
+                        self.dev_class_channels[dev_id] = _get_class_channel_counts(dev)
+                    if dev_id not in self.dev_class_poll_interval:
+                        self.dev_class_poll_interval[dev_id] = _get_class_poll_intervals(dev)
+                    lp = self.last_probe_class.setdefault(dev_id, {})
+                    for klass, ch_count in (self.dev_class_channels.get(dev_id) or {}).items():
+                        poll_iv = (self.dev_class_poll_interval.get(dev_id) or {}).get(klass, 2.0)
+                        last_poll = lp.get(klass, 0.0)
+                        if now - last_poll < poll_iv:
+                            continue
                         try:
-                            # Determine channel count and poll each channel
-                            ch_count = self.dev_channels.get(dev_id)
-                            if not ch_count:
-                                ch_count = _get_channel_count(dev)
-                                self.dev_channels[dev_id] = ch_count
                             polled_any = False
                             for ch in range(1, max(1, ch_count)+1):
                                 try:
@@ -360,14 +387,13 @@ class SerialManager:
                                     polled_any = False
                                     break
                                 key = f"status_ch{ch}"
-                                self._update_registry(dev_id, key, st)
+                                self._update_registry(dev_id, key, st, klass=klass)
                                 polled_any = True
                             if polled_any:
                                 self.last_ok[dev_id] = now
-                                self.last_probe[dev_id] = now
-                                logger.debug("Polled status for %s (channels=%s)", dev_id, ch_count)
+                                lp[klass] = now
+                                logger.debug("Polled %s status for %s (channels=%s)", klass, dev_id, ch_count)
                             else:
-                                # Consider link down: clear IDN and per-channel statuses, close and mark disconnected
                                 self._clear_disconnected_registry(dev_id)
                                 try:
                                     drv.close()
@@ -375,8 +401,7 @@ class SerialManager:
                                     pass
                                 self.connections[dev_id] = None
                         except Exception as e:
-                            logger.warning("Status poll failed for %s: %s; marking disconnected", dev_id, e)
-                            # On poll exception, clear IDN and per-channel statuses, close, and mark disconnected
+                            logger.warning("Status poll failed for %s[%s]: %s; marking disconnected", dev_id, klass, e)
                             self._clear_disconnected_registry(dev_id)
                             try:
                                 drv.close()
