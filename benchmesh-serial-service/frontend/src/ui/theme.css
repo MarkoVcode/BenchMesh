@@ -44,11 +44,11 @@ a{ color:var(--accent); text-decoration:none; }
 .heading{ margin:8px 0 12px; font-weight:600; color:var(--text-0); }
 .subtle{ color:var(--text-2); font-size:12px; }
 
-.grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; }
+.grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
 .card{
   background:var(--card);
   border:1px solid var(--border);
-  border-radius:12px; padding:12px; position:relative; min-height:140px;
+  border-radius:12px; padding:12px; position:relative; min-height:160px;
   box-shadow: var(--shadow);
   transition: background .2s ease, border-color .2s ease, transform .1s ease;
 }
@@ -57,6 +57,13 @@ a{ color:var(--accent); text-decoration:none; }
 .card-idn{ position:absolute; right:12px; bottom:10px; font-size:11px; color:var(--text-2); }
 .card-classes{ font-size:11px; color:var(--text-1); }
 .badge{ display:inline-block; padding:1px 6px; border-radius:6px; border:1px solid var(--border); background:rgba(255,255,255,.02); }
+
+/* nested class pods */
+.subcard{ margin-top:8px; border:1px dashed #2a354a; border-radius:10px; padding:8px; background:rgba(20,25,36,.35); }
+.subcard-title{ font-size:12px; color:var(--text-1); margin-bottom:6px; font-weight:600; letter-spacing:.3px; }
+.channels{ display:grid; grid-template-columns:1fr; gap:6px; }
+.channel-card{ border:1px solid var(--border); background:rgba(0,0,0,.2); border-radius:8px; padding:6px 8px; }
+.channel-path{ font-size:11px; color:var(--text-2); }
 
 .wsdiag{ position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2); }
 
