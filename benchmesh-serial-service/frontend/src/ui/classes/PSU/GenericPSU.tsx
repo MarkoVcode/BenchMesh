@@ -57,9 +57,9 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber label={<Label symbol="U" unit="V"/>} value={vDisp} />
-          <ReadonlyBigNumber label={<Label symbol="I" unit="A"/>} value={aDisp} />
-          <ReadonlyBigNumber label={<Label symbol="P" unit="W"/>} value={pDisp} />
+          <ReadonlyBigNumber label={<Label symbol="U" unit="V"/>} value={"00000"} />
+          <ReadonlyBigNumber label={<Label symbol="I" unit="A"/>} value={"00000"} />
+          <ReadonlyBigNumber label={<Label symbol="P" unit="W"/>} value={"00000"} />
         </div>
       </div>
     </div>
