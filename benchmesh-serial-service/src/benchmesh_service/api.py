@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
+from .settings import settings
 
 app = FastAPI(title="BenchMesh Serial Service", version="0.1.0")
 API_PORT = int(os.getenv('API_PORT', '57666'))
@@ -226,12 +227,13 @@ async def ws_registry(websocket: WebSocket):
         while True:
             reg = getattr(_manager, 'registry', {}) if _manager else {}
             await websocket.send_text(json.dumps(reg))
-            await asyncio.sleep(0.1)  # 100ms
+            await asyncio.sleep(settings.ws_broadcast_interval)
     except WebSocketDisconnect:
         pass
     except Exception:
         # ignore other errors to avoid crashing the app
         pass
+
 
 
 @app.get("/instruments/{klass}/{device_id}/{channel}/{method}", summary="Call driver method (read-only)")
