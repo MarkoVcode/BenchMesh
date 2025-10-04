@@ -64,6 +64,19 @@ a{ color:var(--accent); text-decoration:none; }
 .channels{ display:grid; grid-template-columns:1fr; gap:6px; }
 .channel-card{ border:1px solid var(--border); background:rgba(0,0,0,.2); border-radius:8px; padding:6px 8px; }
 .channel-path{ font-size:11px; color:var(--text-2); }
+.channel-extra{ margin-top:6px; }
+
+/* PSU generic face */
+.psu-face{ border:1px solid var(--border); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.15)); border-radius:8px; padding:8px; }
+.psu-main{ display:flex; gap:10px; }
+.psu-block{ display:flex; align-items:center; gap:8px; }
+.psu-label{ font-size:12px; color:var(--text-2); width:14px; }
+.psu-number{ position:relative; display:inline-block; }
+.psu-number span{ font-variant-numeric: tabular-nums; font-weight:600; font-size:26px; line-height:1; color:#c26a1a; /* between orange and black */ }
+.psu-input{
+  position:absolute; inset:0; opacity:0; pointer-events:auto; /* concealed input, still editable */
+  background:transparent; color:transparent; border:0; outline:0;
+}
 
 .wsdiag{ position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2); }
 
