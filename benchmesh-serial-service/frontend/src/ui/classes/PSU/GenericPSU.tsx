@@ -140,7 +140,10 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
       </label>
       {withSet && channelPath && (
         <>
-          <button className="psu-set" type="button" disabled={busy} onClick={async (e) => {
+          <button className="psu-set" type="button" disabled={busy} title={
+            kind === 'U' ? `POST ${channelPath}/set_voltage/{value}` :
+            kind === 'I' ? `POST ${channelPath}/set_current/{value}` : ''
+          } onClick={async (e) => {
             e.preventDefault(); e.stopPropagation();
             if (busy) return
             setBusy(true)
