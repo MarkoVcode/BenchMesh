@@ -18,6 +18,7 @@ function useInstruments(apiBase: string) {
     let cancelled = false
     let timer: any
     async function load() {
+      let ok = false
       try {
         const resp = await fetch(`${apiBase}/instruments`)
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -25,14 +26,16 @@ function useInstruments(apiBase: string) {
         if (!cancelled) {
           setData(json)
           setError(null)
+          ok = true
         }
       } catch (e: any) {
         if (!cancelled) setError(String(e))
       } finally {
         if (!cancelled) {
           setLoading(false)
-          // retry every 1s if no data (service unavailable)
-          timer = setTimeout(load, 1000)
+          // Normal: poll every 5s; on failure: retry after 1s
+          const delay = ok ? 5000 : 1000
+          timer = setTimeout(load, delay)
         }
       }
     }
