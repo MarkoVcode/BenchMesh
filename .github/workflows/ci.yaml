@@ -26,6 +26,23 @@ jobs:
           if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
           python -m pip install pytest
 
-      - name: Run tests
+      - name: Run backend tests
         run: |
           python -m pytest -q benchmesh-serial-service/tests
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: benchmesh-serial-service/frontend/package.json
+
+      - name: Install frontend dependencies
+        working-directory: benchmesh-serial-service/frontend
+        run: |
+          npm ci
+
+      - name: Run frontend unit tests
+        working-directory: benchmesh-serial-service/frontend
+        run: |
+          npx vitest run --reporter=dot
