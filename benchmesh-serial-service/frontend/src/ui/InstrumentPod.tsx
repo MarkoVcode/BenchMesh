@@ -34,7 +34,6 @@ export function InstrumentPod({ instrument, registry }: { instrument: Instrument
       <div className="card-classes">
         {instrument.classes.map((c) => (
           <div key={c.class}>
-            <span className="badge" style={{ marginRight: 6 }}>{c.class}</span>
             <div>
               {/* Render dedicated nested class pod */}
               <ClassPodResolver klass={c.class} channels={c.channels} />
