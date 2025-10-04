@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 // PSU face with two columns: Settings (editable V/A) and Readings (readonly V/A/P)
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
@@ -17,6 +17,31 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
   const vDisp = voltage
   const aDisp = current
   const pDisp = numberToDisplay(pNum)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadInitial() {
+      if (!channelPath) return
+      try {
+        const [rv, rc] = await Promise.all([
+          fetch(`${channelPath}/query_voltage`),
+          fetch(`${channelPath}/query_current`),
+        ])
+        if (!cancelled) {
+          if (rv.ok) {
+            const v = await rv.text()
+            setVoltage(limitDigits(sanitizeNumber(v), 5) || '0')
+          }
+          if (rc.ok) {
+            const a = await rc.text()
+            setCurrent(limitDigits(sanitizeNumber(a), 5) || '0')
+          }
+        }
+      } catch {}
+    }
+    loadInitial()
+    return () => { cancelled = true }
+  }, [channelPath])
 
   return (
     <div className="psu-face">
@@ -65,8 +90,7 @@ function numberToDisplay(n: number): string {
   if (!isFinite(n)) return '0'
   const abs = Math.abs(n)
   if (abs === 0) return '0'
-  if (abs >= 10000) return n.toExponential(2) // fallback to exponential for large values
-  // Limit fractional part so total digits (ignoring '.') are ~5
+  if (abs >= 10000) return n.toExponential(2)
   const s = n.toString()
   const [i, f = ''] = s.split('.')
   const room = Math.max(0, 5 - i.replace('-', '').length)
@@ -86,8 +110,19 @@ function EditableBigNumber({ label, value, onChange, withSet, channelPath }: { l
         />
         <span aria-hidden>{value || '0'}</span>
       </label>
-      {withSet && <button className="psu-set" type="button">SET</button>}
-      {withSet && channelPath && <span className="psu-api" title={channelPath}>API</span>}
+      {withSet && channelPath && (
+        <>
+          <button className="psu-set" type="button" onClick={async () => {
+            try {
+              const endp = (label as any)?.props?.symbol as string | undefined
+              const val = value || '0'
+              if (endp === 'U') await fetch(`${channelPath}/set_voltage/${val}`, { method: 'POST' })
+              if (endp === 'I') await fetch(`${channelPath}/set_current/${val}`, { method: 'POST' })
+            } catch {}
+          }}>SET</button>
+          <span className="psu-api" title={channelPath}>API</span>
+        </>
+      )}
     </div>
   )
 }
