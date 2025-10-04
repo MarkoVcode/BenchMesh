@@ -1,7 +1,5 @@
 import argparse
-import yaml
 import time
-import threading
 from .serial_manager import SerialManager
 from .config import load_config
 from .logger import setup_logger

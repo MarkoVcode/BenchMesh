@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 import logging
 from .manifest_resolver import ManifestResolver
 from .registry import DeviceRegistry

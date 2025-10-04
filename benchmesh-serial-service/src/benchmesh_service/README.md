@@ -46,3 +46,15 @@ Flow:
 Extensibility:
 - ReconnectPolicy/IdentifyStrategy can be added to DeviceConnection.
 - Metrics hooks can be inserted at DeviceWorker and DeviceConnection boundaries.
+
+Updates and policies:
+- ReconnectPolicy governs cadence: identify_interval and reconnect_interval. DeviceConnection enforces timing for open/reconnect and IDN probes.
+- DriverFactory is the single source for loading driver classes. Legacy dynamic loader paths were removed.
+- DeviceWorker is IDN-gated: it won’t poll until IDN is present in DeviceRegistry. Empty/error polls clear IDN and per-class state so reconnect/identify can occur.
+- A minimal check_status shim remains only for backward compatibility with existing tests; new code paths use per-device workers and DeviceConnection.
+- MetricsRecorder hooks track reconnect attempts/success and poll successes/failures.
+
+Testing:
+- Unit tests should mock drivers/transports. No physical serial devices are required.
+- Use ManualClock to deterministically advance time for identify/poll cadence.
+
