@@ -9,7 +9,7 @@ Run in development
 Steps
 1) Backend
    - export BENCHMESH_CONFIG=./config.yaml
-   - poetry run uvicorn benchmesh_service.api:app --host 0.0.0.0 --port 57665
+   - poetry run uvicorn benchmesh_service.api:app --host 0.0.0.0 --port 57666
    - The API will attempt to auto-start the Vite dev server if BENCHMESH_START_UI=1 and frontend/node_modules exists
 
 2) Frontend (first time only)

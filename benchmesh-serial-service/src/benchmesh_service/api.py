@@ -11,6 +11,8 @@ from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
 
 app = FastAPI(title="BenchMesh Serial Service", version="0.1.0")
+API_PORT = int(os.getenv('API_PORT', '57666'))
+UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
 
 # Enable CORS for development (Vite on :52892)
 app.add_middleware(
@@ -134,15 +136,14 @@ def on_shutdown():
 
 @app.get("/", include_in_schema=False)
 def root():
-    # If static UI is mounted, redirect there. Otherwise, assume dev server on 52892.
+    # If static UI is mounted, redirect there. Otherwise, assume dev server on 52893.
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'frontend'))
     dist_dir = os.path.join(base_dir, 'dist')
     if os.path.isdir(dist_dir):
         return RedirectResponse(url="/ui/")
     # Dev server convenience link
     host = os.getenv('UI_HOST', 'localhost')
-    port = os.getenv('UI_PORT', '52892')
-    return RedirectResponse(url=f"http://{host}:{port}")
+    return RedirectResponse(url=f"http://{host}:{UI_DEV_PORT}")
 
 
 @app.get("/status", summary="Service status", response_model=dict)

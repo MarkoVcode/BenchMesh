@@ -6,8 +6,8 @@ Development
   - npm install
   - npm run dev
 
-By default, the dev server runs on port 52892.
-The FastAPI service is expected on port 57665.
+By default, the dev server runs on port 52893.
+The FastAPI service is expected on port 57666.
 
 Production build
 - npm run build
