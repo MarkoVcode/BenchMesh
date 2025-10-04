@@ -99,19 +99,31 @@ export default function App() {
   const waitingForApi = (!instruments || instruments.length === 0) && !!error
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: 16, position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: wsDiag.ok ? '#16a34a' : '#dc2626' }} />
-        <span style={{ color: wsDiag.ok ? '#16a34a' : '#dc2626' }}>{wsDiag.msg}</span>
+    <div>
+      <div className="topbar">
+        <div className="brand">BenchMesh</div>
+        <div className="statusbar">
+          <div className="statuspill" title="WebSocket data flow">
+            <span className="dot" style={{ background: wsDiag.ok ? 'var(--good)' : 'var(--bad)' }} />
+            <span>{wsDiag.msg}</span>
+          </div>
+          <div className="statuspill" title="API connectivity">
+            <span className="dot" style={{ background: waitingForApi ? 'var(--bad)' : 'var(--good)' }} />
+            <span>{waitingForApi ? 'API unreachable' : 'API ok'}</span>
+          </div>
+        </div>
       </div>
-      <h1>BenchMesh Instruments</h1>
-      {loading && <p>Loading…</p>}
-      {waitingForApi && <p style={{ color: '#6b7280' }}>Awaiting connection to the service… retrying every 1s</p>}
-      {error && !waitingForApi && <p style={{ color: 'red' }}>{error}</p>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-        {instruments.map((ins) => (
-          <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
-        ))}
+
+      <div className="container">
+        <h2 className="heading">Instruments <span className="subtle">live</span></h2>
+        {loading && <p className="subtle">Loading…</p>}
+        {waitingForApi && <p className="subtle">Awaiting connection to the service… retrying every 1s</p>}
+        {error && !waitingForApi && <p style={{ color: 'var(--bad)' }}>{error}</p>}
+        <div className="grid">
+          {instruments.map((ins) => (
+            <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -1,0 +1,63 @@
+:root{
+  --bg-0:#0f1216;
+  --bg-1:#121722;
+  --bg-2:#161d2a;
+  --card:#151b26;
+  --card-hover:#1a2230;
+  --border:#202737;
+  --text-0:#eef2f7;
+  --text-1:#b7c0d1;
+  --text-2:#8e98ab;
+  --accent:#60a5fa; /* soft blue */
+  --good:#16a34a;
+  --bad:#ef4444;
+  --warn:#f59e0b;
+  --shadow:0 2px 0 rgba(0,0,0,.25), 0 10px 30px rgba(0,0,0,.35);
+}
+
+html, body, #root{ height:100%; }
+body{
+  margin:0;
+  background:var(--bg-0);
+  color:var(--text-0);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  letter-spacing: 0.2px;
+}
+
+a{ color:var(--accent); text-decoration:none; }
+
+.topbar{
+  position: sticky;
+  top:0; z-index:10;
+  height:36px; line-height:36px;
+  background:linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 14px;
+}
+.brand{ font-weight:600; font-size:12px; color:var(--text-1); letter-spacing:.6px; text-transform:uppercase; }
+.statusbar{ display:flex; align-items:center; gap:14px; }
+.statuspill{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-1); padding:2px 8px; border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,0.02); }
+.dot{ width:8px; height:8px; border-radius:50%; box-shadow:0 0 0 2px rgba(0,0,0,.4); }
+
+.container{ padding:16px; }
+.heading{ margin:8px 0 12px; font-weight:600; color:var(--text-0); }
+.subtle{ color:var(--text-2); font-size:12px; }
+
+.grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; }
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px; padding:12px; position:relative; min-height:140px;
+  box-shadow: var(--shadow);
+  transition: background .2s ease, border-color .2s ease, transform .1s ease;
+}
+.card:hover{ background:var(--card-hover); border-color:#2a354a; transform: translateY(-1px); }
+.card-title{ margin:0 0 8px 0; font-size:13px; color:var(--text-0); font-weight:600; }
+.card-idn{ position:absolute; right:12px; bottom:10px; font-size:11px; color:var(--text-2); }
+.card-classes{ font-size:11px; color:var(--text-1); }
+.badge{ display:inline-block; padding:1px 6px; border-radius:6px; border:1px solid var(--border); background:rgba(255,255,255,.02); }
+
+.wsdiag{ position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2); }
+
+hr.sep{ border:0; border-top:1px solid var(--border); margin:10px 0; }

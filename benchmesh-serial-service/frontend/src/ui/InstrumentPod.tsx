@@ -7,17 +7,9 @@ export type Instrument = {
 }
 
 function StatusDot({ online }: { online: boolean }) {
-  const color = online ? '#16a34a' : '#dc2626'
+  const color = online ? 'var(--good)' : 'var(--bad)'
   return (
-    <span title={online ? 'online' : 'offline'}
-          style={{
-            display: 'inline-block',
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            background: color,
-            boxShadow: `0 0 0 2px white, 0 0 2px ${color}`
-          }} />
+    <span title={online ? 'online' : 'offline'} className="dot" style={{ background: color }} />
   )
 }
 
@@ -29,25 +21,19 @@ export function InstrumentPod({ instrument, registry }: { instrument: Instrument
   }, [registry, instrument])
 
   return (
-    <div style={{
-      border: '1px solid #e5e7eb',
-      borderRadius: 8,
-      padding: 12,
-      position: 'relative',
-      minHeight: 140,
-      background: '#fff'
-    }}>
-      <div style={{ position: 'absolute', top: 8, right: 8 }}>
+    <div className="card">
+      <div className="wsdiag">
         <StatusDot online={online} />
+        <span>{online ? 'online' : 'offline'}</span>
       </div>
-      <h3 style={{ margin: '0 0 8px 0' }}>{instrument.id}</h3>
-      <div style={{ fontSize: 12, color: '#6b7280', position: 'absolute', right: 12, bottom: 10 }}>
+      <h3 className="card-title">{instrument.id}</h3>
+      <div className="card-idn">
         {instrument.IDN || registry?.[instrument.id]?.IDN || '—'}
       </div>
-      <div>
+      <div className="card-classes">
         {instrument.classes.map((c) => (
-          <div key={c.class} style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>
-            <b>{c.class}</b>: {c.channels.join(', ')}
+          <div key={c.class}>
+            <span className="badge">{c.class}</span> {c.channels.join(', ')}
           </div>
         ))}
       </div>
