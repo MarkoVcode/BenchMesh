@@ -25,7 +25,7 @@ describe('InstrumentPod', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('Readings')).toBeInTheDocument()
     // No editable P in Settings; P present in Readings only
-    expect(screen.getAllByText('V').length).toBeGreaterThanOrEqual(2)
-    expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('U').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('I').length).toBeGreaterThanOrEqual(2)
   })
 })

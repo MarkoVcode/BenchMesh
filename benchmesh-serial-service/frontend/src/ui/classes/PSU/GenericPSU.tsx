@@ -23,14 +23,14 @@ export function GenericPSU() {
       <div className="psu-main">
         <div className="psu-section">
           <div className="psu-section-title">Settings</div>
-          <EditableBigNumber label="V" value={vDisp} onChange={onChangeVoltage} />
-          <EditableBigNumber label="A" value={aDisp} onChange={onChangeCurrent} />
+          <EditableBigNumber label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet />
+          <EditableBigNumber label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet />
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber label="V" value={vDisp} />
-          <ReadonlyBigNumber label="A" value={aDisp} />
-          <ReadonlyBigNumber label="P" value={pDisp} />
+          <ReadonlyBigNumber label={<Label symbol="U" unit="V"/>} value={vDisp} />
+          <ReadonlyBigNumber label={<Label symbol="I" unit="A"/>} value={aDisp} />
+          <ReadonlyBigNumber label={<Label symbol="P" unit="W"/>} value={pDisp} />
         </div>
       </div>
     </div>
@@ -74,7 +74,7 @@ function numberToDisplay(n: number): string {
   return frac.length ? `${i}.${frac}` : i
 }
 
-function EditableBigNumber({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
+function EditableBigNumber({ label, value, onChange, withSet }: { label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean }) {
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
@@ -86,11 +86,12 @@ function EditableBigNumber({ label, value, onChange }: { label: string, value: s
         />
         <span aria-hidden>{value || '0'}</span>
       </label>
+      {withSet && <button className="psu-set" type="button">SET</button>}
     </div>
   )
 }
 
-function ReadonlyBigNumber({ label, value }: { label: string, value: string }) {
+function ReadonlyBigNumber({ label, value }: { label: React.ReactNode, value: string }) {
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
@@ -100,5 +101,14 @@ function ReadonlyBigNumber({ label, value }: { label: string, value: string }) {
     </div>
   )
 }
+
+function Label({ symbol, unit }: { symbol: string, unit: string }) {
+  return (
+    <>
+      <span className="psu-symbol">{symbol}</span><span className="psu-unit">[{unit}]</span>
+    </>
+  )
+}
+
 
 export default GenericPSU
