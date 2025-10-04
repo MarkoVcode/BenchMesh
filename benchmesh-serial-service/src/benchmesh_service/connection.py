@@ -6,7 +6,8 @@ class DeviceConnection:
     def __init__(self, driver: Optional[Any], clock: Clock):
         self.driver = driver
         self.clock = clock
-        self.last_open_attempt: float = 0.0
+        # Initialize to a far past time so initial open/identify attempts are allowed immediately
+        self.last_open_attempt: float = -1e9
         self.last_ok: float = 0.0
 
     def is_open(self) -> bool:

@@ -174,38 +174,6 @@ class SerialManager:
                 self.metrics.inc_identify_fail(dev_id)
         return conn.driver
 
-    # Backward-compat: simple probe loop used by legacy tests
-    def check_status(self):
-        now = time.time()
-        for dev in self.devices:
-            dev_id = dev.get('id')
-            if not dev_id:
-                continue
-            drv = self.connections.get(dev_id)
-            if drv is None:
-                last_attempt = self.last_open_attempt.get(dev_id, 0.0)
-                if now - last_attempt >= 2.0:
-                    self.last_open_attempt[dev_id] = now
-                    new_drv = self.reconnect(dev_id)
-                    if new_drv:
-                        self.connections[dev_id] = new_drv
-                        self.last_ok[dev_id] = 0.0
-                continue
-            try:
-                if hasattr(drv, 'identify'):
-                    _ = drv.identify()
-                else:
-                    t = getattr(drv, 't', None)
-                    if t:
-                        t.write_line('*IDN?')
-                        _ = t.read_until_reol(256)
-            except Exception:
-                try:
-                    if hasattr(drv, 'close'):
-                        drv.close()
-                except Exception:
-                    pass
-                self.connections[dev_id] = None
 
 
     def _update_registry(self, dev_id: str, key: str, value: Any, klass: str | None = None):

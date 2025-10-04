@@ -90,37 +90,39 @@ def test_establish_connections_tolerates_failures_and_continues():
     assert (devices[1]['id'] not in m.connections) or (m.connections[devices[1]['id']] is None)
 
 
-def test_check_status_probes_and_leaves_connection_on_no_response():
+def test_identify_cadence_uses_manual_clock_and_registry_idn_set():
+    # Verify identify attempts follow identify_interval and set IDN upon non-empty response
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
-        m = SerialManager(devices)
-    # No response by default -> connection should remain, just logs
-    m.check_status()
-    assert m.connections[devices[0]['id']] is not None
+    from benchmesh_service.clock import ManualClock
+    clock = ManualClock(start=0.0)
+
+    class IdentSerial(FakeSerial):
+        pass
+
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: IdentSerial(**kw)):
+        m = SerialManager(devices, clock=clock)
+        dev = devices[0]
+        dev_id = dev['id']
+        # On first call, no IDN yet; FakeSerial read buffer empty -> identify returns '' -> no IDN set
+        m._open_or_identify(dev)
+        assert 'IDN' not in m.registry[dev_id]
+        # Second call without advancing time should NOT attempt identify again
+        m._open_or_identify(dev)
+        assert 'IDN' not in m.registry[dev_id]
+        # Advance by identify interval and preload a response ending with CR
+        clock.advance(m.policy.identify_interval)
+        # Simulate instrument responding to *IDN?
+        ser = getattr(getattr(m.connections[dev_id], 't', None), '_ser', None)
+        if ser is not None:
+            ser._read_buffer = b"FAKE,IDN\r"
+        m._open_or_identify(dev)
+        assert m.registry[dev_id].get('IDN') == 'FAKE,IDN'
 
 
-def test_check_status_sets_none_on_read_exception():
+def test_reconnect_backoff_respected_with_manual_clock():
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
-        m = SerialManager(devices)
-    ser = _get_underlying_serial(m, devices[0]['id'])
-    ser._raise_on_read = True
-    m.check_status()
-    assert m.connections[devices[0]['id']] is None
-
-
-def test_check_status_writes_probe():
-    devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
-        m = SerialManager(devices)
-    m.check_status()
-    ser = _get_underlying_serial(m, devices[0]['id'])
-    # Should have attempted to write a probe (*IDN?)
-    assert any(w for w in ser._written), 'Expected at least one write during probe'
-
-
-def test_reconnect_backoff_and_successful_reopen(monkeypatch):
-    devices = make_devices(1)
+    from benchmesh_service.clock import ManualClock
+    clock = ManualClock(start=0.0)
 
     opened = {'count': 0}
 
@@ -129,27 +131,51 @@ def test_reconnect_backoff_and_successful_reopen(monkeypatch):
             opened['count'] += 1
             super().__init__(**kw)
 
-    # First create manager with a working connection
     with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
-        m = SerialManager(devices)
+        m = SerialManager(devices, clock=clock)
+        dev = devices[0]
+        dev_id = dev['id']
+        # First open attempt happens on init
+        assert m.connections[dev_id] is not None
+        # Simulate a drop: clear both public and internal connection state
+        m.connections[dev_id] = None
+        if dev_id in m.dev_conns:
+            m.dev_conns[dev_id].driver = None
+        # Immediate call to _open_or_identify should not reopen without advancing time
+        m._open_or_identify(dev)
+        assert m.connections[dev_id] is None
+        # Advance less than reconnect interval
+        clock.advance(m.policy.reconnect_interval - 0.1)
+        m._open_or_identify(dev)
+        assert m.connections[dev_id] is None
+        # Advance to satisfy reconnect interval
+        clock.advance(0.2)
+        m._open_or_identify(dev)
+        assert m.connections[dev_id] is not None
+        assert opened['count'] >= 2
 
-    # Simulate a read failure to drop the connection to None
-    ser = _get_underlying_serial(m, devices[0]['id'])
-    ser._raise_on_read = True
-    m.check_status()
-    assert m.connections[devices[0]['id']] is None
 
-    # Before backoff delay, calling check_status should NOT reopen
-    t0 = time.time()
-    m.last_open_attempt[devices[0]['id']] = t0
-    m.check_status()
-    assert m.connections[devices[0]['id']] is None
+def test_identify_writes_idn_probe_and_reads_response():
+    devices = make_devices(1)
+    from benchmesh_service.clock import ManualClock
+    clock = ManualClock(start=0.0)
 
-    # After backoff is satisfied, patch Serial again to succeed and ensure reopen happens
-    time.sleep(2.05)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
-        m.check_status()
+    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+        m = SerialManager(devices, clock=clock)
+        dev = devices[0]
+        dev_id = dev['id']
+        # First identify attempt will not fire immediately because open just updated last_open_attempt
+        m._open_or_identify(dev)
+        ser = _get_underlying_serial(m, dev_id)
+        assert not any(w for w in ser._written), 'No identify probe should be sent yet'
+        # Advance and provide response, then attempt again
+        clock.advance(m.policy.identify_interval)
+        ser._written.clear()
+        ser._read_buffer = b"VENDOR,MODEL,SN\r"
+        m._open_or_identify(dev)
+        # Should have written the IDN probe and stored the response
+        assert any(w for w in ser._written), 'Expected a write during identify probe after interval'
+        assert m.registry[dev_id].get('IDN') == 'VENDOR,MODEL,SN'
 
-    assert m.connections[devices[0]['id']] is not None
-    assert opened['count'] >= 2  # initial + reopen
+
 
