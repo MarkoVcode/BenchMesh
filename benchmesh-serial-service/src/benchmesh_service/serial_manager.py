@@ -3,9 +3,7 @@ import os
 import time
 import threading
 import logging
-import importlib
-import inspect
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any
 import yaml
 from .logger import setup_logger
 from .registry import DeviceRegistry
@@ -18,7 +16,6 @@ from .reconnect import ReconnectPolicy
 from .metrics import MetricsRecorder
 
 logger = logging.getLogger(__name__)
-IDENTIFY_INTERVAL = 1.0
 
 
 MANIFEST_ALIASES = {
@@ -48,158 +45,10 @@ def _load_manifest(driver_key: str) -> Dict:
 
 
 
-def _get_class_channel_counts(dev: dict) -> Dict[str, int]:
-    """Return mapping of class -> channel count for a device from manifest."""
-    out: Dict[str, int] = {}
-    try:
-        driver_key = dev.get("driver")
-        manifest = _load_manifest(driver_key) if driver_key else None
-        if not isinstance(manifest, dict):
-            return out
-        models = manifest.get("models") or {}
-        model_key = dev.get("model")
-        model_cfg = None
-        if model_key and isinstance(models.get(model_key), dict):
-            model_cfg = models.get(model_key)
-        elif isinstance(models, dict) and models:
-            model_cfg = next(iter(models.values()))
-        if not isinstance(model_cfg, dict):
-            return out
-        inst_class_block = model_cfg.get("instrument_class") or {}
-        for klass, cfg in (inst_class_block or {}).items():
-            features = (cfg or {}).get("features") or {}
-            try:
-                ch = int(features.get("channels", 1) or 1)
-            except Exception:
-                ch = 1
-            out[str(klass)] = max(1, ch)
-            # Fallback: detect nested class blocks mistakenly placed under another class
-            for subk, subcfg in (cfg or {}).items():
-                if not isinstance(subcfg, dict):
-                    continue
-                if subk in ("features", "modes", "pooling", "polling"):
-                    continue
-                sub_features = (subcfg or {}).get("features") or {}
-                if sub_features:
-                    try:
-                        sch = int(sub_features.get("channels", 1) or 1)
-                    except Exception:
-                        sch = 1
-                    out[str(subk)] = max(1, sch)
-        return out
-    except Exception:
-        return out
 
 
-def _get_class_poll_intervals(dev: dict) -> Dict[str, float]:
-    """Return mapping of class -> poll interval (seconds) for classes that declare a polling method.
 
-    Only classes with a defined pooling/polling entry are included. This prevents polling
-    classes that have no configured poll method.
-    """
-    out: Dict[str, float] = {}
-    try:
-        driver_key = dev.get("driver")
-        manifest = _load_manifest(driver_key) if driver_key else None
-        if not isinstance(manifest, dict):
-            return out
-        models = manifest.get("models") or {}
-        model_key = dev.get("model")
-        model_cfg = None
-        if model_key and isinstance(models.get(model_key), dict):
-            model_cfg = models.get(model_key)
-        elif isinstance(models, dict) and models:
-            model_cfg = next(iter(models.values()))
-        if not isinstance(model_cfg, dict):
-            return out
-        inst_class_block = model_cfg.get("instrument_class") or {}
-        for klass, cfg in (inst_class_block or {}).items():
-            pooling = (cfg or {}).get("pooling") or (cfg or {}).get("polling") or []
-            # Pick the first polling entry we can use for the top-level class
-            iv = None
-            for entry in pooling:
-                try:
-                    mname = entry.get("method")
-                    if mname:
-                        iv = float(entry.get("interval", 2.0))
-                        break
-                except Exception:
-                    continue
-            if iv is not None:
-                out[str(klass)] = iv
-            # Also detect nested class blocks and their pooling
-            for subk, subcfg in (cfg or {}).items():
-                if not isinstance(subcfg, dict) or subk in ("features", "modes", "pooling", "polling"):
-                    continue
-                sub_pool = (subcfg or {}).get("pooling") or (subcfg or {}).get("polling") or []
-                sub_iv = None
-                for entry in sub_pool:
-                    try:
-                        mname = entry.get("method")
-                        if mname:
-                            sub_iv = float(entry.get("interval", 2.0))
-                            break
-                    except Exception:
-                        continue
-                if sub_iv is not None:
-                    out[str(subk)] = sub_iv
-        return out
-    except Exception:
-        return out
-def _load_driver_class(driver_key: str):
-    """Load a driver class given its key.
-
-    Supports both legacy flat modules (benchmesh_service.drivers.<driver_key>)
-    and new layout with subpackages (benchmesh_service.drivers.<pkg>.<module>).
-    The class is expected to be reachable from the imported module namespace,
-    either defined there or re-exported by the package's __init__.py.
-    """
-    tried = []
-    folder_key = MANIFEST_ALIASES.get(driver_key, driver_key)
-
-    # Candidate import names in order of preference
-    candidates = [
-        f"benchmesh_service.drivers.{driver_key}",
-        f"benchmesh_service.drivers.{folder_key}",
-        f"benchmesh_service.drivers.{folder_key}.driver",
-        # explicit known class module for tenma alias
-        f"benchmesh_service.drivers.{folder_key}.driver" if folder_key == 'tenma_72' else None,
-    ]
-    candidates = [c for c in candidates if c]
-
-    for mod_name in candidates:
-        try:
-            mod = importlib.import_module(mod_name)
-            # Return first class exposed on the module namespace
-            for _, obj in inspect.getmembers(mod, inspect.isclass):
-                # Accept classes defined in the module or its submodules
-                if getattr(obj, "__module__", "").startswith(mod.__name__):
-                    return obj
-            # If no classes found yet but module imported, keep trying next candidate
-            tried.append(mod_name)
-        except Exception as e:
-            tried.append(f"{mod_name} ({e.__class__.__name__}: {e})")
-            continue
-
-    # As a fallback, attempt direct file import for <folder_key>/<driver_key>.py or <folder_key>/<folder_key>.py
-    base_dir = os.path.join(os.path.dirname(__file__), 'drivers', folder_key)
-    for file_base in (driver_key, folder_key, 'driver'):
-        file_path = os.path.join(base_dir, f"{file_base}.py")
-        if os.path.exists(file_path):
-            try:
-                spec = importlib.util.spec_from_file_location(f"benchmesh_service.drivers.{folder_key}.{file_base}", file_path)
-                if spec and spec.loader:
-                    mod = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(mod)
-                    for _, obj in inspect.getmembers(mod, inspect.isclass):
-                        # Only accept classes defined in this module (exclude imported helpers)
-                        if getattr(obj, "__module__", "").startswith(mod.__name__):
-                            return obj
-            except Exception as e:
-                tried.append(f"file:{file_path} ({e.__class__.__name__}: {e})")
-                continue
-
-    raise ImportError(f"No driver class found for key '{driver_key}'. Tried: {tried}")
+# Note: legacy dynamic driver loader removed. DriverFactory is the single source of truth.
 
 
 class SerialManager:
@@ -325,18 +174,6 @@ class SerialManager:
                 self.metrics.inc_identify_fail(dev_id)
         return conn.driver
 
-    def _try_identify(self, drv):
-        try:
-            if hasattr(drv, 'identify'):
-                return drv.identify()
-            t = getattr(drv, 't', None)
-            if t:
-                t.write_line('*IDN?')
-                return t.read_until_reol(256)
-        except Exception as e:
-            logger.warning("Identify failed: %s", e)
-            raise
-        return None
 
     def _update_registry(self, dev_id: str, key: str, value: Any, klass: str | None = None):
         self.registry_obj.update(dev_id, key, value, klass)
