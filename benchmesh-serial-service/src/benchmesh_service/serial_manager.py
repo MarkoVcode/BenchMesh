@@ -153,7 +153,7 @@ class SerialManager:
             except Exception:
                 conn.driver = None
                 # Ensure registry reflects disconnected state
-                self._clear_disconnected_registry(dev_id)
+                self.registry_obj.clear_disconnected(dev_id)
                 return None
         # Ensure a worker exists even if not identified yet; it will be IDN-gated
         if dev_id not in self.workers:
@@ -174,6 +174,39 @@ class SerialManager:
                 self.metrics.inc_identify_fail(dev_id)
         return conn.driver
 
+    # Backward-compat: simple probe loop used by legacy tests
+    def check_status(self):
+        now = time.time()
+        for dev in self.devices:
+            dev_id = dev.get('id')
+            if not dev_id:
+                continue
+            drv = self.connections.get(dev_id)
+            if drv is None:
+                last_attempt = self.last_open_attempt.get(dev_id, 0.0)
+                if now - last_attempt >= 2.0:
+                    self.last_open_attempt[dev_id] = now
+                    new_drv = self.reconnect(dev_id)
+                    if new_drv:
+                        self.connections[dev_id] = new_drv
+                        self.last_ok[dev_id] = 0.0
+                continue
+            try:
+                if hasattr(drv, 'identify'):
+                    _ = drv.identify()
+                else:
+                    t = getattr(drv, 't', None)
+                    if t:
+                        t.write_line('*IDN?')
+                        _ = t.read_until_reol(256)
+            except Exception:
+                try:
+                    if hasattr(drv, 'close'):
+                        drv.close()
+                except Exception:
+                    pass
+                self.connections[dev_id] = None
+
 
     def _update_registry(self, dev_id: str, key: str, value: Any, klass: str | None = None):
         self.registry_obj.update(dev_id, key, value, klass)
@@ -187,39 +220,7 @@ class SerialManager:
     def _clear_disconnected_registry(self, dev_id: str):
         self.registry_obj.clear_disconnected(dev_id)
 
-    def monitor_connections(self):
-        print("Starting connection monitor thread.")
-        while self.keep_running:
-            now = time.time()
-            for dev in self.devices:
-                dev_id = dev.get('id')
-                if not dev_id:
-                    continue
-                # Open or identify if needed; this will set up workers when IDN is available
-                self._open_or_identify(dev)
-                # Run worker tick if exists
-                w = self.workers.get(dev_id)
-                if w:
-                    # Inject latest test overrides if present
-                    w.interval_override = self.dev_class_poll_interval.get(dev_id) or None
-                    if dev_id in self.last_probe_class:
-                        w.last_probe_class = self.last_probe_class[dev_id]
-                    try:
-                        w.run_once(now)
-                    except RuntimeError as e:
-                        if str(e) == 'poll_empty':
-                            # Drop connection and rely on reconnect cadence
-                            self.connections[dev_id] = None
-                            if dev_id in self.dev_conns:
-                                self.dev_conns[dev_id].driver = None
-                        else:
-                            raise
-            if now - self._last_registry_log >= 5.0:
-                self._last_registry_log = now
-                try:
-                    logger.debug("Registry snapshot: %s", json.dumps(self.registry, ensure_ascii=False))
-                except Exception:
-                    logger.debug("Registry snapshot (repr): %r", self.registry)
+    # Removed legacy monitor and status helpers. Device threads handle cadence.
 
     def _device_worker(self, dev_id: str):
         while self.keep_running:
@@ -308,57 +309,3 @@ class SerialManager:
                 pass
         self.logger.info("All connections closed.")
 
-    def close_connections(self):
-        for dev_id, drv in list(self.connections.items()):
-            if drv:
-                try:
-                    drv.close()
-                    logger.info("Closed connection %s", dev_id)
-                except Exception:
-                    logger.exception("Error closing %s", dev_id)
-            self.connections[dev_id] = None
-
-    def check_status(self):
-        print("Checking status.")
-        now = time.time()
-        for dev in self.devices:
-            dev_id = dev.get('id')
-            if not dev_id:
-                continue
-            drv = self.connections.get(dev_id)
-            if drv is None:
-                last_attempt = self.last_open_attempt.get(dev_id, 0.0)
-                if now - last_attempt >= 2.0:
-                    self.last_open_attempt[dev_id] = now
-                    new_drv = self.reconnect(dev)
-                    if new_drv:
-                        print("Opened connection to", dev_id)
-                        self.connections[dev_id] = new_drv
-                        self.last_ok[dev_id] = 0.0
-                continue
-
-            try:
-                ident = None
-                if hasattr(drv, 'identify'):
-                    ident = drv.identify()
-                else:
-                    # fallback: try to access transport
-                    t = getattr(drv, 't', None)
-                    if t:
-                        t.write_line('*IDN?')
-                        ident = t.read_until_reol(256)
-
-                if ident:
-                    self.last_ok[dev_id] = now
-                    self._update_registry(dev_id, 'IDN', ident)
-                    logger.debug("Probe OK %s -> %s", dev_id, ident)
-                else:
-                    logger.debug("No response from %s on probe", dev_id)
-
-            except Exception as e:
-                logger.warning("Connection error for %s: %s", dev_id, e)
-                try:
-                    drv.close()
-                except Exception:
-                    pass
-                self.connections[dev_id] = None
