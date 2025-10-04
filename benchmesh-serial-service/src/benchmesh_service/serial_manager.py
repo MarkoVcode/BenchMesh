@@ -65,13 +65,30 @@ def _get_class_channel_counts(dev: dict) -> Dict[str, int]:
             except Exception:
                 ch = 1
             out[str(klass)] = max(1, ch)
+            # Fallback: detect nested class blocks mistakenly placed under another class
+            for subk, subcfg in (cfg or {}).items():
+                if not isinstance(subcfg, dict):
+                    continue
+                if subk in ("features", "modes", "pooling", "polling"):
+                    continue
+                sub_features = (subcfg or {}).get("features") or {}
+                if sub_features:
+                    try:
+                        sch = int(sub_features.get("channels", 1) or 1)
+                    except Exception:
+                        sch = 1
+                    out[str(subk)] = max(1, sch)
         return out
     except Exception:
         return out
 
 
 def _get_class_poll_intervals(dev: dict) -> Dict[str, float]:
-    """Return mapping of class -> poll interval (seconds), defaults to 2.0 if not specified."""
+    """Return mapping of class -> poll interval (seconds) for classes that declare a polling method.
+
+    Only classes with a defined pooling/polling entry are included. This prevents polling
+    classes that have no configured poll method.
+    """
     out: Dict[str, float] = {}
     try:
         driver_key = dev.get("driver")
@@ -90,16 +107,34 @@ def _get_class_poll_intervals(dev: dict) -> Dict[str, float]:
         inst_class_block = model_cfg.get("instrument_class") or {}
         for klass, cfg in (inst_class_block or {}).items():
             pooling = (cfg or {}).get("pooling") or (cfg or {}).get("polling") or []
-            # pooling can be a list of entries, pick poll_status if present
-            iv = 2.0
+            # Pick the first polling entry we can use for the top-level class
+            iv = None
             for entry in pooling:
                 try:
-                    if entry.get("method") == "poll_status":
-                        iv = float(entry.get("interval", iv))
+                    mname = entry.get("method")
+                    if mname:
+                        iv = float(entry.get("interval", 2.0))
                         break
                 except Exception:
                     continue
-            out[str(klass)] = iv
+            if iv is not None:
+                out[str(klass)] = iv
+            # Also detect nested class blocks and their pooling
+            for subk, subcfg in (cfg or {}).items():
+                if not isinstance(subcfg, dict) or subk in ("features", "modes", "pooling", "polling"):
+                    continue
+                sub_pool = (subcfg or {}).get("pooling") or (subcfg or {}).get("polling") or []
+                sub_iv = None
+                for entry in sub_pool:
+                    try:
+                        mname = entry.get("method")
+                        if mname:
+                            sub_iv = float(entry.get("interval", 2.0))
+                            break
+                    except Exception:
+                        continue
+                if sub_iv is not None:
+                    out[str(subk)] = sub_iv
         return out
     except Exception:
         return out
@@ -288,10 +323,42 @@ class SerialManager:
                             continue
                         try:
                             polled_any = False
+                            # Resolve poll method name from manifest config
+                            poll_method = None
+                            try:
+                                driver_key = dev.get('driver')
+                                manifest = _load_manifest(driver_key)
+                                models = manifest.get('models', {}) or {}
+                                model_cfg = models.get(dev.get('model')) if dev.get('model') in models else (next(iter(models.values())) if models else {})
+                                iclasses = (model_cfg or {}).get('instrument_class', {}) or {}
+                                icfg = iclasses.get(klass, {})
+                                pooling = (icfg or {}).get('pooling') or (icfg or {}).get('polling') or []
+                                if not pooling:
+                                    for topk, topcfg in (iclasses or {}).items():
+                                        if isinstance(topcfg, dict) and isinstance(topcfg.get(klass), dict):
+                                            alt = topcfg.get(klass) or {}
+                                            pooling = (alt.get('pooling') or alt.get('polling') or [])
+                                            if pooling:
+                                                break
+                                for entry in pooling:
+                                    name = entry.get('method')
+                                    if name:
+                                        poll_method = name
+                                        break
+                            except Exception:
+                                pass
+                            # Default fallback
+                            if not poll_method:
+                                poll_method = 'poll_status'
+                            meth = getattr(drv, poll_method, None)
+                            if not callable(meth):
+                                logger.warning("Poll method %s not implemented on driver %s; skipping class %s", poll_method, type(drv).__name__, klass)
+                                continue
                             for ch in range(1, max(1, ch_count) + 1):
                                 try:
-                                    status = drv.poll_status(ch) if hasattr(drv, 'poll_status') else {}
-                                except Exception:
+                                    status = meth(ch)
+                                except Exception as e:
+                                    logger.warning("Polling %s[%s] failed: %s", device_id, klass, e)
                                     status = {}
                                 if not status:
                                     self._clear_disconnected_registry(device_id)
@@ -377,10 +444,43 @@ class SerialManager:
                             continue
                         try:
                             polled_any = False
+                            # Resolve poll method name from manifest config
+                            poll_method = None
+                            try:
+                                dev_cfg = next((d for d in self.devices if d.get('id') == dev_id), None)
+                                if dev_cfg:
+                                    driver_key = dev_cfg.get('driver')
+                                    manifest = _load_manifest(driver_key)
+                                    models = manifest.get('models', {}) or {}
+                                    model_cfg = models.get(dev_cfg.get('model')) if dev_cfg.get('model') in models else (next(iter(models.values())) if models else {})
+                                    iclasses = (model_cfg or {}).get('instrument_class', {}) or {}
+                                    icfg = iclasses.get(klass, {})
+                                    pooling = (icfg or {}).get('pooling') or (icfg or {}).get('polling') or []
+                                    if not pooling:
+                                        for topk, topcfg in (iclasses or {}).items():
+                                            if isinstance(topcfg, dict) and isinstance(topcfg.get(klass), dict):
+                                                alt = topcfg.get(klass) or {}
+                                                pooling = (alt.get('pooling') or alt.get('polling') or [])
+                                                if pooling:
+                                                    break
+                                    for entry in pooling:
+                                        name = entry.get('method')
+                                        if name:
+                                            poll_method = name
+                                            break
+                            except Exception:
+                                pass
+                            if not poll_method:
+                                poll_method = 'poll_status'
+                            meth = getattr(drv, poll_method, None)
+                            if not callable(meth):
+                                logger.warning("Poll method %s not implemented on driver %s; skipping class %s", poll_method, type(drv).__name__, klass)
+                                continue
                             for ch in range(1, max(1, ch_count)+1):
                                 try:
-                                    st = drv.poll_status(ch) if hasattr(drv, 'poll_status') else {}
-                                except Exception:
+                                    st = meth(ch)
+                                except Exception as e:
+                                    logger.warning("Polling %s[%s] failed: %s", dev_id, klass, e)
                                     st = {}
                                 if not st:
                                     self._clear_disconnected_registry(dev_id)

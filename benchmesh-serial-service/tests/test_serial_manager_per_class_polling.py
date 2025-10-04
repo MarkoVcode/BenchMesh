@@ -64,8 +64,9 @@ def test_registry_nested_under_class_and_channels():
         def stub_poll(channel=1):
             # Return dict so it is considered a successful poll
             return {'ok': True, 'ch': channel}
-        # One poll method used for both classes in driver; manager will call per class
-        drv.poll_status = stub_poll  # type: ignore[attr-defined]
+        # Provide per-class poll methods as per manifest for SPM (PSU/DMM)
+        drv.poll_status_psu = stub_poll  # type: ignore[attr-defined]
+        drv.poll_status_dmm = stub_poll  # type: ignore[attr-defined]
 
         # Allow some time for a few polling cycles
         time.sleep(0.6)
