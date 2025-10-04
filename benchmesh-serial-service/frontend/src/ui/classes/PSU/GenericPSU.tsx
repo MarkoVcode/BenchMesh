@@ -64,6 +64,7 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
           <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={"00000"} channelPath={channelPath} />
         </div>
       <hr className="sep"/>
+      </div>
       <div className="psu-actions">
         <button
           className={`psu-set psu-output ${outputEnabled ? 'danger' : ''}`}
@@ -83,7 +84,6 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
         >
           {busyOutput ? (<><span className="spinner"/>{outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}</>) : (outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT')}
         </button>
-      </div>
       </div>
     </div>
   )
