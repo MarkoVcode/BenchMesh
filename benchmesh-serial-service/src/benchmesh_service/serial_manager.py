@@ -8,6 +8,7 @@ import inspect
 from typing import Dict, List, Any, Tuple
 import yaml
 from .logger import setup_logger
+from .registry import DeviceRegistry
 
 logger = logging.getLogger(__name__)
 IDENTIFY_INTERVAL = 1.0
@@ -206,7 +207,8 @@ class SerialManager:
         self.last_probe: Dict[str, float] = {}
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
         self.dev_threads: Dict[str, threading.Thread] = {}
-        self.registry: Dict[str, Dict[str, Any]] = {d.get('id'): {} for d in self.devices if d.get('id')}
+        self.registry_obj = DeviceRegistry({d.get('id'): {} for d in self.devices if d.get('id')})
+        self.registry = self.registry_obj.data
         # Per-class settings
         self.dev_class_channels: Dict[str, Dict[str, int]] = {}
         self.dev_class_poll_interval: Dict[str, Dict[str, float]] = {}
@@ -252,50 +254,16 @@ class SerialManager:
         return None
 
     def _update_registry(self, dev_id: str, key: str, value: Any, klass: str | None = None):
-        if dev_id not in self.registry:
-            self.registry[dev_id] = {}
-        if klass:
-            bucket = self.registry[dev_id].setdefault(klass, {})
-            bucket[key] = value
-        else:
-            self.registry[dev_id][key] = value
+        self.registry_obj.update(dev_id, key, value, klass)
 
     def remove_registry_item(self, dev_id: str, key: str | None = None, prefix: bool = False, klass: str | None = None):
-        """Remove item(s) from the registry.
-        - key is None: clear all keys for the device (or class bucket if klass specified)
-        - prefix True: remove all keys that start with the given key string
-        - otherwise: remove the exact key if present
-        """
-        if dev_id not in self.registry or not isinstance(self.registry.get(dev_id), dict):
-            self.registry[dev_id] = {}
-            return
-        target = self.registry[dev_id]
-        if klass:
-            target = target.setdefault(klass, {})
-        if key is None:
-            # Clear entire device bucket or class bucket
-            if klass:
-                self.registry[dev_id][klass] = {}
-            else:
-                self.registry[dev_id] = {}
-            return
-        if prefix:
-            for k in list(target.keys()):
-                if isinstance(k, str) and k.startswith(key):
-                    target.pop(k, None)
-            return
-        target.pop(key, None)
+        self.registry_obj.remove_item(dev_id, key, prefix, klass)
 
     def clear_device_registry(self, dev_id: str):
-        self.remove_registry_item(dev_id, None)
+        self.registry_obj.clear_device(dev_id)
 
     def _clear_disconnected_registry(self, dev_id: str):
-        # Remove IDN and all per-class status entries when link drops
-        self.remove_registry_item(dev_id, 'IDN')
-        # Clear status under all classes
-        for klass in list((self.registry.get(dev_id) or {}).keys()):
-            if isinstance(klass, str) and len(klass) == 3:  # class buckets like PSU/DMM/ELL
-                self.remove_registry_item(dev_id, 'status_ch', prefix=True, klass=klass)
+        self.registry_obj.clear_disconnected(dev_id)
 
     def monitor_connections(self):
         print("Starting connection monitor thread.")
