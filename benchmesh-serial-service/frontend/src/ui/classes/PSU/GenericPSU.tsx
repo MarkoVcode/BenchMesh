@@ -8,6 +8,7 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
 
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
+  const [outputEnabled, setOutputEnabled] = useState(false)
 
   const onChangeVoltage = (v: string) => setVoltage(limitDigits(sanitizeNumber(v), 5))
   const onChangeCurrent = (v: string) => setCurrent(limitDigits(sanitizeNumber(v), 5))
@@ -61,6 +62,26 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
           <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={"00000"} channelPath={channelPath} />
           <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={"00000"} channelPath={channelPath} />
         </div>
+      <hr className="sep"/>
+      <div className="psu-actions">
+        <button
+          className={`psu-set psu-output ${outputEnabled ? 'danger' : ''}`}
+          style={{ width: '100%', padding: '8px 12px', fontSize: '12px' }}
+          onClick={async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (!channelPath) return
+            try {
+              const next = !outputEnabled
+              const cmd = next ? 'ON' : 'OFF'
+              await fetch(`${apiBase}${channelPath}/set_output/${cmd}`, { method: 'POST' })
+              setOutputEnabled(next)
+            } catch {}
+          }}
+          title={`POST ${channelPath}/set_output/${outputEnabled ? 'OFF' : 'ON'}`}
+        >
+          {outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}
+        </button>
+      </div>
       </div>
     </div>
   )

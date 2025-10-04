@@ -121,13 +121,12 @@ class TenmaPSU:
     def unset_ovp(self, channel: int):
         self.t.write_line('OVP0')
         return self.t.read_until_reol(1024)
-
-    def set_output(self, channel: int):
-        self.t.write_line('OUT1')
-        return self.t.read_until_reol(1024)
-    
-    def unset_output(self, channel: int):
-        self.t.write_line('OUT0')
+   
+    def set_output(self, channel: int, value):
+        if value == 'ON':
+            self.t.write_line('OUT1')
+        else:
+            self.t.write_line('OUT0')
         return self.t.read_until_reol(1024)
     
     def set_beep(self, channel: int):           #doesnt work

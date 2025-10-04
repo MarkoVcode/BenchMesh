@@ -89,3 +89,6 @@ a{ color:var(--accent); text-decoration:none; }
 .wsdiag{ position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2); }
 
 hr.sep{ border:0; border-top:1px solid var(--border); margin:10px 0; }
+.psu-actions .psu-output.danger{ background: rgba(239,68,68,.12); color:#ffb3b3; border-color:#ef4444; }
+.psu-actions .psu-output.danger:hover{ background: rgba(239,68,68,.18); }
+

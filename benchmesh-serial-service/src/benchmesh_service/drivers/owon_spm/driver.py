@@ -58,12 +58,8 @@ class OWONSPM:
         # Future: parse raw into structured DMM readings
         return {"raw": raw}
 
-    def set_output(self, channel: int):
-        self.t.write_line('OUTP ON')
-        return self.t.read_until_reol(1024)
-    
-    def unset_output(self, channel: int):
-        self.t.write_line('OUTP OFF')
+    def set_output(self, channel: int, value):  # ON / OFF
+        self.t.write_line('OUTP ' + str(value))
         return self.t.read_until_reol(1024)
 
     def query_output(self, channel: int):
