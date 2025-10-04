@@ -9,7 +9,7 @@ export function ChannelPod({ path, klass }: { path: string, klass?: string }) {
       <code className="channel-path">{path}</code>
       {upper === 'PSU' && (
         <div className="channel-extra">
-          <GenericPSU />
+          <GenericPSU channelPath={path} />
         </div>
       )}
     </div>

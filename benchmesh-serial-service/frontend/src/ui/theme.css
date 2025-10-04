@@ -71,14 +71,19 @@ a{ color:var(--accent); text-decoration:none; }
 .psu-main{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
 .psu-section{ display:flex; flex-direction:column; gap:8px; min-width:180px; }
 .psu-section-title{ font-size:10px; color:var(--text-2); text-transform:uppercase; letter-spacing:.6px; }
-.psu-block{ display:flex; align-items:center; gap:8px; }
-.psu-label{ font-size:12px; color:var(--text-2); width:14px; }
-.psu-number{ position:relative; display:inline-block; }
-.psu-number span{ font-variant-numeric: tabular-nums; font-weight:600; font-size:26px; line-height:1; color:#c26a1a; /* between orange and black */ }
-.psu-input{
-  position:absolute; inset:0; opacity:0; pointer-events:auto; /* concealed input, still editable */
-  background:transparent; color:transparent; border:0; outline:0;
-}
+.psu-block{ display:grid; grid-template-columns:auto 1fr auto auto; align-items:end; gap:8px; }
+.psu-label{ display:flex; align-items:baseline; gap:4px; color:var(--text-2); min-width:56px; }
+.psu-label .psu-symbol{ font-size:14px; font-weight:700; color:var(--text-1); }
+.psu-label .psu-unit{ font-size:11px; color:var(--text-2); }
+.psu-number{ position:relative; display:inline-block; min-width:140px; }
+.psu-number span{ font-variant-numeric: tabular-nums; font-weight:700; font-size:26px; line-height:1.1; color:#c26a1a; }
+.psu-input{ position:absolute; inset:0; opacity:0; pointer-events:auto; background:transparent; color:transparent; border:0; outline:0; }
+.psu-number.editable{ border-bottom:1px solid rgba(255,255,255,.25); }
+.psu-number.readonly{ border-bottom:1px dashed rgba(255,255,255,.1); }
+
+.psu-set{ font-size:10px; padding:2px 8px; border:1px solid var(--border); background:rgba(255,255,255,.03); color:var(--text-1); border-radius:6px; cursor:pointer; }
+.psu-set:hover{ background:rgba(255,255,255,.05); }
+.psu-api{ font-size:9px; padding:1px 6px; border-radius:999px; background:rgba(96,165,250,.25); color:#bcd9ff; border:1px solid rgba(96,165,250,.35); line-height:1.6; }
 
 .wsdiag{ position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-2); }
 

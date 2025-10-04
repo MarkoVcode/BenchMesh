@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react'
 // PSU face with two columns: Settings (editable V/A) and Readings (readonly V/A/P)
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
 // - Readings: mirrors V and A and derives P = V*A, all readonly but styled identically
-export function GenericPSU() {
+export function GenericPSU({ channelPath }: { channelPath?: string }) {
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
 
@@ -23,8 +23,8 @@ export function GenericPSU() {
       <div className="psu-main">
         <div className="psu-section">
           <div className="psu-section-title">Settings</div>
-          <EditableBigNumber label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet />
-          <EditableBigNumber label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet />
+          <EditableBigNumber label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet channelPath={channelPath} />
+          <EditableBigNumber label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet channelPath={channelPath} />
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
@@ -74,11 +74,11 @@ function numberToDisplay(n: number): string {
   return frac.length ? `${i}.${frac}` : i
 }
 
-function EditableBigNumber({ label, value, onChange, withSet }: { label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean }) {
+function EditableBigNumber({ label, value, onChange, withSet, channelPath }: { label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string }) {
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
-      <label className="psu-number" title="Click to edit">
+      <label className="psu-number editable" title="Click to edit">
         <input
           className="psu-input"
           value={value}
@@ -87,6 +87,7 @@ function EditableBigNumber({ label, value, onChange, withSet }: { label: React.R
         <span aria-hidden>{value || '0'}</span>
       </label>
       {withSet && <button className="psu-set" type="button">SET</button>}
+      {withSet && channelPath && <span className="psu-api" title={channelPath}>API</span>}
     </div>
   )
 }
@@ -95,7 +96,7 @@ function ReadonlyBigNumber({ label, value }: { label: React.ReactNode, value: st
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
-      <span className="psu-number" aria-hidden>
+      <span className="psu-number readonly" aria-hidden>
         <span>{value || '0'}</span>
       </span>
     </div>
