@@ -3,17 +3,21 @@ from typing import Optional, Any
 from .clock import Clock
 
 class DeviceConnection:
-    def __init__(self, driver, clock: Clock):
+    def __init__(self, driver: Optional[Any], clock: Clock):
         self.driver = driver
         self.clock = clock
         self.last_open_attempt: float = 0.0
         self.last_ok: float = 0.0
 
     def is_open(self) -> bool:
+        if not self.driver:
+            return False
         t = getattr(self.driver, 't', None)
         return bool(getattr(t, 'is_open', False))
 
     def identify(self) -> Optional[str]:
+        if not self.driver:
+            return None
         if hasattr(self.driver, 'identify'):
             return self.driver.identify()
         t = getattr(self.driver, 't', None)
@@ -24,7 +28,8 @@ class DeviceConnection:
 
     def close(self):
         try:
-            self.driver.close()
+            if self.driver:
+                self.driver.close()
         except Exception:
             pass
 

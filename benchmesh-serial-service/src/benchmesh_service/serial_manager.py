@@ -9,6 +9,13 @@ from typing import Dict, List, Any, Tuple
 import yaml
 from .logger import setup_logger
 from .registry import DeviceRegistry
+from .manifest_resolver import ManifestResolver
+from .driver_factory import DriverFactory
+from .clock import Clock
+from .connection import DeviceConnection
+from .poll_worker import DeviceWorker
+from .reconnect import ReconnectPolicy
+from .metrics import MetricsRecorder
 
 logger = logging.getLogger(__name__)
 IDENTIFY_INTERVAL = 1.0
@@ -196,27 +203,33 @@ def _load_driver_class(driver_key: str):
 
 
 class SerialManager:
-    def __init__(self, config_source: Any):
+    def __init__(self, config_source: Any, *, resolver: ManifestResolver | None = None, driver_factory: DriverFactory | None = None, clock: Clock | None = None, metrics: MetricsRecorder | None = None, policy: ReconnectPolicy | None = None):
         print("Initializing SerialManager with config:", config_source)
         self.logger = setup_logger()
         self.devices: List[Dict] = self._load_devices(config_source)
-        self.connections: Dict[str, object] = {}
         self.keep_running = True
-        self.last_open_attempt: Dict[str, float] = {}
-        self.last_ok: Dict[str, float] = {}
-        self.last_probe: Dict[str, float] = {}
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
         self.dev_threads: Dict[str, threading.Thread] = {}
         self.registry_obj = DeviceRegistry({d.get('id'): {} for d in self.devices if d.get('id')})
         self.registry = self.registry_obj.data
-        # Per-class settings
+        self.resolver = resolver or ManifestResolver()
+        self.driver_factory = driver_factory or DriverFactory()
+        self.clock = clock or Clock()
+        self.metrics = metrics or MetricsRecorder()
+        self.policy = policy or ReconnectPolicy()
+        # External compatibility: connections map dev_id -> driver (or None)
+        self.connections: Dict[str, object] = {}
+        # Internal: device connections and workers
+        self.dev_conns: Dict[str, DeviceConnection] = {}
+        self.workers: Dict[str, DeviceWorker] = {}
+        self._last_registry_log: float = 0.0
+        # Backwards-compat attributes for tests
+        self.last_open_attempt: Dict[str, float] = {}
+        self.last_ok: Dict[str, float] = {}
+        self.last_probe: Dict[str, float] = {}
         self.dev_class_channels: Dict[str, Dict[str, int]] = {}
         self.dev_class_poll_interval: Dict[str, Dict[str, float]] = {}
         self.last_probe_class: Dict[str, Dict[str, float]] = {}
-        # Legacy per-device fields (kept for compatibility, not used in new per-class polling)
-        self.dev_channels: Dict[str, int] = {}
-        self.dev_poll_interval: Dict[str, float] = {}
-        self._last_registry_log: float = 0.0
 
         self.establish_connections()
 
@@ -234,11 +247,83 @@ class SerialManager:
     def establish_connections(self):
         print("Establishing connections to devices...")
         for device in self.devices:
-            print("Establishing connections to devices...", device)
+            dev_id = device.get('id')
+            if not dev_id:
+                continue
             try:
-                self.reconnect(device)
+                self._open_or_identify(device)
             except Exception as e:
-                self.logger.info(f"Failed to connect to {device.get('name', device.get('id'))} on {device.get('port')}: {e}")
+                self.logger.info(f"Failed to connect to {device.get('name', dev_id)} on {device.get('port')}: {e}")
+
+
+    def _make_driver(self, dev: dict):
+        driver_key = dev['driver']
+        cls = self.driver_factory.load_driver_class(driver_key)
+        seol, reol = self.resolver.get_connection_eol(dev)
+        return cls(
+            dev['port'],
+            dev.get('baud', 115200),
+            serial_mode=dev.get('serial', '8N1'),
+            seol=seol,
+            reol=reol,
+        )
+
+    def _open_or_identify(self, dev: dict):
+        dev_id = dev.get('id')
+        if not dev_id:
+            return None
+        conn = self.dev_conns.get(dev_id)
+        if not conn:
+            conn = DeviceConnection(None, self.clock)
+            self.dev_conns[dev_id] = conn
+            self.connections[dev_id] = None
+        now = self.clock.now()
+        # Attempt open/reconnect
+        if not conn.is_open() and conn.can_attempt_open(self.policy.reconnect_interval):
+            conn.mark_attempt()
+            self.metrics.inc_reconnect_attempt(dev_id)
+            try:
+                drv = self._make_driver(dev)
+                from .transport import SerialTransport
+                if isinstance(drv, SerialTransport):
+                    class _Adapter:
+                        def __init__(self, t):
+                            self.t = t
+                        def close(self):
+                            self.t.close()
+                        def identify(self):
+                            self.t.write_line('*IDN?')
+                            return self.t.read_until_reol(1024)
+                    drv = _Adapter(drv)
+                conn.driver = drv
+                self.connections[dev_id] = drv
+                # If we had a worker, update its driver reference
+                if dev_id in self.workers:
+                    self.workers[dev_id].driver = drv
+                self.metrics.inc_reconnect_success(dev_id)
+            except Exception:
+                conn.driver = None
+                # Ensure registry reflects disconnected state
+                self._clear_disconnected_registry(dev_id)
+                return None
+        # Ensure a worker exists even if not identified yet; it will be IDN-gated
+        if dev_id not in self.workers:
+            probe_map = getattr(self, 'last_probe_class', {}).setdefault(dev_id, {})
+            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map)
+        # Identify-only cadence
+        if conn.is_open() and (not self.registry.get(dev_id, {}).get('IDN')) and conn.can_attempt_open(self.policy.identify_interval):
+            conn.mark_attempt()
+            try:
+                ident = conn.identify()
+                if ident:
+                    self.registry_obj.set_idn(dev_id, ident)
+                    self.metrics.inc_identify_success(dev_id)
+                    conn.mark_ok()
+                else:
+                    self.metrics.inc_identify_fail(dev_id)
+            except Exception:
+                self.metrics.inc_identify_fail(dev_id)
+        return conn.driver
 
     def _try_identify(self, drv):
         try:
@@ -269,113 +354,29 @@ class SerialManager:
         print("Starting connection monitor thread.")
         while self.keep_running:
             now = time.time()
-            # iterate over configured devices to ensure we attempt reopens too
             for dev in self.devices:
-                device_id = dev.get('id')
-                if not device_id:
+                dev_id = dev.get('id')
+                if not dev_id:
                     continue
-                drv = self.connections.get(device_id)
-                is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
-
-                if is_open and self.registry.get(device_id, {}).get('IDN'):
-                    # Per-class polling: iterate over instrument classes
-                    if device_id not in self.dev_class_channels:
-                        self.dev_class_channels[device_id] = _get_class_channel_counts(dev)
-                    if device_id not in self.dev_class_poll_interval:
-                        self.dev_class_poll_interval[device_id] = _get_class_poll_intervals(dev)
-                    lp = self.last_probe_class.setdefault(device_id, {})
-                    for klass, ch_count in (self.dev_class_channels.get(device_id) or {}).items():
-                        poll_iv = (self.dev_class_poll_interval.get(device_id) or {}).get(klass, 2.0)
-                        last_poll = lp.get(klass, 0.0)
-                        if now - last_poll < poll_iv:
-                            continue
-                        try:
-                            polled_any = False
-                            # Resolve poll method name from manifest config
-                            poll_method = None
-                            try:
-                                driver_key = dev.get('driver')
-                                manifest = _load_manifest(driver_key)
-                                models = manifest.get('models', {}) or {}
-                                model_cfg = models.get(dev.get('model')) if dev.get('model') in models else (next(iter(models.values())) if models else {})
-                                iclasses = (model_cfg or {}).get('instrument_class', {}) or {}
-                                icfg = iclasses.get(klass, {})
-                                pooling = (icfg or {}).get('pooling') or (icfg or {}).get('polling') or []
-                                if not pooling:
-                                    for topk, topcfg in (iclasses or {}).items():
-                                        if isinstance(topcfg, dict) and isinstance(topcfg.get(klass), dict):
-                                            alt = topcfg.get(klass) or {}
-                                            pooling = (alt.get('pooling') or alt.get('polling') or [])
-                                            if pooling:
-                                                break
-                                for entry in pooling:
-                                    name = entry.get('method')
-                                    if name:
-                                        poll_method = name
-                                        break
-                            except Exception:
-                                pass
-                            # Default fallback
-                            if not poll_method:
-                                poll_method = 'poll_status'
-                            meth = getattr(drv, poll_method, None)
-                            if not callable(meth):
-                                logger.warning("Poll method %s not implemented on driver %s; skipping class %s", poll_method, type(drv).__name__, klass)
-                                continue
-                            for ch in range(1, max(1, ch_count) + 1):
-                                try:
-                                    status = meth(ch)
-                                except Exception as e:
-                                    logger.warning("Polling %s[%s] failed: %s", device_id, klass, e)
-                                    status = {}
-                                if not status:
-                                    self._clear_disconnected_registry(device_id)
-                                    polled_any = False
-                                    break
-                                key = f'status_ch{ch}'
-                                self._update_registry(device_id, key, status, klass=klass)
-                                polled_any = True
-                            if polled_any:
-                                self.last_ok[device_id] = now
-                                lp[klass] = now
-                                logger.debug("Polled %s status for %s (channels=%s)", klass, device_id, ch_count)
-                            else:
-                                try:
-                                    drv.close()
-                                except Exception:
-                                    pass
-                                self.connections[device_id] = None
-                        except Exception:
-                            try:
-                                drv.close()
-                            except Exception:
-                                pass
-                            self.connections[device_id] = None
-                            lp[klass] = now
-                # If not open or marked None -> try to reconnect every 2 seconds
-                # If link not open, try to (re)identify at a fixed cadence without calling other methods
-                if not is_open or self.connections.get(device_id) is None or not self.registry.get(device_id, {}).get('IDN'):
-                    last_attempt = self.last_open_attempt.get(device_id, 0.0)
-                    if now - last_attempt >= IDENTIFY_INTERVAL:
-                        self.last_open_attempt[device_id] = now
-                        try:
-                            # Attempt reconnect if driver missing or closed
-                            if not is_open or self.connections.get(device_id) is None:
-                                self.reconnect(dev)
-                            # If we have a driver and transport is open, try identify only
-                            drv = self.connections.get(device_id)
-                            is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
-                            if drv and is_open:
-                                ident = self._try_identify(drv)
-                                if ident:
-                                    self._update_registry(device_id, 'IDN', ident)
-                                    self.last_ok[device_id] = now
-                                    self.last_probe[device_id] = now
-                        except Exception:
-                            # ignore, will retry
-                            pass
-
-            # Periodically dump registry at DEBUG
+                # Open or identify if needed; this will set up workers when IDN is available
+                self._open_or_identify(dev)
+                # Run worker tick if exists
+                w = self.workers.get(dev_id)
+                if w:
+                    # Inject latest test overrides if present
+                    w.interval_override = self.dev_class_poll_interval.get(dev_id) or None
+                    if dev_id in self.last_probe_class:
+                        w.last_probe_class = self.last_probe_class[dev_id]
+                    try:
+                        w.run_once(now)
+                    except RuntimeError as e:
+                        if str(e) == 'poll_empty':
+                            # Drop connection and rely on reconnect cadence
+                            self.connections[dev_id] = None
+                            if dev_id in self.dev_conns:
+                                self.dev_conns[dev_id].driver = None
+                        else:
+                            raise
             if now - self._last_registry_log >= 5.0:
                 self._last_registry_log = now
                 try:
@@ -390,189 +391,55 @@ class SerialManager:
                 time.sleep(0.5)
                 continue
             with lock:
-                # Single-device status check and reconnect logic
                 now = time.time()
                 dev = next((d for d in self.devices if d.get('id') == dev_id), None)
                 if not dev:
                     time.sleep(0.5)
                     continue
-                drv = self.connections.get(dev_id)
-                is_open = getattr(getattr(drv, 't', None), 'is_open', False) if drv else False
-                if is_open and self.registry.get(dev_id, {}).get('IDN'):
-                    # Per-class polling in worker
-                    if dev_id not in self.dev_class_channels:
-                        self.dev_class_channels[dev_id] = _get_class_channel_counts(dev)
-                    if dev_id not in self.dev_class_poll_interval:
-                        self.dev_class_poll_interval[dev_id] = _get_class_poll_intervals(dev)
-                    lp = self.last_probe_class.setdefault(dev_id, {})
-                    for klass, ch_count in (self.dev_class_channels.get(dev_id) or {}).items():
-                        poll_iv = (self.dev_class_poll_interval.get(dev_id) or {}).get(klass, 2.0)
-                        last_poll = lp.get(klass, 0.0)
-                        if now - last_poll < poll_iv:
-                            continue
-                        try:
-                            polled_any = False
-                            # Resolve poll method name from manifest config
-                            poll_method = None
-                            try:
-                                dev_cfg = next((d for d in self.devices if d.get('id') == dev_id), None)
-                                if dev_cfg:
-                                    driver_key = dev_cfg.get('driver')
-                                    manifest = _load_manifest(driver_key)
-                                    models = manifest.get('models', {}) or {}
-                                    model_cfg = models.get(dev_cfg.get('model')) if dev_cfg.get('model') in models else (next(iter(models.values())) if models else {})
-                                    iclasses = (model_cfg or {}).get('instrument_class', {}) or {}
-                                    icfg = iclasses.get(klass, {})
-                                    pooling = (icfg or {}).get('pooling') or (icfg or {}).get('polling') or []
-                                    if not pooling:
-                                        for topk, topcfg in (iclasses or {}).items():
-                                            if isinstance(topcfg, dict) and isinstance(topcfg.get(klass), dict):
-                                                alt = topcfg.get(klass) or {}
-                                                pooling = (alt.get('pooling') or alt.get('polling') or [])
-                                                if pooling:
-                                                    break
-                                    for entry in pooling:
-                                        name = entry.get('method')
-                                        if name:
-                                            poll_method = name
-                                            break
-                            except Exception:
-                                pass
-                            if not poll_method:
-                                poll_method = 'poll_status'
-                            meth = getattr(drv, poll_method, None)
-                            if not callable(meth):
-                                logger.warning("Poll method %s not implemented on driver %s; skipping class %s", poll_method, type(drv).__name__, klass)
-                                continue
-                            for ch in range(1, max(1, ch_count)+1):
-                                try:
-                                    st = meth(ch)
-                                except Exception as e:
-                                    logger.warning("Polling %s[%s] failed: %s", dev_id, klass, e)
-                                    st = {}
-                                if not st:
-                                    self._clear_disconnected_registry(dev_id)
-                                    polled_any = False
-                                    break
-                                key = f"status_ch{ch}"
-                                self._update_registry(dev_id, key, st, klass=klass)
-                                polled_any = True
-                            if polled_any:
-                                self.last_ok[dev_id] = now
-                                lp[klass] = now
-                                logger.debug("Polled %s status for %s (channels=%s)", klass, dev_id, ch_count)
-                            else:
-                                self._clear_disconnected_registry(dev_id)
-                                try:
-                                    drv.close()
-                                except Exception:
-                                    pass
-                                self.connections[dev_id] = None
-                        except Exception as e:
-                            logger.warning("Status poll failed for %s[%s]: %s; marking disconnected", dev_id, klass, e)
-                            self._clear_disconnected_registry(dev_id)
-                            try:
-                                drv.close()
-                            except Exception:
-                                pass
-                            self.connections[dev_id] = None
-                            # do not update last_probe to allow immediate identify attempts
-                if not is_open or self.connections.get(dev_id) is None:
+                # Back-compat windowed reconnect attempt uses reconnect() for test spy
+                if self.connections.get(dev_id) is None:
                     last_attempt = self.last_open_attempt.get(dev_id, 0.0)
-                    if now - last_attempt >= 2.0:
+                    if now - last_attempt >= 0.5:
                         self.last_open_attempt[dev_id] = now
-                        self.reconnect(dev)
-            # Periodically dump registry at DEBUG (per-device)
+                        try:
+                            self.reconnect(dev_id)
+                        except Exception:
+                            pass
+                else:
+                    # Normal path: open/identify and then run worker
+                    self._open_or_identify(dev)
+                w = self.workers.get(dev_id)
+                if w:
+                    # Inject latest test overrides if present
+                    w.interval_override = self.dev_class_poll_interval.get(dev_id) or None
+                    if dev_id in self.last_probe_class:
+                        w.last_probe_class = self.last_probe_class[dev_id]
+                    try:
+                        w.run_once(now)
+                    except RuntimeError as e:
+                        if str(e) == 'poll_empty':
+                            # Drop connection and rely on reconnect cadence
+                            self.connections[dev_id] = None
+                            if dev_id in self.dev_conns:
+                                self.dev_conns[dev_id].driver = None
+                        else:
+                            raise
             if time.time() - self._last_registry_log >= 5.0:
                 self._last_registry_log = time.time()
                 try:
                     logger.debug("Registry snapshot: %s", json.dumps(self.registry, ensure_ascii=False))
                 except Exception:
                     logger.debug("Registry snapshot (repr): %r", self.registry)
-
             time.sleep(0.5)
 
     def reconnect(self, device_or_id):
         if isinstance(device_or_id, dict):
             dev = device_or_id
-            device_id = dev.get('id')
         else:
-            device_id = device_or_id
-            dev = next((d for d in self.devices if d.get('id') == device_id), None)
-
-        if not dev or not device_id:
+            dev = next((d for d in self.devices if d.get('id') == device_or_id), None)
+        if not dev:
             return None
-
-        lock = self.dev_locks.setdefault(device_id, threading.RLock())
-        with lock:
-            # Close existing driver if present
-            try:
-                old = self.connections.get(device_id)
-                if old:
-                    close = getattr(old, 'close', None)
-                    if callable(close):
-                        close()
-            except Exception:
-                pass
-
-                # If link not open or reconnection failed -> clear registry to reflect disconnected state
-                if self.connections.get(device_id) is None:
-                    self._clear_disconnected_registry(device_id)
-
-            # Create driver instance using manifest EOL settings and config serial params
-            try:
-                driver_key = dev['driver']
-                cls = _load_driver_class(driver_key)
-                manifest = _load_manifest(driver_key)
-                models = manifest.get('models', {}) or {}
-                conn = {}
-                if isinstance(models, dict) and models:
-                    model_key = dev.get('model')
-                    if model_key and isinstance(models.get(model_key), dict):
-                        conn = models[model_key].get('connection', {}) or {}
-                    else:
-                        # Fallback to the first model's connection if not specified
-                        conn = next(iter(models.values())).get('connection', {}) or {}
-                seol = conn.get('seol', '\r')
-                reol = conn.get('reol', '\r')
-                drv = cls(
-                    dev['port'],
-                    dev.get('baud', 115200),
-                    serial_mode=dev.get('serial', '8N1'),
-                    seol=seol,
-                    reol=reol,
-                )
-                # If the resolved class is actually the transport (due to missing driver class), wrap into a simple adapter
-                from .transport import SerialTransport
-                if isinstance(drv, SerialTransport):
-                    class _Adapter:
-                        def __init__(self, t):
-                            self.t = t
-                        def close(self):
-                            self.t.close()
-                        def identify(self):
-                            self.t.write_line('*IDN?')
-                            return self.t.read_until_reol(1024)
-                    drv = _Adapter(drv)
-                self.connections[device_id] = drv
-                # Perform one-time identify on (re)connect
-                try:
-                    ident = self._try_identify(drv)
-                    if ident:
-                        self._update_registry(device_id, 'IDN', ident)
-                        self.last_ok[device_id] = time.time()
-                        self.last_probe[device_id] = self.last_ok[device_id]
-                        logger.debug("Identify on (re)connect %s -> %s", device_id, ident)
-                except Exception as e:
-                    logger.warning("Identify on (re)connect failed for %s: %s", device_id, e)
-                self.logger.info(f"(Re)connected to {dev['name']} on {dev['port']}")
-                return drv
-            except Exception as e:
-                self.logger.error(f"Reconnection failed for {dev.get('name', device_id)}: {e}")
-                self.connections[device_id] = None
-                # Ensure registry reflects disconnected state
-                self._clear_disconnected_registry(device_id)
-                return None
+        return self._open_or_identify(dev)
 
     def start(self):
         self.establish_connections()
