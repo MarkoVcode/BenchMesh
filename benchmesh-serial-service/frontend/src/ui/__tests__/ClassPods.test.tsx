@@ -10,9 +10,7 @@ describe('ClassPodResolver', () => {
     render(<ClassPodResolver klass="PSU" channels={channels} />)
     expect(screen.getByText('/instruments/PSU/psu-1/1')).toBeInTheDocument()
     expect(screen.getByText('/instruments/PSU/psu-1/2')).toBeInTheDocument()
-    // There are two channels, so labels appear twice
-    expect(screen.getAllByText('V').length).toBeGreaterThanOrEqual(2)
-    expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(2)
-    expect(screen.getAllByText('P').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('Settings').length).toBe(2)
+    expect(screen.getAllByText('Readings').length).toBe(2)
   })
 })

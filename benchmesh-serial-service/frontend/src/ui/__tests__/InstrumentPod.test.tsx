@@ -21,9 +21,11 @@ describe('InstrumentPod', () => {
   it('shows channel path and PSU face under PSU class', () => {
     render(<InstrumentPod instrument={baseInstrument as any} registry={{}} />)
     expect(screen.getByText('/instruments/PSU/psu-1/1')).toBeInTheDocument()
-    // PSU face renders three big labels V, A, P via GenericPSU
-    expect(screen.getByText('V')).toBeInTheDocument()
-    expect(screen.getByText('A')).toBeInTheDocument()
-    expect(screen.getByText('P')).toBeInTheDocument()
+    // PSU face now renders Settings and Readings columns
+    expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.getByText('Readings')).toBeInTheDocument()
+    // No editable P in Settings; P present in Readings only
+    expect(screen.getAllByText('V').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(2)
   })
 })
