@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
 // - Readings: mirrors V and A and derives P = V*A, all readonly but styled identically
 export function GenericPSU({ channelPath }: { channelPath?: string }) {
+  const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
+
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
 
@@ -24,8 +26,8 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
       if (!channelPath) return
       try {
         const [rv, rc] = await Promise.all([
-          fetch(`${channelPath}/query_voltage`),
-          fetch(`${channelPath}/query_current`),
+          fetch(`${apiBase}${channelPath}/query_voltage`),
+          fetch(`${apiBase}${channelPath}/query_current`),
         ])
         if (!cancelled) {
           if (rv.ok) {
@@ -116,8 +118,8 @@ function EditableBigNumber({ label, value, onChange, withSet, channelPath }: { l
             try {
               const endp = (label as any)?.props?.symbol as string | undefined
               const val = value || '0'
-              if (endp === 'U') await fetch(`${channelPath}/set_voltage/${val}`, { method: 'POST' })
-              if (endp === 'I') await fetch(`${channelPath}/set_current/${val}`, { method: 'POST' })
+              if (endp === 'U') await fetch(`${apiBase}${channelPath}/set_voltage/${val}`, { method: 'POST' })
+              if (endp === 'I') await fetch(`${apiBase}${channelPath}/set_current/${val}`, { method: 'POST' })
             } catch {}
           }}>SET</button>
           <span className="psu-api" title={channelPath}>API</span>
