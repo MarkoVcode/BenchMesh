@@ -1,3 +1,6 @@
 pyserial
 pyyaml
 loguru
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=1.8
