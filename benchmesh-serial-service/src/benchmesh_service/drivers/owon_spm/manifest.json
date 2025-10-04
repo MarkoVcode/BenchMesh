@@ -21,7 +21,7 @@
         "PSU": {
           "pooling": [
             {
-              "method": "poll_status",
+              "method": "poll_status_psu",
               "interval": 0.9
             }
           ],
@@ -90,6 +90,12 @@
             }
           },
           "DMM": {
+            "pooling": [
+              {
+                "method": "poll_status_dmm",
+                "interval": 0.9
+              }
+            ],
             "features": {
               "channels": 1,
               "modes": [

@@ -28,7 +28,7 @@ class OWONSPM:
         self.t.write_line('MEASure:ALL?')
         return self.t.read_until_reol(1024)
 
-    def poll_status(self, channel: int):
+    def poll_status_psu(self, channel: int):
         raw = self.query_status(channel) or ""
         if raw is "" or raw is None:
             return None
@@ -49,7 +49,12 @@ class OWONSPM:
         print("POLL STATUS EXECUTED")
         return result
 
-
+    def poll_status_dmm(self, channel: int):
+        raw = self.query_status(channel) or ""
+        if raw is "" or raw is None:
+            return None
+        result = {}
+        return result
 
     def set_output(self, channel: int):
         self.t.write_line('OUTP ON')
