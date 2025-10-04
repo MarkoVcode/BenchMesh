@@ -31,11 +31,13 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
         ])
         if (!cancelled) {
           if (rv.ok) {
-            const v = await rv.text()
+            const jv = await rv.json().catch(() => null as any)
+            const v = (jv && jv.value != null) ? String(jv.value).trim() : '0'
             setVoltage(limitDigits(sanitizeNumber(v), 5) || '0')
           }
           if (rc.ok) {
-            const a = await rc.text()
+            const ja = await rc.json().catch(() => null as any)
+            const a = (ja && ja.value != null) ? String(ja.value).trim() : '0'
             setCurrent(limitDigits(sanitizeNumber(a), 5) || '0')
           }
         }
