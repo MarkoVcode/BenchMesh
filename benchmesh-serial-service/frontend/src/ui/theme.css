@@ -91,4 +91,8 @@ a{ color:var(--accent); text-decoration:none; }
 hr.sep{ border:0; border-top:1px solid var(--border); margin:10px 0; }
 .psu-actions .psu-output.danger{ background: rgba(239,68,68,.12); color:#ffb3b3; border-color:#ef4444; }
 .psu-actions .psu-output.danger:hover{ background: rgba(239,68,68,.18); }
+.psu-set[disabled]{ opacity:.6; cursor:not-allowed; }
+.psu-set .spinner{ display:inline-block; width:10px; height:10px; border:2px solid rgba(255,255,255,.4); border-top-color:rgba(255,255,255,.9); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
 

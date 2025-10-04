@@ -9,6 +9,7 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
   const [outputEnabled, setOutputEnabled] = useState(false)
+  const [busyOutput, setBusyOutput] = useState(false)
 
   const onChangeVoltage = (v: string) => setVoltage(limitDigits(sanitizeNumber(v), 5))
   const onChangeCurrent = (v: string) => setCurrent(limitDigits(sanitizeNumber(v), 5))
@@ -69,17 +70,18 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
           style={{ width: '100%', padding: '8px 12px', fontSize: '12px' }}
           onClick={async (e) => {
             e.preventDefault(); e.stopPropagation();
-            if (!channelPath) return
+            if (!channelPath || busyOutput) return
+            setBusyOutput(true)
             try {
               const next = !outputEnabled
               const cmd = next ? 'ON' : 'OFF'
               await fetch(`${apiBase}${channelPath}/set_output/${cmd}`, { method: 'POST' })
               setOutputEnabled(next)
-            } catch {}
+            } catch {} finally { setBusyOutput(false) }
           }}
           title={`POST ${channelPath}/set_output/${outputEnabled ? 'OFF' : 'ON'}`}
         >
-          {outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}
+          {busyOutput ? (<><span className="spinner"/>{outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}</>) : (outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT')}
         </button>
       </div>
       </div>
@@ -124,6 +126,7 @@ function numberToDisplay(n: number): string {
 }
 
 function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath, apiBase }: { kind?: 'U' | 'I', label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string, apiBase?: string }) {
+  const [busy, setBusy] = useState(false)
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
@@ -137,8 +140,10 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
       </label>
       {withSet && channelPath && (
         <>
-          <button className="psu-set" type="button" onClick={async (e) => {
+          <button className="psu-set" type="button" disabled={busy} onClick={async (e) => {
             e.preventDefault(); e.stopPropagation();
+            if (busy) return
+            setBusy(true)
             try {
               const endp = (kind as string | undefined) || ((label as any)?.props?.symbol as string | undefined)
               const val = value || '0'
@@ -148,8 +153,8 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
               if (url) await fetch(url, { method: 'POST' })
             } catch (err) {
               console.debug('SET failed', err)
-            }
-          }}>SET</button>
+            } finally { setBusy(false) }
+          }}>{busy ? (<><span className="spinner"/>SET</>) : 'SET'}</button>
           <span className="psu-api" title={
             kind === 'U' ? `GET ${channelPath}/query_voltage` :
             kind === 'I' ? `GET ${channelPath}/query_current` : (channelPath || '')
