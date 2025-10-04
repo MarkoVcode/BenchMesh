@@ -52,8 +52,8 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
       <div className="psu-main">
         <div className="psu-section">
           <div className="psu-section-title">Settings</div>
-          <EditableBigNumber label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet channelPath={channelPath} />
-          <EditableBigNumber label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet channelPath={channelPath} />
+          <EditableBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet channelPath={channelPath} apiBase={apiBase} />
+          <EditableBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet channelPath={channelPath} apiBase={apiBase} />
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
@@ -102,7 +102,7 @@ function numberToDisplay(n: number): string {
   return frac.length ? `${i}.${frac}` : i
 }
 
-function EditableBigNumber({ label, value, onChange, withSet, channelPath }: { label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string }) {
+function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath, apiBase }: { kind?: 'U' | 'I', label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string, apiBase?: string }) {
   return (
     <div className="psu-block">
       <div className="psu-label">{label}</div>
@@ -116,13 +116,18 @@ function EditableBigNumber({ label, value, onChange, withSet, channelPath }: { l
       </label>
       {withSet && channelPath && (
         <>
-          <button className="psu-set" type="button" onClick={async () => {
+          <button className="psu-set" type="button" onClick={async (e) => {
+            e.preventDefault(); e.stopPropagation();
             try {
-              const endp = (label as any)?.props?.symbol as string | undefined
+              const endp = (kind as string | undefined) || ((label as any)?.props?.symbol as string | undefined)
               const val = value || '0'
-              if (endp === 'U') await fetch(`${apiBase}${channelPath}/set_voltage/${val}`, { method: 'POST' })
-              if (endp === 'I') await fetch(`${apiBase}${channelPath}/set_current/${val}`, { method: 'POST' })
-            } catch {}
+              let url: string | undefined
+              if (endp === 'U') url = `${apiBase}${channelPath}/set_voltage/${val}`
+              if (endp === 'I') url = `${apiBase}${channelPath}/set_current/${val}`
+              if (url) await fetch(url, { method: 'POST' })
+            } catch (err) {
+              console.debug('SET failed', err)
+            }
           }}>SET</button>
           <span className="psu-api" title={channelPath}>API</span>
         </>
