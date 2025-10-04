@@ -1,14 +1,29 @@
 import os
 import json
+import asyncio
+import subprocess
 from typing import Any, Dict, List
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
 from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
 
 app = FastAPI(title="BenchMesh Serial Service", version="0.1.0")
 
+# Enable CORS for development (Vite on :52892)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 _manager: SerialManager | None = None
 _valid_classes: set[str] | None = None
+_frontend_proc: subprocess.Popen | None = None
 
 
 def _make_manager() -> SerialManager:
@@ -30,6 +45,40 @@ def _load_valid_classes() -> set[str]:
     except Exception:
         _valid_classes = set()
     return _valid_classes
+
+
+def _start_frontend_dev_if_available():
+    """
+    Try to start the Vite dev server for the React UI. This is best-effort and will
+    not crash the service if Node/npm are unavailable. Controlled by BENCHMESH_START_UI (default: '1').
+    """
+    global _frontend_proc
+    if os.getenv('BENCHMESH_START_UI', '1') != '1':
+        return
+    # Expect the frontend at ../../frontend relative to this file
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'frontend'))
+    pkg_json = os.path.join(base_dir, 'package.json')
+    if not os.path.exists(pkg_json):
+        return
+    # Only launch if node_modules exists to avoid long install attempts
+    node_modules = os.path.join(base_dir, 'node_modules')
+    if not os.path.isdir(node_modules):
+        return
+    try:
+        _frontend_proc = subprocess.Popen(
+            ["npm", "run", "dev"], cwd=base_dir,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+    except Exception:
+        _frontend_proc = None
+
+
+def _mount_static_ui_if_built(app: FastAPI):
+    """If frontend has been built, mount it at /ui."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'frontend'))
+    dist_dir = os.path.join(base_dir, 'dist')
+    if os.path.isdir(dist_dir):
+        app.mount("/ui", StaticFiles(directory=dist_dir, html=True), name="ui")
 
 
 def _coerce_arg(v: str) -> Any:
@@ -65,14 +114,35 @@ def on_startup():
     _manager = _make_manager()
     _manager.start()
     _load_valid_classes()
+    _mount_static_ui_if_built(app)
+    _start_frontend_dev_if_available()
 
 
 @app.on_event("shutdown")
 def on_shutdown():
-    global _manager
+    global _manager, _frontend_proc
     if _manager:
         _manager.stop()
         _manager = None
+    if _frontend_proc:
+        try:
+            _frontend_proc.terminate()
+        except Exception:
+            pass
+        _frontend_proc = None
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    # If static UI is mounted, redirect there. Otherwise, assume dev server on 52892.
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'frontend'))
+    dist_dir = os.path.join(base_dir, 'dist')
+    if os.path.isdir(dist_dir):
+        return RedirectResponse(url="/ui/")
+    # Dev server convenience link
+    host = os.getenv('UI_HOST', 'localhost')
+    port = os.getenv('UI_PORT', '52892')
+    return RedirectResponse(url=f"http://{host}:{port}")
 
 
 @app.get("/status", summary="Service status", response_model=dict)
@@ -146,6 +216,21 @@ def list_instruments():
 
         items.append(entry)
     return items
+
+
+@app.websocket("/ws/registry")
+async def ws_registry(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            reg = getattr(_manager, 'registry', {}) if _manager else {}
+            await websocket.send_text(json.dumps(reg))
+            await asyncio.sleep(0.1)  # 100ms
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        # ignore other errors to avoid crashing the app
+        pass
 
 
 @app.get("/instruments/{klass}/{device_id}/{channel}/{method}", summary="Call driver method (read-only)")
