@@ -30,8 +30,9 @@ class OWONSPM:
 
     def poll_status_psu(self, channel: int):
         raw = self.query_status(channel) or ""
-        if raw is "" or raw is None:
-            return None
+        if raw is None or raw == "":
+            # Return a minimal but truthy structure to avoid dropping the connection
+            return {"VOUT": None, "IOUT": None, "POUT": None}
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
@@ -51,10 +52,11 @@ class OWONSPM:
 
     def poll_status_dmm(self, channel: int):
         raw = self.query_status(channel) or ""
-        if raw is "" or raw is None:
-            return None
-        result = {}
-        return result
+        if raw is None or raw == "":
+            # Placeholder until DMM parsing is implemented
+            return {"A": "B"}
+        # Future: parse raw into structured DMM readings
+        return {"raw": raw}
 
     def set_output(self, channel: int):
         self.t.write_line('OUTP ON')

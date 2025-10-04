@@ -14,8 +14,9 @@ class OwonOEL:
 
     def poll_status(self, channel: int):
         raw = self.query_status(channel) or ""
-        if raw is "" or raw is None:
-            return None
+        if raw is None or raw == "":
+            # Return a minimal but truthy structure to avoid dropping the connection
+            return {"VOUT": None, "IOUT": None, "POUT": None, "OVP": None, "OCP": None, "OTP": None}
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
