@@ -200,7 +200,15 @@ def list_instruments():
                     # Only include known 3-letter classes
                     if klass not in valid:
                         continue
-                    klass_cfg = inst_class_block.get(klass) or {}
+                    # Resolve class config; support nested class blocks (e.g., DMM under PSU)
+                    klass_cfg = inst_class_block.get(klass)
+                    if not isinstance(klass_cfg, dict):
+                        for _, topcfg in (inst_class_block or {}).items():
+                            if isinstance(topcfg, dict) and isinstance(topcfg.get(klass), dict):
+                                klass_cfg = topcfg.get(klass)
+                                break
+                    if not isinstance(klass_cfg, dict):
+                        klass_cfg = {}
                     features = klass_cfg.get('features') or {}
                     try:
                         channels = int(features.get('channels', 1) or 1)
@@ -209,10 +217,14 @@ def list_instruments():
                     channels = max(1, channels)
                     # Build channel paths
                     ch_paths = [f"/instruments/{klass}/{dev_id}/{i+1}" for i in range(channels)]
-                    classes_list.append({
+                    entry = {
                         "class": klass,
                         "channels": ch_paths,
-                    })
+                    }
+                    ui_component = klass_cfg.get('ui_component')
+                    if isinstance(ui_component, str) and ui_component:
+                        entry['ui_component'] = ui_component
+                    classes_list.append(entry)
         if classes_list:
             entry['classes'] = classes_list
 
