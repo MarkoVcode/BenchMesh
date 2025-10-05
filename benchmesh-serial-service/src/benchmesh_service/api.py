@@ -157,7 +157,7 @@ def get_status():
     connected = sum(1 for did in device_ids if _manager.connections.get(did))
     return {"devices_total": total, "connected": connected, "disconnected": total - connected}
 
-@app.get("/instruments", summary="List instruments and last IDN", response_model=list)
+@app.get("/instruments", summary="List instruments and last IDN")
 def list_instruments():
     global _manager
     items = []
