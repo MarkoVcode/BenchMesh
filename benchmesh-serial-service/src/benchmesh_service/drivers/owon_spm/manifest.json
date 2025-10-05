@@ -25,6 +25,7 @@
               "interval": 0.9
             }
           ],
+          "ui_component": "GenericPSU",
           "features": {
             "channels": 1,
             "memory_banks": 4,
@@ -96,6 +97,7 @@
                 "interval": 0.9
               }
             ],
+            "ui_component": "GenericDMM",
             "features": {
               "channels": 1,
               "modes": [

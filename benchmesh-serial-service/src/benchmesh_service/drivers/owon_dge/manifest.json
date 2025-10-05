@@ -24,6 +24,7 @@
               "interval": 0.9
             }
           ],
+          "ui_component": "GenericAWG",
           "features": {
             "lock": true,
             "channels": 2

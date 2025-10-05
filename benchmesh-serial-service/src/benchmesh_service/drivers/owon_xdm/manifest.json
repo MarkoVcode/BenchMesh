@@ -24,6 +24,7 @@
               "interval": 0.9
             }
           ],
+          "ui_component": "GenericDMM",
           "features": {
             "channels": 1,
             "modes": [

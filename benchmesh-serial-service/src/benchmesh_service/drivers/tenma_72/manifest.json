@@ -24,6 +24,7 @@
               "interval": 0.9
             }
           ],
+          "ui_component": "GenericPSU",
           "features": {
             "lock": true,
             "channels": 2,
