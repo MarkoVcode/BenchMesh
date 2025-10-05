@@ -102,10 +102,10 @@
           "features": {
             "channels": 1,
             "modes": [
-              "VOLTage:DC",
-              "VOLTage:AC",
-              "CURRent:DC",
-              "CURRent:AC",
+              "VOLTage_DC",
+              "VOLTage_AC",
+              "CURRent_DC",
+              "CURRent_AC",
               "RESistance",
               "CAPacitance",
               "DIODe",
@@ -182,7 +182,7 @@
                   "display": "100MΩ"
                 }
               ],
-              "CURRent:AC": [
+              "CURRent_AC": [
                 {
                   "value": "MIN",
                   "display": "MINimum"
@@ -200,7 +200,7 @@
                   "display": "10A"
                 }
               ],
-              "CURRent:DC": [
+              "CURRent_DC": [
                 {
                   "value": "MIN",
                   "display": "MINimum"
@@ -218,7 +218,7 @@
                   "display": "10A"
                 }
               ],
-              "VOLTage:AC": [
+              "VOLTage_AC": [
                 {
                   "value": "MIN",
                   "display": "MINimum"
@@ -248,7 +248,7 @@
                   "display": "750V"
                 }
               ],
-              "VOLTage:DC": [
+              "VOLTage_DC": [
                 {
                   "value": "MIN",
                   "display": "MINimum"

@@ -28,16 +28,17 @@
           "features": {
             "channels": 1,
             "modes": [
-              "VOLTage:DC",
-              "VOLTage:AC",
-              "CURRent:DC",
-              "CURRent:AC",
+              "VOLTage_DC",
+              "VOLTage_AC",
+              "CURRent_DC",
+              "CURRent_AC",
               "RESistance",
               "FRESistance",
               "CAPacitance",
               "DIODe",
               "CONTinuity",
-              "TEMPerature",
+              "TEMPerature_KITS90",
+              "TEMPerature_PT100",
               "FREQuency",
               "PERiod"
             ],
@@ -236,7 +237,7 @@
                   "display": "500MΩ"
                 }
               ],
-              "CURRent:AC": [
+              "CURRent_AC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -274,7 +275,7 @@
                   "display": "10A"
                 }
               ],
-              "CURRent:DC": [
+              "CURRent_DC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -312,7 +313,7 @@
                   "display": "10A"
                 }
               ],
-              "VOLTage:AC": [
+              "VOLTage_AC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -346,7 +347,7 @@
                   "display": "750V"
                 }
               ],
-              "VOLTage:DC": [
+              "VOLTage_DC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -382,16 +383,6 @@
                 {
                   "value": "1000",
                   "display": "1000V"
-                }
-              ],
-              "TEMPerature": [
-                {
-                  "value": "KITS90",
-                  "display": "KITS90"
-                },
-                {
-                  "value": "PT100",
-                  "display": "PT100"
                 }
               ]
             }
