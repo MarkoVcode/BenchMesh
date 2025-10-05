@@ -220,6 +220,57 @@ def list_instruments():
     return items
 
 
+@app.get("/instruments/{klass}/{device_id}", summary="Get manifest features for class on device", response_model=dict)
+def get_manifest_features(klass: str, device_id: str):
+    # Validate class and device id
+    valid = _load_valid_classes()
+    if klass not in valid:
+        raise HTTPException(status_code=404, detail="Invalid instrument class")
+    global _manager
+    if not _manager or not any(d.get('id') == device_id for d in (_manager.devices if _manager else [])):
+        raise HTTPException(status_code=404, detail="Unknown device id")
+
+    # Locate device config
+    dev = next((d for d in (_manager.devices or []) if d.get('id') == device_id), None)
+    if not dev:
+        raise HTTPException(status_code=404, detail="Unknown device id")
+
+    # Load manifest for this device's driver and model
+    try:
+        driver_key = dev.get('driver')
+        manifest = _load_manifest(driver_key) if driver_key else None
+    except Exception:
+        manifest = None
+    if not isinstance(manifest, dict):
+        raise HTTPException(status_code=404, detail="Manifest not found for device")
+
+    models = manifest.get('models') or {}
+    model_key = dev.get('model')
+    model_cfg = None
+    if model_key and isinstance(models.get(model_key), dict):
+        model_cfg = models.get(model_key)
+    elif isinstance(models, dict) and models:
+        model_cfg = next(iter(models.values()))
+    if not isinstance(model_cfg, dict):
+        raise HTTPException(status_code=404, detail="Model configuration not found")
+
+    iclasses = model_cfg.get('instrument_class') or {}
+    cfg = iclasses.get(klass)
+    if not isinstance(cfg, dict):
+        # Search nested under other classes (e.g., DMM under PSU)
+        for _, topcfg in (iclasses or {}).items():
+            if isinstance(topcfg, dict) and isinstance(topcfg.get(klass), dict):
+                cfg = topcfg.get(klass)
+                break
+    if not isinstance(cfg, dict):
+        raise HTTPException(status_code=404, detail="Class configuration not found in manifest")
+
+    features = cfg.get('features') or {}
+    if not isinstance(features, dict):
+        features = {}
+    return features
+
+
 @app.websocket("/ws/registry")
 async def ws_registry(websocket: WebSocket):
     await websocket.accept()
