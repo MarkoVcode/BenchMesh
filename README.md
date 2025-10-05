@@ -2,10 +2,11 @@
 A consistent, browser-based cockpit for lab instruments; connect, control, log, correlate, and automate from one place.
 
 
-Great idea. Here are two concise diagrams that capture the current solution structure and behavior. They’re in Mermaid format so you can paste them into any Mermaid-compatible renderer (e.g., GitHub, Markdown preview) to visualize.
+Below are two Mermaid diagrams describing the current structure and behavior. Paste them into any Mermaid-compatible renderer (e.g., GitHub) to visualize.
 
-Component/architecture diagram
-mermaid
+## Architecture diagram
+
+```mermaid
 graph TD
   A[config.yaml] -->|devices list| B[SerialManager]
   subgraph API
@@ -61,9 +62,11 @@ graph TD
   style D4 fill:#ffe,stroke:#aa0
   style T1 fill:#fef,stroke:#a2a
   style T2 fill:#fef,stroke:#a2a
+```
 
-Behavior/sequencing (per-device worker)
-mermaid
+## Behavior (per-device worker)
+
+```mermaid
 sequenceDiagram
   participant Main as main.py
   participant SM as SerialManager
@@ -102,16 +105,17 @@ sequenceDiagram
     WT->>SM: connections[id] = None; last_open_attempt = now
     Note over WT: Reconnect attempts every ~2s while disconnected
   end
+```
 
-Registry data model (conceptual)
+## Registry data model (conceptual)
 - registry: dict keyed by device id from config.yaml
   - registry[device_id]["IDN"] -> str from identify() on connect/reconnect
   - registry[device_id]["status"] -> JSON object from poll_status() every ~2s
 
-Notes
+## Notes
 - FastAPI exposes:
-  - GET /status: summary counts of connected/disconnected
-  - GET /instruments: list of {id, IDN} based on the in-memory registry
+  - GET [/status](benchmesh-serial-service/src/benchmesh_service/api.py): summary counts of connected/disconnected
+  - GET [/instruments](benchmesh-serial-service/src/benchmesh_service/api.py): list of {id, IDN} and classes
 - Drivers:
   - TenmaPSU.poll_status builds a composite JSON from read_output_voltage, read_output_current, read_status
   - OWON drivers currently return a placeholder {"A":"B"}; can be extended later
@@ -119,40 +123,60 @@ Notes
   - One worker thread per device, protected by per-device RLock
   - Reconnect backoff: ~2s between attempts per device
 
-If you’d like, I can export these to PlantUML or generate SVG/PNG artifacts, or embed these diagrams into the repo (e.g., docs/architecture.md).
+If you’d like, we can export these to PlantUML or generate SVG/PNG artifacts, or embed the diagrams into the repo (e.g., docs/architecture.md).
 
-Manual driver testing (CLI)
+## Manual driver testing (CLI)
 The repository includes a small CLI to manually test driver methods while honoring config.yaml and manifests.
 
 - Module: benchmesh_service.tools.driver_cli
-- Location: benchmesh-serial-service/src/benchmesh_service/tools/driver_cli.py
+- Location: [benchmesh-serial-service/src/benchmesh_service/tools/driver_cli.py](benchmesh-serial-service/src/benchmesh_service/tools/driver_cli.py)
 
-Usage
+### Usage
 - Ensure you run commands from repo root so Python can resolve benchmesh_service from benchmesh-serial-service/src.
 - If needed, set PYTHONPATH=benchmesh-serial-service/src
 
-Examples
+### Examples
 - List devices from config.yaml:
+  ```bash
   python -m benchmesh_service.tools.driver_cli list --config config.yaml
+  ```
 
 - List available methods for a device (by id):
+  ```bash
   python -m benchmesh_service.tools.driver_cli methods --id tenmapsu-1 --config config.yaml
+  ```
 
 - Call a method without args:
+  ```bash
   python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
+  ```
 
 - Call a method with positional args (auto-coerced int/float/bool):
+  ```bash
   python -m benchmesh_service.tools.driver_cli call --id spm-1 --method set_voltage 5.0 --config config.yaml
+  ```
 
 - Call a method with kwargs (JSON object):
+  ```bash
   python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output true --kwargs '{"ch":1}' --config config.yaml
+  ```
 
-Other Examples:
-- python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
-- python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method read_status --config config.yaml
-- python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output --config config.yaml true
-- python -m benchmesh_service.tools.driver_cli call --id spm-1 --method poll_status --config config.yaml
-- ython -m benchmesh_service.tools.driver_cli call --id some-id --method set_voltage 5.0 --kwargs '{"ch":1}' --config config.yaml
+Other examples:
+- ```bash
+  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
+  ```
+- ```bash
+  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method read_status --config config.yaml
+  ```
+- ```bash
+  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output --config config.yaml true
+  ```
+- ```bash
+  python -m benchmesh_service.tools.driver_cli call --id spm-1 --method poll_status --config config.yaml
+  ```
+- ```bash
+  python -m benchmesh_service.tools.driver_cli call --id some-id --method set_voltage 5.0 --kwargs '{"ch":1}' --config config.yaml
+  ```
 
 Notes
 - Only the targeted device is instantiated to keep testing isolated.
