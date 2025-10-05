@@ -50,6 +50,26 @@ def _load_valid_classes() -> set[str]:
     return _valid_classes
 
 
+
+def _json_sanitize(obj: Any) -> Any:
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, (bytes, bytearray)):
+        try:
+            return obj.decode('utf-8', errors='ignore')
+        except Exception:
+            return str(obj)
+    if isinstance(obj, dict):
+        return {str(k): _json_sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_json_sanitize(x) for x in obj]
+    # Fallback
+    try:
+        return str(obj)
+    except Exception:
+        return repr(obj)
+
+
 def _start_frontend_dev_if_available():
     """
     Try to start the Vite dev server for the React UI. This is best-effort and will
@@ -172,7 +192,15 @@ def list_instruments():
         entry: Dict[str, Any] = {"id": dev_id}
         reg_data = registry.get(dev_id, {})
         if 'IDN' in reg_data:
-            entry['IDN'] = reg_data['IDN']
+            idn_val = reg_data['IDN']
+            try:
+                if isinstance(idn_val, (bytes, bytearray)):
+                    entry['IDN'] = idn_val.decode('utf-8', errors='ignore').strip()
+                else:
+                    entry['IDN'] = str(idn_val)
+            except Exception:
+                # Fallback to repr to ensure JSON-serializable
+                entry['IDN'] = repr(idn_val)
 
         # Attempt to populate classes/channels from manifest based on device driver and model
         try:
@@ -229,7 +257,7 @@ def list_instruments():
             entry['classes'] = classes_list
 
         items.append(entry)
-    return items
+    return _json_sanitize(items)
 
 
 @app.get("/instruments/{klass}/{device_id}", summary="Get manifest features for class on device", response_model=dict)
