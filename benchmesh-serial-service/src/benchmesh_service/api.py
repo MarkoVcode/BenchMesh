@@ -51,24 +51,6 @@ def _load_valid_classes() -> set[str]:
 
 
 
-def _json_sanitize(obj: Any) -> Any:
-    if obj is None or isinstance(obj, (str, int, float, bool)):
-        return obj
-    if isinstance(obj, (bytes, bytearray)):
-        try:
-            return obj.decode('utf-8', errors='ignore')
-        except Exception:
-            return str(obj)
-    if isinstance(obj, dict):
-        return {str(k): _json_sanitize(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple, set)):
-        return [_json_sanitize(x) for x in obj]
-    # Fallback
-    try:
-        return str(obj)
-    except Exception:
-        return repr(obj)
-
 
 def _start_frontend_dev_if_available():
     """
@@ -257,7 +239,7 @@ def list_instruments():
             entry['classes'] = classes_list
 
         items.append(entry)
-    return _json_sanitize(items)
+    return items
 
 
 @app.get("/instruments/{klass}/{device_id}", summary="Get manifest features for class on device", response_model=dict)
