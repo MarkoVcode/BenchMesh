@@ -14,6 +14,14 @@ class OWONXDM:
             return None
         return {"A": "B"}
 
+    def set_current_dc_range(self, channel: int, value):
+        self.t.write_line('CONF:CURR:DC ' + str(value))
+        return self.t.read_until_reol(1024)
+
+    def set_current_ac_range(self, channel: int, value):
+        self.t.write_line('CONF:CURR:AC ' + str(value))
+        return self.t.read_until_reol(1024)    
+
     def write(self, data: bytes):
         self.t.write(data)
 
