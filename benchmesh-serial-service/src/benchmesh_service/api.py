@@ -212,6 +212,7 @@ def list_instruments():
                     classes_list.append({
                         "class": klass,
                         "channels": ch_paths,
+                        "ui_component": klass_cfg.get('ui_component')
                     })
         if classes_list:
             entry['classes'] = classes_list
