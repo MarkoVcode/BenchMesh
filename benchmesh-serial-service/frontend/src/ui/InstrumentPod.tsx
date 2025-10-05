@@ -4,7 +4,7 @@ import { ClassPodResolver } from './ClassPods'
 export type Instrument = {
   id: string
   IDN?: string
-  classes: { class: string, channels: string[] }[]
+  classes: { class: string, channels: string[], ui_component?: string }[]
 }
 
 function StatusDot({ online }: { online: boolean }) {
@@ -35,8 +35,8 @@ export function InstrumentPod({ instrument, registry }: { instrument: Instrument
         {instrument.classes.map((c) => (
           <div key={c.class}>
             <div>
-              {/* Render dedicated nested class pod */}
-              <ClassPodResolver klass={c.class} channels={c.channels} />
+              {/* Render dedicated nested class pod, honoring ui_component from API */}
+              <ClassPodResolver klass={c.class} channels={c.channels} uiComponent={c.ui_component} />
             </div>
           </div>
         ))}
