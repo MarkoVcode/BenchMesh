@@ -1,15 +1,53 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { TimeSeriesGraph } from './TimeSeriesGraph'
+import { useMeasurement } from '../../MeasurementContext'
 
 // PSU face with two columns: Settings (editable V/A) and Readings (readonly V/A/P)
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
 // - Readings: mirrors V and A and derives P = V*A, all readonly but styled identically
 export function GenericPSU({ channelPath }: { channelPath?: string }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
+  const { registerSource } = useMeasurement()
 
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
   const [outputEnabled, setOutputEnabled] = useState(false)
   const [busyOutput, setBusyOutput] = useState(false)
+
+  // Register measurement sources
+  useEffect(() => {
+    if (!channelPath) return
+
+    const deviceId = channelPath.split('/')[3] || 'unknown'
+    const channel = channelPath.split('/')[4] || '1'
+
+    registerSource({
+      id: `${deviceId}-${channel}-U`,
+      deviceId,
+      channelPath,
+      parameter: 'voltage',
+      label: `${deviceId} Ch${channel} U`,
+      unit: 'V'
+    })
+
+    registerSource({
+      id: `${deviceId}-${channel}-I`,
+      deviceId,
+      channelPath,
+      parameter: 'current',
+      label: `${deviceId} Ch${channel} I`,
+      unit: 'A'
+    })
+
+    registerSource({
+      id: `${deviceId}-${channel}-P`,
+      deviceId,
+      channelPath,
+      parameter: 'power',
+      label: `${deviceId} Ch${channel} P`,
+      unit: 'W'
+    })
+  }, [channelPath, registerSource])
 
   const onChangeVoltage = (v: string) => setVoltage(limitDigits(sanitizeNumber(v), 5))
   const onChangeCurrent = (v: string) => setCurrent(limitDigits(sanitizeNumber(v), 5))
@@ -59,9 +97,9 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={"00000"} channelPath={channelPath} />
-          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={"00000"} channelPath={channelPath} />
-          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={"00000"} channelPath={channelPath} />
+          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={"00000"} channelPath={channelPath} parameter="voltage" />
+          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={"00000"} channelPath={channelPath} parameter="current" />
+          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={"00000"} channelPath={channelPath} parameter="power" />
         </div>
       <hr className="sep"/>
       </div>
@@ -85,6 +123,7 @@ export function GenericPSU({ channelPath }: { channelPath?: string }) {
           {busyOutput ? (<><span className="spinner"/>{outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}</>) : (outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT')}
         </button>
       </div>
+      <TimeSeriesGraph channelPath={channelPath} maxDataPoints={100} updateInterval={1000} />
     </div>
   )
 }
@@ -168,19 +207,56 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
   )
 }
 
-function ReadonlyBigNumber({ kind, label, value, channelPath }: { kind?: 'U' | 'I' | 'P', label: React.ReactNode, value: string, channelPath?: string }) {
+function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kind?: 'U' | 'I' | 'P', label: React.ReactNode, value: string, channelPath?: string, parameter?: string }) {
+  const { selectedForRecord, selectedForGraph, toggleRecord, toggleGraph } = useMeasurement()
+
+  const sourceId = useMemo(() => {
+    if (!channelPath || !parameter) return ''
+    const deviceId = channelPath.split('/')[3] || 'unknown'
+    const channel = channelPath.split('/')[4] || '1'
+    return `${deviceId}-${channel}-${kind}`
+  }, [channelPath, parameter, kind])
+
   return (
-    <div className="psu-block">
+    <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto auto auto' }}>
       <div className="psu-label">{label}</div>
       <span className="psu-number readonly" aria-hidden>
         <span>{value || '0'}</span>
       </span>
       {channelPath && (
-        <span className="psu-api" title={
-          kind === 'U' ? `GET ${channelPath}/query_output_voltage` :
-          kind === 'I' ? `GET ${channelPath}/query_output_current` :
-          kind === 'P' ? `GET ${channelPath}/query_output_power` : ''
-        }>API</span>
+        <>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <label
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
+              title="Record in table"
+            >
+              <input
+                type="checkbox"
+                checked={selectedForRecord.has(sourceId)}
+                onChange={() => toggleRecord(sourceId)}
+                style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--accent)' }}
+              />
+              <span style={{ marginLeft: '2px' }}>📊</span>
+            </label>
+            <label
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
+              title="Show in graph"
+            >
+              <input
+                type="checkbox"
+                checked={selectedForGraph.has(sourceId)}
+                onChange={() => toggleGraph(sourceId)}
+                style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--good)' }}
+              />
+              <span style={{ marginLeft: '2px' }}>📈</span>
+            </label>
+          </div>
+          <span className="psu-api" title={
+            kind === 'U' ? `GET ${channelPath}/query_output_voltage` :
+            kind === 'I' ? `GET ${channelPath}/query_output_current` :
+            kind === 'P' ? `GET ${channelPath}/query_output_power` : ''
+          }>API</span>
+        </>
       )}
     </div>
   )

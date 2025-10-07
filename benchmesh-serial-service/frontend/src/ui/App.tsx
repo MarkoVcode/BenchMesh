@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { InstrumentPod, Instrument } from './InstrumentPod'
+import { MeasurementProvider } from './MeasurementContext'
+import { MeasurementStatusBar } from './MeasurementStatusBar'
 
 function useApiBase() {
   // API is served by FastAPI app; assume same origin during production.
@@ -99,32 +101,35 @@ export default function App() {
   const waitingForApi = (!instruments || instruments.length === 0) && !!error
 
   return (
-    <div>
-      <div className="topbar">
-        <div className="brand">BenchMesh</div>
-        <div className="statusbar">
-          <div className="statuspill" title="WebSocket data flow">
-            <span className="dot" style={{ background: wsDiag.ok ? 'var(--good)' : 'var(--bad)' }} />
-            <span>{wsDiag.msg}</span>
-          </div>
-          <div className="statuspill" title="API connectivity">
-            <span className="dot" style={{ background: waitingForApi ? 'var(--bad)' : 'var(--good)' }} />
-            <span>{waitingForApi ? 'API unreachable' : 'API ok'}</span>
+    <MeasurementProvider>
+      <div style={{ paddingBottom: '48px' }}>
+        <div className="topbar">
+          <div className="brand">BenchMesh</div>
+          <div className="statusbar">
+            <div className="statuspill" title="WebSocket data flow">
+              <span className="dot" style={{ background: wsDiag.ok ? 'var(--good)' : 'var(--bad)' }} />
+              <span>{wsDiag.msg}</span>
+            </div>
+            <div className="statuspill" title="API connectivity">
+              <span className="dot" style={{ background: waitingForApi ? 'var(--bad)' : 'var(--good)' }} />
+              <span>{waitingForApi ? 'API unreachable' : 'API ok'}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="container">
-        <h2 className="heading">Instruments <span className="subtle">live</span></h2>
-        {loading && <p className="subtle">Loading…</p>}
-        {waitingForApi && <p className="subtle">Awaiting connection to the service… retrying every 1s</p>}
-        {error && !waitingForApi && <p style={{ color: 'var(--bad)' }}>{error}</p>}
-        <div className="grid">
-          {instruments.map((ins) => (
-            <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
-          ))}
+        <div className="container">
+          <h2 className="heading">Instruments <span className="subtle">live</span></h2>
+          {loading && <p className="subtle">Loading…</p>}
+          {waitingForApi && <p className="subtle">Awaiting connection to the service… retrying every 1s</p>}
+          {error && !waitingForApi && <p style={{ color: 'var(--bad)' }}>{error}</p>}
+          <div className="grid">
+            {instruments.map((ins) => (
+              <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+      <MeasurementStatusBar />
+    </MeasurementProvider>
   )
 }
