@@ -1,0 +1,17 @@
+{
+  "name": "benchmesh",
+  "version": "0.1.0",
+  "description": "BenchMesh - Lab Instrument Control System",
+  "private": true,
+  "scripts": {
+    "start:nodered": "node-red --userDir ./.node-red",
+    "start:all": "./start.sh",
+    "postinstall": "echo 'Node-RED installed successfully. Run ./start.sh to start all services.'"
+  },
+  "dependencies": {
+    "node-red": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

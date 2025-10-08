@@ -20,6 +20,18 @@ Each device runs in its own worker thread with per-device RLock for thread safet
 
 ## Common Commands
 
+### Starting the Full System
+
+```bash
+# From repository root - starts everything (API, Frontend, Node-RED)
+./start.sh
+
+# Services will be available at:
+# - Frontend: http://localhost:57666
+# - API Docs: http://localhost:57666/docs
+# - Node-RED: http://localhost:1880
+```
+
 ### Backend Development
 
 ```bash
@@ -32,7 +44,7 @@ pip install -r requirements.txt
 python -m benchmesh_service.main --config config.yaml
 
 # Run with FastAPI (includes frontend auto-start)
-uvicorn benchmesh_service.api:app --host 0.0.0.0 --port 57666
+PYTHONPATH=src uvicorn benchmesh_service.api:app --host 0.0.0.0 --port 57666
 
 # Run tests
 pytest tests/
@@ -42,6 +54,21 @@ pytest tests/test_serial_manager.py
 
 # Run with verbose output
 pytest -v tests/
+```
+
+### Node-RED
+
+```bash
+# From repository root
+
+# Install Node-RED (first time only)
+npm install
+
+# Start Node-RED standalone
+npm run start:nodered
+
+# Node-RED runs on port 1880
+# Data stored in .node-red/ directory
 ```
 
 ### Frontend Development

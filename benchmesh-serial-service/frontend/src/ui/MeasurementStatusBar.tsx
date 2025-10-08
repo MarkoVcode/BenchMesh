@@ -103,6 +103,7 @@ export function MeasurementStatusBar() {
         padding: '8px 16px',
         display: 'flex',
         gap: '8px',
+        alignItems: 'center',
         zIndex: 100
       }}>
         <button
@@ -141,6 +142,30 @@ export function MeasurementStatusBar() {
         >
           📈 Measurements Graph
         </button>
+        <div style={{ marginLeft: 'auto' }}>
+          <button
+            onClick={() => {
+              const nodeRedUrl = `${window.location.protocol}//${window.location.hostname}:1880`
+              window.open(nodeRedUrl, '_blank', 'noopener,noreferrer')
+            }}
+            style={{
+              padding: '6px 12px',
+              background: 'rgba(255,68,68,.15)',
+              color: '#ff6b6b',
+              border: '1px solid rgba(255,68,68,.35)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Open Node-RED Automations in new tab"
+          >
+            <span style={{ fontSize: '14px' }}>🔴</span> Node-RED Automations
+          </button>
+        </div>
       </div>
 
       {recordOpen && (

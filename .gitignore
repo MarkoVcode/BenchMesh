@@ -142,3 +142,7 @@ pnpm-debug.log*
 # Storybook
 storybook-static/
 
+# Node-RED
+.node-red/
+package-lock.json
+
