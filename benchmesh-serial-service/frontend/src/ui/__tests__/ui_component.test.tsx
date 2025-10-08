@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import React from 'react'
 import { InstrumentPod } from '../InstrumentPod'
+import { MeasurementProvider } from '../MeasurementContext'
 
 const instruments = [
   {
@@ -58,7 +59,13 @@ const instruments = [
 ]
 
 function renderAll() {
-  return instruments.map((inst) => render(<InstrumentPod instrument={inst as any} registry={{}} />))
+  return instruments.map((inst) =>
+    render(
+      <MeasurementProvider>
+        <InstrumentPod instrument={inst as any} registry={{}} />
+      </MeasurementProvider>
+    )
+  )
 }
 
 describe('ui_component-driven rendering', () => {
@@ -85,7 +92,11 @@ describe('ui_component-driven rendering', () => {
         { class: 'FOO', channels: ['/instruments/FOO/weird-1/1'], ui_component: 'NonExistingComponent' }
       ]
     }
-    render(<InstrumentPod instrument={bogus as any} registry={{}} />)
+    render(
+      <MeasurementProvider>
+        <InstrumentPod instrument={bogus as any} registry={{}} />
+      </MeasurementProvider>
+    )
     // UnknownInstrument shows text including "Unknown Instrument" and component name
     expect(screen.getByText('Unknown Instrument')).toBeInTheDocument()
     expect(screen.getByText('Component: NonExistingComponent')).toBeInTheDocument()
