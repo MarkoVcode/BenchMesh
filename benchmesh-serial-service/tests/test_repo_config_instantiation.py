@@ -42,10 +42,11 @@ class FakeSerial:
 
 
 def test_repo_config_yaml_instantiates_all_devices():
-    # Load the repo-root config.yaml and verify that SerialManager instantiates a connection
+    # Load the config.yaml and verify that SerialManager instantiates a connection
     # for each declared device, without requiring actual serial ports.
-    repo_root = os.path.abspath(os.path.join(THIS_DIR, '..', '..'))
-    cfg_path = os.path.join(repo_root, 'config.yaml')
+    # config.yaml is in benchmesh-serial-service directory
+    service_dir = os.path.abspath(os.path.join(THIS_DIR, '..'))
+    cfg_path = os.path.join(service_dir, 'config.yaml')
     assert os.path.exists(cfg_path), f"config.yaml not found at {cfg_path}"
 
     # Also sanity-check the config can be parsed

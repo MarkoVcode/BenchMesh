@@ -60,7 +60,7 @@ jobs:
       - name: Run Python tests
         run: |
           cd benchmesh-serial-service
-          python -m pytest || echo "No tests configured yet"
+          python -m pytest -v
 
       - name: Check API starts
         run: |
