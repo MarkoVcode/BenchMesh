@@ -1,0 +1,146 @@
+name: Draft Release
+
+# This workflow creates a draft release without publishing
+# Useful for testing the build process before creating a real release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '0.0.0'
+
+jobs:
+  create-draft:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_draft.outputs.upload_url }}
+      version: ${{ github.event.inputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Draft Release
+        id: create_draft
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}-draft
+          release_name: BenchMesh v${{ github.event.inputs.version }} (Draft)
+          body: |
+            ## BenchMesh Draft Release v${{ github.event.inputs.version }}
+
+            **This is a draft release for testing purposes.**
+
+            ### Test Downloads
+            - Linux: AppImage, DEB
+            - Windows: Installer, Portable
+            - macOS: DMG, ZIP
+            - Self-hosted: tar.gz archive
+
+            ### Notes
+            - Review all artifacts before publishing
+            - Test on target platforms
+            - Update CHANGELOG.md before final release
+          draft: true
+          prerelease: false
+
+  build-linux-draft:
+    needs: create-draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libdrm2 libgbm1 libxcb-dri3-0
+
+      - name: Install dependencies
+        run: |
+          npm install
+          cd benchmesh-serial-service/frontend
+          npm ci
+          cd ../..
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run build
+          cd ../..
+
+      - name: Update version in electron package.json
+        run: |
+          cd electron
+          npm version ${{ needs.create-draft.outputs.version }} --no-git-tag-version
+          npm install
+          cd ..
+
+      - name: Build Electron (Linux)
+        run: |
+          cd electron
+          npm run build:linux
+
+      - name: Upload artifacts
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-draft.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh-${{ needs.create-draft.outputs.version }}.AppImage
+          asset_name: BenchMesh-${{ needs.create-draft.outputs.version }}-Linux-x86_64.AppImage
+          asset_content_type: application/octet-stream
+
+  build-self-hosted-draft:
+    needs: create-draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm ci
+          npm run build
+          cd ../..
+
+      - name: Create archive
+        run: |
+          mkdir -p dist-web/benchmesh
+          cp -r benchmesh-serial-service dist-web/benchmesh/
+          cp -r .node-red dist-web/benchmesh/
+          cp start.sh dist-web/benchmesh/
+          cp package.json dist-web/benchmesh/
+          cp README.md dist-web/benchmesh/
+          cd dist-web
+          tar -czf benchmesh-web-${{ needs.create-draft.outputs.version }}.tar.gz benchmesh/
+          sha256sum benchmesh-web-${{ needs.create-draft.outputs.version }}.tar.gz > checksums.txt
+
+      - name: Upload archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-draft.outputs.upload_url }}
+          asset_path: ./dist-web/benchmesh-web-${{ needs.create-draft.outputs.version }}.tar.gz
+          asset_name: benchmesh-web-${{ needs.create-draft.outputs.version }}.tar.gz
+          asset_content_type: application/gzip

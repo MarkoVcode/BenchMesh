@@ -6,7 +6,12 @@
   "scripts": {
     "start:nodered": "node-red --userDir ./.node-red",
     "start:all": "./start.sh",
-    "postinstall": "echo 'Node-RED installed successfully. Run ./start.sh to start all services.'"
+    "electron:dev": "./electron/start-electron.sh",
+    "electron:build": "cd electron && npm install && npm run build",
+    "electron:build:linux": "cd electron && npm install && npm run build:linux",
+    "electron:build:win": "cd electron && npm install && npm run build:win",
+    "electron:build:mac": "cd electron && npm install && npm run build:mac",
+    "postinstall": "echo 'Dependencies installed. Run ./start.sh for web mode or npm run electron:dev for desktop app.'"
   },
   "dependencies": {
     "node-red": "^3.1.0"

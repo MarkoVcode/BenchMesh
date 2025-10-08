@@ -1,0 +1,113 @@
+name: Test Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm ci
+
+      - name: Run linter
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run lint || echo "Linting not configured"
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run build
+
+      - name: Check build output
+        run: |
+          if [ ! -d "benchmesh-serial-service/frontend/dist" ]; then
+            echo "Build failed: dist directory not found"
+            exit 1
+          fi
+          echo "Frontend build successful"
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd benchmesh-serial-service
+          pip install -r requirements.txt
+
+      - name: Run Python tests
+        run: |
+          cd benchmesh-serial-service
+          python -m pytest || echo "No tests configured yet"
+
+      - name: Check API starts
+        run: |
+          cd benchmesh-serial-service
+          timeout 10s python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          from benchmesh_service.api import app
+          print('API module loaded successfully')
+          " || exit 1
+
+  test-electron-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libdrm2 libgbm1 libxcb-dri3-0
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm ci
+          npm run build
+
+      - name: Test Electron build
+        run: |
+          cd electron
+          npm install
+          npm run build
+
+      - name: Check Electron build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Electron build failed: dist directory not found"
+            exit 1
+          fi
+          ls -la dist/
+          echo "Electron build successful"

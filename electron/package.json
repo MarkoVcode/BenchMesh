@@ -1,0 +1,51 @@
+{
+  "name": "benchmesh-electron",
+  "version": "1.0.0",
+  "description": "BenchMesh Electron Wrapper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:linux": "electron-builder --linux",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.benchmesh.app",
+    "productName": "BenchMesh",
+    "files": [
+      "main.js",
+      "preload.js",
+      "../benchmesh-serial-service/frontend/dist/**/*",
+      "../benchmesh-serial-service/src/**/*",
+      "../benchmesh-serial-service/requirements.txt"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "../dist"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "mac": {
+      "target": ["dmg", "zip"]
+    },
+    "extraResources": [
+      {
+        "from": "../.node-red",
+        "to": "node-red"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "tree-kill": "^1.2.2"
+  }
+}

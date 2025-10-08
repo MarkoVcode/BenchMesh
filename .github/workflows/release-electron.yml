@@ -1,0 +1,342 @@
+name: Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="0.0.0-dev"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: BenchMesh ${{ steps.get_version.outputs.version }}
+          body: |
+            ## BenchMesh Release ${{ steps.get_version.outputs.version }}
+
+            ### Downloads
+
+            #### Electron Desktop Applications
+            - **Linux**: AppImage (portable) or .deb (Debian/Ubuntu installer)
+            - **Windows**: .exe installer or portable
+            - **macOS**: .dmg (drag-and-drop) or .zip
+
+            #### Self-Hosted Web Application
+            - Download `benchmesh-web-${{ steps.get_version.outputs.version }}.tar.gz`
+            - Extract and run `./start.sh`
+
+            ### Installation
+
+            **Electron App:**
+            - Linux: `chmod +x BenchMesh-*.AppImage && ./BenchMesh-*.AppImage`
+            - Windows: Run the installer or portable .exe
+            - macOS: Open .dmg and drag to Applications
+
+            **Self-Hosted:**
+            ```bash
+            tar -xzf benchmesh-web-*.tar.gz
+            cd benchmesh
+            npm install
+            cd benchmesh-serial-service && pip install -r requirements.txt
+            cd .. && ./start.sh
+            ```
+
+            ### What's New
+            See [CHANGELOG.md](CHANGELOG.md) for details.
+
+            ### Requirements
+            - Python 3.8+
+            - Node.js 18+ (development only for self-hosted)
+            - Serial port access for instrument communication
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'rc') }}
+
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libdrm2 libgbm1 libxcb-dri3-0
+
+      - name: Install Node dependencies
+        run: |
+          npm install
+          cd benchmesh-serial-service/frontend
+          npm ci
+          cd ../..
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run build
+          cd ../..
+
+      - name: Install Electron dependencies
+        run: |
+          cd electron
+          npm install
+
+      - name: Build Electron app (Linux)
+        run: |
+          cd electron
+          npm run build:linux
+
+      - name: Upload AppImage
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh-${{ needs.create-release.outputs.version }}.AppImage
+          asset_name: BenchMesh-${{ needs.create-release.outputs.version }}-Linux-x86_64.AppImage
+          asset_content_type: application/octet-stream
+
+      - name: Upload DEB package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_name: BenchMesh-${{ needs.create-release.outputs.version }}-amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
+        run: |
+          npm install
+          cd benchmesh-serial-service/frontend
+          npm ci
+          cd ../..
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run build
+          cd ../..
+
+      - name: Install Electron dependencies
+        run: |
+          cd electron
+          npm install
+
+      - name: Build Electron app (Windows)
+        run: |
+          cd electron
+          npm run build:win
+
+      - name: Upload Windows Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh Setup ${{ needs.create-release.outputs.version }}.exe
+          asset_name: BenchMesh-Setup-${{ needs.create-release.outputs.version }}.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows Portable
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh ${{ needs.create-release.outputs.version }}.exe
+          asset_name: BenchMesh-Portable-${{ needs.create-release.outputs.version }}.exe
+          asset_content_type: application/octet-stream
+
+  build-macos:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
+        run: |
+          npm install
+          cd benchmesh-serial-service/frontend
+          npm ci
+          cd ../..
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run build
+          cd ../..
+
+      - name: Install Electron dependencies
+        run: |
+          cd electron
+          npm install
+
+      - name: Build Electron app (macOS)
+        run: |
+          cd electron
+          npm run build:mac
+
+      - name: Upload macOS DMG
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh-${{ needs.create-release.outputs.version }}.dmg
+          asset_name: BenchMesh-${{ needs.create-release.outputs.version }}-macOS.dmg
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS ZIP
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist/BenchMesh-${{ needs.create-release.outputs.version }}-mac.zip
+          asset_name: BenchMesh-${{ needs.create-release.outputs.version }}-macOS.zip
+          asset_content_type: application/zip
+
+  build-self-hosted:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm ci
+          npm run build
+          cd ../..
+
+      - name: Create self-hosted archive
+        run: |
+          # Create distribution directory
+          mkdir -p dist-web/benchmesh
+
+          # Copy necessary files
+          cp -r benchmesh-serial-service dist-web/benchmesh/
+          cp -r .node-red dist-web/benchmesh/
+          cp start.sh dist-web/benchmesh/
+          cp package.json dist-web/benchmesh/
+          cp package-lock.json dist-web/benchmesh/
+          cp README.md dist-web/benchmesh/
+          cp STARTUP.md dist-web/benchmesh/
+          cp DISTRIBUTION.md dist-web/benchmesh/
+
+          # Create installation script
+          cat > dist-web/benchmesh/install.sh << 'EOF'
+          #!/bin/bash
+          echo "Installing BenchMesh dependencies..."
+          npm install
+          cd benchmesh-serial-service
+          pip3 install -r requirements.txt
+          cd ..
+          echo ""
+          echo "Installation complete!"
+          echo "Run ./start.sh to start BenchMesh"
+          EOF
+          chmod +x dist-web/benchmesh/install.sh
+
+          # Create archive
+          cd dist-web
+          tar -czf benchmesh-web-${{ needs.create-release.outputs.version }}.tar.gz benchmesh/
+          cd ..
+
+      - name: Upload self-hosted archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist-web/benchmesh-web-${{ needs.create-release.outputs.version }}.tar.gz
+          asset_name: benchmesh-web-${{ needs.create-release.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Create checksums
+        run: |
+          cd dist-web
+          sha256sum benchmesh-web-${{ needs.create-release.outputs.version }}.tar.gz > checksums.txt
+
+      - name: Upload checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./dist-web/checksums.txt
+          asset_name: checksums-web.txt
+          asset_content_type: text/plain
