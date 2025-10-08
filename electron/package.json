@@ -1,6 +1,6 @@
 {
   "name": "benchmesh-electron",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "description": "BenchMesh Electron Wrapper",
   "main": "main.js",
   "scripts": {
@@ -25,14 +25,23 @@
       "output": "../dist"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility"
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "mac": {
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "extraResources": [
       {
