@@ -11,6 +11,9 @@ on:
         required: true
         default: '0.0.0'
 
+permissions:
+  contents: write  # Required to create releases and upload assets
+
 jobs:
   create-draft:
     runs-on: ubuntu-latest
