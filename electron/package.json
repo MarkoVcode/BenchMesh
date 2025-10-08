@@ -1,6 +1,6 @@
 {
   "name": "benchmesh-electron",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "BenchMesh Electron Wrapper",
   "main": "main.js",
   "scripts": {
