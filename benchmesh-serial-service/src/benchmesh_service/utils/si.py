@@ -120,6 +120,53 @@ def format_scientific_to_si(value, unit: str = '', sig_figs: int = 3) -> Tuple[s
     return formatted_num, symbol, fullname
 
 
+def trim_digits_to(s: str, n: int = 5) -> str:
+    """Trim least-significant digits from numeric string `s` until it contains at most
+    `n` digit characters (digits do not include '-' or '.').
+
+    Does not perform rounding; it simply removes characters from the end of the
+    significant portion. Preserves sign, decimal point and exponent (if present).
+
+    Examples:
+        trim_digits_to('-1.571223', 5) -> '-1.5712'
+        trim_digits_to('4.994804E+01', 5) -> '4.9948E+01' -> but if exponent present we trim mantissa digits
+    """
+    import re
+    if not isinstance(s, str):
+        s = str(s)
+
+    # separate exponent if present
+    m = re.match(r"^([+-]?.*?)([eE][+-]?\d+)?$", s.strip())
+    if not m:
+        return s
+    mantissa = m.group(1)
+    exponent = m.group(2) or ''
+
+    # preserve sign
+    sign = ''
+    if mantissa.startswith(('+', '-')):
+        sign = mantissa[0]
+        mantissa = mantissa[1:]
+
+    # count digits
+    digits = sum(1 for ch in mantissa if ch.isdigit())
+    if digits <= n:
+        return s
+
+    # remove characters from the end until digits <= n
+    while digits > n and mantissa:
+        last = mantissa[-1]
+        mantissa = mantissa[:-1]
+        if last.isdigit():
+            digits -= 1
+
+    # remove trailing decimal point if left at end
+    if mantissa.endswith('.'):
+        mantissa = mantissa[:-1]
+
+    return f"{sign}{mantissa}{exponent}"
+
+
 # quick examples when executed directly "measurement1_num": "1.63""measurement1_num": "1.61"  "+1.6003E+00", "measurement1_num": "1.6","4.994804E+01", "measurement1_num": "49.9",
 if __name__ == '__main__':
     tests = [
@@ -137,3 +184,8 @@ if __name__ == '__main__':
     for t in tests:
         num_str, sym, n = format_scientific_to_si(t, '', sig_figs=5)
         print(t, '->', num_str, sym, n)
+    # trim examples
+    trim_tests = ['-1.571223', '1.571223', '4.994804E+01', '12345.6789', '0.000123456']
+    print('\nTrim examples:')
+    for t in trim_tests:
+        print(t, '->', trim_digits_to(t, 5))

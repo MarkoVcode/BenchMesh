@@ -116,6 +116,10 @@
             "RANGe": {
               "CAPacitance": [
                 {
+                  "value": "AUTO",
+                  "display": "AUTO"
+                },
+                {
                   "value": "2E-9",
                   "display": "2nF"
                 },
@@ -145,6 +149,10 @@
                 }
               ],
               "RESistance": [
+                {
+                  "value": "AUTO",
+                  "display": "AUTO"
+                },
                 {
                   "value": "MIN",
                   "display": "MINimum"
@@ -184,6 +192,10 @@
               ],
               "CURRent_AC": [
                 {
+                  "value": "AUTO",
+                  "display": "AUTO"
+                },
+                {
                   "value": "MIN",
                   "display": "MINimum"
                 },
@@ -202,6 +214,10 @@
               ],
               "CURRent_DC": [
                 {
+                  "value": "AUTO",
+                  "display": "AUTO"
+                },
+                {
                   "value": "MIN",
                   "display": "MINimum"
                 },
@@ -219,6 +235,10 @@
                 }
               ],
               "VOLTage_AC": [
+                {
+                  "value": "AUTO",
+                  "display": "AUTO"
+                },
                 {
                   "value": "MIN",
                   "display": "MINimum"
@@ -249,6 +269,10 @@
                 }
               ],
               "VOLTage_DC": [
+                {
+                  "value": "AUTO",
+                  "display": "AUTO"
+                },
                 {
                   "value": "MIN",
                   "display": "MINimum"

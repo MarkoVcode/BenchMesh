@@ -1,5 +1,6 @@
 from ...transport import SerialTransport
 from ...utils.si import format_scientific_to_si
+from ...utils.si import trim_digits_to
 
 class OWONSPM:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
@@ -63,7 +64,7 @@ class OWONSPM:
         if not raw:
             return None
         print(num_str)
-        return {"measurement1_si": parts[1], "measurement1_num": num_str, "measurement1_symbol": sym, "measurement1_function": function}
+        return {"measurement1_si": parts[1], "measurement1_num": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
 
 
     def set_output(self, channel: int, value):  # ON / OFF

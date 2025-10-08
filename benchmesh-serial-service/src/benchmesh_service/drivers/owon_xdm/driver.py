@@ -1,5 +1,6 @@
 from ...transport import SerialTransport
 from ...utils.si import format_scientific_to_si
+from ...utils.si import trim_digits_to
 
 class OWONXDM:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
@@ -17,7 +18,7 @@ class OWONXDM:
         if not raw:
             return None
         print(num_str)
-        return {"measurement1_si": query_measurement, "measurement1_num": num_str, "measurement1_symbol": sym, "measurement1_function": function}
+        return {"measurement1_si": query_measurement, "measurement1_num": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
 
     def set_current_dc_range(self, channel: int, value):
         self.t.write_line('CONF:CURR:DC ' + str(value))

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
+import { GenericRange } from './GenericRange'
+import { GenericTemp } from './GenericTemp'
 
 // Generic DMM component styled similarly to GenericPSU
 // - Before rendering, fetch GET /instruments/DMM/{device_id} to obtain features (modes list)
@@ -19,6 +21,7 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
   const [currentSymbol, setCurrentSymbol] = useState('U')
   const [currentUnit, setCurrentUnit] = useState('V')
   const [currentNote, setCurrentNote] = useState<string | undefined>(undefined)
+  const [fullConfig, setFullConfig] = useState<any>(null)
 
   // Extract measurement value and prefix from registry
   const { measurementValue, unitPrefix } = useMemo(() => {
@@ -76,7 +79,7 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     })
   }, [channelPath, deviceId, channel, currentSymbol, currentUnit, unitPrefix, registerSource])
 
-  // Fetch class features (modes) before rendering content
+  // Fetch class features (modes and full config) before rendering content
   useEffect(() => {
     let cancelled = false
     async function loadFeatures() {
@@ -86,6 +89,9 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
+          // Store full config
+          setFullConfig(j)
+
           let mm: string[] = []
           let mData: Record<string, any> = {}
 
@@ -153,6 +159,7 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
               onChange={handleModeChange}
               disabled={busy || modes.length === 0}
               title={`POST ${endpointTemplate}`}
+              modesData={modesData}
             />
             <button
               className="psu-set"
@@ -165,6 +172,21 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
             </button>
             <span className="psu-api" title={`GET /instruments/${klass || 'DMM'}/${deviceId || '{id}'}`}>API</span>
           </div>
+
+          {/* Render mode-specific component */}
+          {mode && modesData[mode]?.ui_component === 'GenericRange' && fullConfig?.RANGe?.[mode] && (
+            <GenericRange
+              mode={mode}
+              ranges={fullConfig.RANGe[mode]}
+              channelPath={channelPath}
+              klass={klass}
+              deviceId={deviceId}
+              channel={channel}
+            />
+          )}
+          {mode && modesData[mode]?.ui_component === 'GenericTemp' && (
+            <GenericTemp mode={mode} channelPath={channelPath} />
+          )}
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
@@ -187,13 +209,15 @@ function CustomDropdown({
   value,
   onChange,
   disabled,
-  title
+  title,
+  modesData
 }: {
   options: string[]
   value: string
   onChange: (value: string) => void
   disabled?: boolean
   title?: string
+  modesData?: Record<string, any>
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -212,6 +236,11 @@ function CustomDropdown({
   const handleSelect = (option: string) => {
     onChange(option)
     setIsOpen(false)
+  }
+
+  // Get display label for a mode
+  const getLabel = (modeKey: string) => {
+    return modesData?.[modeKey]?.ui_name || modeKey
   }
 
   return (
@@ -242,7 +271,7 @@ function CustomDropdown({
           fontSize: '16px',
           color: '#c26a1a'
         }}>
-          {value || (options.length === 0 ? 'No modes' : 'Select...')}
+          {value ? getLabel(value) : (options.length === 0 ? 'No modes' : 'Select...')}
         </span>
         <span style={{
           fontSize: '12px',
@@ -292,7 +321,7 @@ function CustomDropdown({
                 }
               }}
             >
-              {option}
+              {getLabel(option)}
             </div>
           ))}
         </div>
