@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 // Minimal generic Spectrum Analyzer UI placeholder
-export function GenericSAL({ channelPath }: { channelPath?: string }) {
+export function GenericSAL({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { klass, deviceId } = useMemo(() => parsePath(channelPath), [channelPath])
   const [features, setFeatures] = useState<any>({})

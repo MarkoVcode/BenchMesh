@@ -19,10 +19,10 @@ export function ChannelPod({ path, klass, uiComponent, registry }: { path: strin
         {uiComponent === 'GenericPSU' || (uiComponent == null && upper === 'PSU') ? <GenericPSU channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericDMM' || (uiComponent == null && upper === 'DMM') ? <GenericDMM channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericELL' || (uiComponent == null && upper === 'ELL') ? <GenericELL channelPath={path} registry={registry} /> : null}
-        {uiComponent === 'GenericAWG' || (uiComponent == null && upper === 'AWG') ? <GenericAWG channelPath={path} /> : null}
-        {uiComponent === 'GenericOSC' || (uiComponent == null && upper === 'OSC') ? <GenericOSC channelPath={path} /> : null}
-        {uiComponent === 'GenericLCR' || (uiComponent == null && upper === 'LCR') ? <GenericLCR channelPath={path} /> : null}
-        {uiComponent === 'GenericSAL' || (uiComponent == null && upper === 'SAL') ? <GenericSAL channelPath={path} /> : null}
+        {uiComponent === 'GenericAWG' || (uiComponent == null && upper === 'AWG') ? <GenericAWG channelPath={path} registry={registry} /> : null}
+        {uiComponent === 'GenericOSC' || (uiComponent == null && upper === 'OSC') ? <GenericOSC channelPath={path} registry={registry} /> : null}
+        {uiComponent === 'GenericLCR' || (uiComponent == null && upper === 'LCR') ? <GenericLCR channelPath={path} registry={registry} /> : null}
+        {uiComponent === 'GenericSAL' || (uiComponent == null && upper === 'SAL') ? <GenericSAL channelPath={path} registry={registry} /> : null}
         {(uiComponent && !['GenericPSU','GenericDMM','GenericELL','GenericAWG','GenericOSC','GenericLCR','GenericSAL'].includes(uiComponent)) ? <UnknownInstrument uiComponent={uiComponent} channelPath={path} /> : null}
       </div>
     </div>

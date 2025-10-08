@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 // Minimal generic LCR Meter UI placeholder
-export function GenericLCR({ channelPath }: { channelPath?: string }) {
+export function GenericLCR({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { klass, deviceId } = useMemo(() => parsePath(channelPath), [channelPath])
   const [features, setFeatures] = useState<any>({})

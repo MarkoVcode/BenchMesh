@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 // Minimal generic AWG UI placeholder
-export function GenericAWG({ channelPath }: { channelPath?: string }) {
+export function GenericAWG({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { klass, deviceId } = useMemo(() => parsePath(channelPath), [channelPath])
   const [features, setFeatures] = useState<any>({})
