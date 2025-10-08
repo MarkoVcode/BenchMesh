@@ -27,21 +27,21 @@
           "ui_component": "GenericDMM",
           "features": {
             "channels": 1,
-            "modes": [
-              "VOLTage_DC",
-              "VOLTage_AC",
-              "CURRent_DC",
-              "CURRent_AC",
-              "RESistance",
-              "FRESistance",
-              "CAPacitance",
-              "DIODe",
-              "CONTinuity",
-              "TEMPerature_KITS90",
-              "TEMPerature_PT100",
-              "FREQuency",
-              "PERiod"
-            ],
+            "modes": {
+              "VOLTage_DC": {"unit": "V", "symbol": "U", "note": "DC", "techname": "VOLT", "ui_name": "Voltage DC", "ui_component": "GenericRange"},
+              "VOLTage_AC": {"unit": "V", "symbol": "U", "note": "AC", "techname": "VOLT AC", "ui_name": "Voltage AC", "ui_component": "GenericRange"},
+              "CURRent_DC": {"unit": "A", "symbol": "I", "note": "DC", "techname": "CURR", "ui_name": "Current DC", "ui_component": "GenericRange"},
+              "CURRent_AC": {"unit": "A", "symbol": "I", "note": "AC", "techname": "CURR AC", "ui_name": "Current AC", "ui_component": "GenericRange"},
+              "RESistance": {"unit": "Ω", "symbol": "R", "techname": "RES", "ui_name": "Resistance", "ui_component": "GenericRange"},
+              "FRESistance": {"unit": "Ω", "symbol": "R", "note": "4W", "techname": "RES", "ui_name": "Resistance", "ui_component": "GenericRange"},
+              "CAPacitance": {"unit": "F", "symbol": "C", "techname": "CAP", "ui_name": "Capacitance", "ui_component": "GenericRange"},
+              "DIODe": {"unit": "V", "symbol": "D", "techname": "DIOD", "ui_name": "Diode"},
+              "CONTinuity": {"unit": "Ω", "symbol": "R", "note": "buzzer", "techname": "CONT", "ui_name": "Continuity"},
+              "TEMPerature_KITS90": {"unit": "K", "symbol": "T", "techname": "TEMP", "ui_name": "Temperature KITS90", "ui_component": "GenericTemp"},
+              "TEMPerature_PT100": {"unit": "K", "symbol": "T", "ui_name": "Temperature PT100"},
+              "FREQuency": {"unit": "Hz", "symbol": "f", "techname": "FREQ", "ui_name": "Frequency"},
+              "PERiod": {"unit": "s", "symbol": "T", "techname": "PER", "ui_name": "Period"}
+            },
             "hold": true,
             "delta": true,
             "DB:REFerence": [

@@ -12,10 +12,12 @@ class OWONXDM:
     def poll_status(self, channel: int):
         query_measurement = self.query_measurement(1)
         num_str, sym, n = format_scientific_to_si(query_measurement)
+        function = self.query_function(1)
         raw = self.identify() or b""
         if not raw:
             return None
-        return {"measurement1_si": query_measurement, "measurement1_num": f"{num_str}", "measurement1_symbol": sym}
+        print(num_str)
+        return {"measurement1_si": query_measurement, "measurement1_num": num_str, "measurement1_symbol": sym, "measurement1_function": function}
 
     def set_current_dc_range(self, channel: int, value):
         self.t.write_line('CONF:CURR:DC ' + str(value))
@@ -62,17 +64,19 @@ class OWONXDM:
         return self.t.read_until_reol(1024) 
 
     def set_temperature(self, channel: int, sensor):
-        self.t.write_line('CONF:CONT ' + str(sensor))
+        self.t.write_line('CONF:TEMPerature:RTD ' + str(sensor))
         return self.t.read_until_reol(1024) 
 
     def query_measurement(self, channel: int):
         self.t.write_line('MEAS1?')
         return self.t.read_until_reol(1024)    
-
+    
+    def query_function(self, channel: int):
+        self.t.write_line('FUNCtion?')
+        return self._clean_response(self.t.read_until_reol(1024))
+    
     def set_mode(self, channel: int, value):
-        if value == "RESistance":
-            self.t.write_line('CONF:RES')
-        elif value == "CURRent_DC":
+        if value == "CURRent_DC":
             self.set_current_dc_range(1, "AUTO")
         elif value == "CURRent_AC":
             self.set_current_ac_range(1, "AUTO")
@@ -97,7 +101,7 @@ class OWONXDM:
         elif value == "TEMPerature_PT100":
             self.set_temperature(1, "PT100")            
         elif value == "PERiod":
-            self.set_period_range(1)                
+            self.set_period(1)                
         return
 
     def write(self, data: bytes):
@@ -111,3 +115,19 @@ class OWONXDM:
 
     def is_connected(self):
         return self.t.is_open
+    
+    def _clean_response(self, raw):
+        """Normalize device response: bytes->str, strip whitespace and remove surrounding quotes."""
+        if raw is None:
+            return ""
+        if isinstance(raw, (bytes, bytearray)):
+            try:
+                s = raw.decode('utf-8', errors='ignore')
+            except Exception:
+                s = raw.decode('latin1', errors='ignore')
+        else:
+            s = str(raw)
+        s = s.strip()
+        if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+            s = s[1:-1].strip()
+        return s

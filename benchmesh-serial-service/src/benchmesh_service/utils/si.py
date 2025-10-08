@@ -95,9 +95,21 @@ def format_scientific_to_si(value, unit: str = '', sig_figs: int = 3) -> Tuple[s
             fullname = name
             break
 
-    # format number with sig_figs significant digits
-    # compute decimals: keep sig_figs significant digits
+    # try to auto-detect significant digits when the input was a scientific string
     digits = sig_figs
+    try:
+        import re
+        if isinstance(value, str):
+            m = re.match(r"^[\s]*([+-]?)(\d+)(?:\.(\d*))?[eE]([+-]?\d+)[\s]*$", value)
+            if m:
+                intpart = m.group(2) or ''
+                frac = m.group(3) or ''
+                sig = (intpart + frac).lstrip('0')
+                if len(sig) > 0:
+                    digits = max(digits, len(sig))
+    except Exception:
+        # fall back to provided sig_figs on any failure
+        digits = sig_figs
     # use general formatting
     fmt = f"{{:.{digits}g}}"
     formatted_num = fmt.format(scaled)
@@ -108,9 +120,13 @@ def format_scientific_to_si(value, unit: str = '', sig_figs: int = 3) -> Tuple[s
     return formatted_num, symbol, fullname
 
 
-# quick examples when executed directly
+# quick examples when executed directly "measurement1_num": "1.63""measurement1_num": "1.61"  "+1.6003E+00", "measurement1_num": "1.6","4.994804E+01", "measurement1_num": "49.9",
 if __name__ == '__main__':
     tests = [
+        '+1.6310E+00', 
+        '4.994804E+01',
+        '+1.6097E+00',
+        '+0.0000E-308',
         '1.166309E+00',
         '1.166309E-03',
         '1.166309E-06',

@@ -5,7 +5,7 @@ import { useMeasurement } from '../../MeasurementContext'
 // - Before rendering, fetch GET /instruments/DMM/{device_id} to obtain features (modes list)
 // - Settings: full-width dropdown to select mode; hover tooltip shows POST endpoint template
 // - Readings: placeholder big-number display U[V] with 5-digit readonly value
-export function GenericDMM({ channelPath }: { channelPath?: string }) {
+export function GenericDMM({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
 
@@ -15,20 +15,66 @@ export function GenericDMM({ channelPath }: { channelPath?: string }) {
   const [modes, setModes] = useState<string[]>([])
   const [mode, setMode] = useState<string>('')
   const [busy, setBusy] = useState(false)
+  const [modesData, setModesData] = useState<Record<string, any>>({})
+  const [currentSymbol, setCurrentSymbol] = useState('U')
+  const [currentUnit, setCurrentUnit] = useState('V')
+  const [currentNote, setCurrentNote] = useState<string | undefined>(undefined)
+
+  // Extract measurement value and prefix from registry
+  const { measurementValue, unitPrefix } = useMemo(() => {
+    if (!registry || !deviceId || !klass || !channel) {
+      return { measurementValue: '00000', unitPrefix: '' }
+    }
+
+    const statusKey = `status_ch${channel}`
+    const channelData = registry[deviceId]?.[klass]?.[statusKey]
+
+    if (!channelData) {
+      return { measurementValue: '00000', unitPrefix: '' }
+    }
+
+    const rawValue = String(channelData.measurement1_num || '0')
+    // Ensure 5 numerical digits (excluding decimal point and sign)
+    const isNegative = rawValue.startsWith('-')
+    const absoluteValue = isNegative ? rawValue.slice(1) : rawValue
+    const parts = absoluteValue.split('.')
+
+    // Count total digits needed (excluding decimal point)
+    const totalDigits = parts.join('').length
+    const zerosNeeded = Math.max(0, 5 - totalDigits)
+
+    // Add leading zeros and reconstruct with decimal point if present
+    const paddedInteger = '0'.repeat(zerosNeeded) + parts[0]
+    const formattedValue = parts.length > 1 ? `${paddedInteger}.${parts[1]}` : paddedInteger
+    const value = isNegative ? `-${formattedValue}` : formattedValue
+    const prefix = channelData.measurement1_symbol || ''
+
+    return { measurementValue: value, unitPrefix: prefix }
+  }, [registry, deviceId, klass, channel])
+
+  // Update symbol and unit when mode changes
+  useEffect(() => {
+    if (mode && modesData[mode]) {
+      const modeInfo = modesData[mode]
+      setCurrentSymbol(modeInfo.symbol || 'U')
+      setCurrentUnit(modeInfo.unit || 'V')
+      setCurrentNote(modeInfo.note)
+    }
+  }, [mode, modesData])
 
   // Register measurement sources
   useEffect(() => {
     if (!channelPath || !deviceId) return
 
     registerSource({
-      id: `${deviceId}-${channel}-U`,
+      id: `${deviceId}-${channel}-${currentSymbol}`,
       deviceId,
       channelPath,
       parameter: 'voltage',
-      label: `${deviceId} Ch${channel} U`,
-      unit: 'V'
+      label: `${deviceId} Ch${channel} ${currentSymbol}`,
+      unit: currentUnit
     })
-  }, [channelPath, deviceId, channel, registerSource])
+  }, [channelPath, deviceId, channel, currentSymbol, currentUnit, registerSource])
 
   // Fetch class features (modes) before rendering content
   useEffect(() => {
@@ -40,15 +86,36 @@ export function GenericDMM({ channelPath }: { channelPath?: string }) {
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
-          const mm = Array.isArray(j?.modes) ? (j.modes as any[]).map(String) : []
+          let mm: string[] = []
+          let mData: Record<string, any> = {}
+
+          if (Array.isArray(j?.modes)) {
+            // Old format: array of mode names
+            mm = (j.modes as any[]).map(String)
+          } else if (j?.modes && typeof j.modes === 'object') {
+            // New format: object with mode names as keys and details as values
+            mm = Object.keys(j.modes)
+            mData = j.modes
+          }
+
           setModes(mm)
-          if (!mode && mm.length) setMode(String(mm[0]))
+          setModesData(mData)
+          if (!mode && mm.length) {
+            const firstMode = String(mm[0])
+            setMode(firstMode)
+            // Set initial symbol and unit from first mode
+            if (mData[firstMode]) {
+              setCurrentSymbol(mData[firstMode].symbol || 'U')
+              setCurrentUnit(mData[firstMode].unit || 'V')
+              setCurrentNote(mData[firstMode].note)
+            }
+          }
         }
       } catch {}
     }
     loadFeatures()
     return () => { cancelled = true }
-  }, [apiBase, deviceId, klass])
+  }, [apiBase, deviceId, klass, mode])
 
   const endpointTemplate = useMemo(() => {
     const k = klass || 'DMM'
@@ -101,7 +168,13 @@ export function GenericDMM({ channelPath }: { channelPath?: string }) {
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={"00000"} channelPath={channelPath} parameter="voltage" />
+          <ReadonlyBigNumber
+            kind={currentSymbol as 'U' | 'I' | 'P'}
+            label={<Label symbol={currentSymbol} unit={`${unitPrefix}${currentUnit}`} note={currentNote} />}
+            value={measurementValue}
+            channelPath={channelPath}
+            parameter="voltage"
+          />
         </div>
         <hr className="sep"/>
       </div>
@@ -291,10 +364,14 @@ function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kin
   )
 }
 
-function Label({ symbol, unit }: { symbol: string, unit: string }) {
+function Label({ symbol, unit, note }: { symbol: string, unit: string, note?: string }) {
   return (
     <>
-      <span className="psu-symbol">{symbol}</span><span className="psu-unit">[{unit}]</span>
+      <span className="psu-symbol" style={{ fontSize: '24px' }}>{symbol}</span>
+      <span className="psu-unit" style={{ fontSize: '20px' }}>
+        [{unit}]
+        {note && <span style={{ fontSize: '14px', marginLeft: '4px', color: 'var(--text-2)' }}>{note}</span>}
+      </span>
     </>
   )
 }

@@ -36,7 +36,7 @@ export function InstrumentPod({ instrument, registry }: { instrument: Instrument
           <div key={c.class}>
             <div>
               {/* Render dedicated nested class pod, honoring ui_component from API */}
-              <ClassPodResolver klass={c.class} channels={c.channels} uiComponent={c.ui_component} />
+              <ClassPodResolver klass={c.class} channels={c.channels} uiComponent={c.ui_component} registry={registry} />
             </div>
           </div>
         ))}

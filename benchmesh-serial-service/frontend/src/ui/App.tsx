@@ -101,7 +101,7 @@ export default function App() {
   const waitingForApi = (!instruments || instruments.length === 0) && !!error
 
   return (
-    <MeasurementProvider>
+    <MeasurementProvider registry={registry}>
       <div style={{ paddingBottom: '48px' }}>
         <div className="topbar">
           <div className="brand">BenchMesh</div>

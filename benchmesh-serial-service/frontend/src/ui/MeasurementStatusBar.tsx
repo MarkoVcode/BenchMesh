@@ -1,9 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useMeasurement } from './MeasurementContext'
+import { useMeasurement, MeasurementSource } from './MeasurementContext'
 
 interface MeasurementRecord {
   timestamp: Date
   values: Record<string, number | null>
+}
+
+// Helper function to extract measurement value from registry
+function getValueFromRegistry(registry: any, source: MeasurementSource): number | null {
+  if (!registry || !source) return null
+
+  // Parse channelPath like /instruments/DMM/{deviceId}/{channel}
+  const parts = source.channelPath.split('/').filter(Boolean)
+  if (parts.length < 4) return null
+
+  const klass = parts[1]
+  const deviceId = parts[2]
+  const channel = parts[3]
+  const statusKey = `status_ch${channel}`
+
+  const channelData = registry[deviceId]?.[klass]?.[statusKey]
+  if (!channelData) return null
+
+  const rawValue = channelData.measurement1_num
+  if (rawValue === undefined || rawValue === null) return null
+
+  return parseFloat(String(rawValue))
 }
 
 const FREQUENCIES = [
@@ -26,40 +48,27 @@ export function MeasurementStatusBar() {
   const [isRecording, setIsRecording] = useState(false)
   const [isGraphing, setIsGraphing] = useState(false)
 
-  const { selectedForRecord, selectedForGraph, sources } = useMeasurement()
+  const { selectedForRecord, selectedForGraph, sources, registry } = useMeasurement()
 
-  const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
-
-  // Recording logic
+  // Recording logic using WebSocket registry data
   useEffect(() => {
     if (!isRecording || selectedForRecord.size === 0) return
 
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const values: Record<string, number | null> = {}
 
       for (const sourceId of selectedForRecord) {
         const source = sources.get(sourceId)
         if (!source) continue
 
-        try {
-          const endpoint = `${apiBase}${source.channelPath}/query_output_${source.parameter.toLowerCase()}`
-          const res = await fetch(endpoint)
-          if (res.ok) {
-            const data = await res.json()
-            values[sourceId] = parseFloat(data.value) || null
-          } else {
-            values[sourceId] = null
-          }
-        } catch {
-          values[sourceId] = null
-        }
+        values[sourceId] = getValueFromRegistry(registry, source)
       }
 
       setRecords(prev => [...prev, { timestamp: new Date(), values }])
     }, recordFrequency)
 
     return () => clearInterval(interval)
-  }, [isRecording, recordFrequency, selectedForRecord, sources, apiBase])
+  }, [isRecording, recordFrequency, selectedForRecord, sources, registry])
 
   const exportCSV = () => {
     if (records.length === 0) return
@@ -390,8 +399,7 @@ function GraphPanel({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [graphData, setGraphData] = useState<Map<string, Array<{ time: number, value: number }>>>(new Map())
 
-  const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
-  const { sources } = useMeasurement()
+  const { sources, registry } = useMeasurement()
 
   useEffect(() => {
     if (!isDragging) return
@@ -412,34 +420,28 @@ function GraphPanel({
     }
   }, [isDragging, onHeightChange])
 
-  // Fetch data for graphing
+  // Fetch data for graphing using WebSocket registry data
   useEffect(() => {
     if (!isGraphing || selectedSources.length === 0) return
 
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const now = Date.now()
 
       for (const source of selectedSources) {
-        try {
-          const endpoint = `${apiBase}${source.channelPath}/query_output_${source.parameter.toLowerCase()}`
-          const res = await fetch(endpoint)
-          if (res.ok) {
-            const data = await res.json()
-            const value = parseFloat(data.value) || 0
+        const value = getValueFromRegistry(registry, source)
+        if (value === null) continue
 
-            setGraphData(prev => {
-              const next = new Map(prev)
-              const points = next.get(source.id) || []
-              next.set(source.id, [...points, { time: now, value }].slice(-100))
-              return next
-            })
-          }
-        } catch {}
+        setGraphData(prev => {
+          const next = new Map(prev)
+          const points = next.get(source.id) || []
+          next.set(source.id, [...points, { time: now, value }].slice(-100))
+          return next
+        })
       }
     }, frequency)
 
     return () => clearInterval(interval)
-  }, [isGraphing, frequency, selectedSources, apiBase])
+  }, [isGraphing, frequency, selectedSources, registry])
 
   // Draw graph
   useEffect(() => {

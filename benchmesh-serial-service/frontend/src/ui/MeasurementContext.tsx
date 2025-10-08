@@ -16,11 +16,12 @@ interface MeasurementContextType {
   toggleGraph: (sourceId: string) => void
   registerSource: (source: MeasurementSource) => void
   sources: Map<string, MeasurementSource>
+  registry: any
 }
 
 const MeasurementContext = createContext<MeasurementContextType | undefined>(undefined)
 
-export function MeasurementProvider({ children }: { children: ReactNode }) {
+export function MeasurementProvider({ children, registry }: { children: ReactNode, registry?: any }) {
   const [selectedForRecord, setSelectedForRecord] = useState<Set<string>>(new Set())
   const [selectedForGraph, setSelectedForGraph] = useState<Set<string>>(new Set())
   const [sources, setSources] = useState<Map<string, MeasurementSource>>(new Map())
@@ -74,7 +75,8 @@ export function MeasurementProvider({ children }: { children: ReactNode }) {
       toggleRecord,
       toggleGraph,
       registerSource,
-      sources
+      sources,
+      registry: registry || {}
     }}>
       {children}
     </MeasurementContext.Provider>

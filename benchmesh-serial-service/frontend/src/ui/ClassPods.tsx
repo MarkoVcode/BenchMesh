@@ -9,16 +9,16 @@ import { GenericLCR } from './classes/LCR/GenericLCR'
 import { GenericSAL } from './classes/SAL/GenericSAL'
 import { UnknownInstrument } from './classes/Unknown/UnknownInstrument'
 
-export function ChannelPod({ path, klass, uiComponent }: { path: string, klass?: string, uiComponent?: string }) {
+export function ChannelPod({ path, klass, uiComponent, registry }: { path: string, klass?: string, uiComponent?: string, registry?: any }) {
   const upper = (klass || '').toUpperCase()
   return (
     <div className="channel-card">
       <code className="channel-path">{path}</code>
       {/* Prefer explicit ui_component from API if provided, otherwise fallback by klass */}
       <div className="channel-extra">
-        {uiComponent === 'GenericPSU' || (uiComponent == null && upper === 'PSU') ? <GenericPSU channelPath={path} /> : null}
-        {uiComponent === 'GenericDMM' || (uiComponent == null && upper === 'DMM') ? <GenericDMM channelPath={path} /> : null}
-        {uiComponent === 'GenericELL' || (uiComponent == null && upper === 'ELL') ? <GenericELL channelPath={path} /> : null}
+        {uiComponent === 'GenericPSU' || (uiComponent == null && upper === 'PSU') ? <GenericPSU channelPath={path} registry={registry} /> : null}
+        {uiComponent === 'GenericDMM' || (uiComponent == null && upper === 'DMM') ? <GenericDMM channelPath={path} registry={registry} /> : null}
+        {uiComponent === 'GenericELL' || (uiComponent == null && upper === 'ELL') ? <GenericELL channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericAWG' || (uiComponent == null && upper === 'AWG') ? <GenericAWG channelPath={path} /> : null}
         {uiComponent === 'GenericOSC' || (uiComponent == null && upper === 'OSC') ? <GenericOSC channelPath={path} /> : null}
         {uiComponent === 'GenericLCR' || (uiComponent == null && upper === 'LCR') ? <GenericLCR channelPath={path} /> : null}
@@ -29,13 +29,13 @@ export function ChannelPod({ path, klass, uiComponent }: { path: string, klass?:
   )
 }
 
-function BaseClassPod({ title, channels, klass, uiComponent }: { title: string, channels: string[], klass: string, uiComponent?: string }) {
+function BaseClassPod({ title, channels, klass, uiComponent, registry }: { title: string, channels: string[], klass: string, uiComponent?: string, registry?: any }) {
   return (
     <div className="subcard">
       <div className="subcard-title">{title}</div>
       <div className="channels">
         {channels.map((p) => (
-          <ChannelPod key={p} path={p} klass={klass} uiComponent={uiComponent} />
+          <ChannelPod key={p} path={p} klass={klass} uiComponent={uiComponent} registry={registry} />
         ))}
       </div>
     </div>
@@ -51,7 +51,7 @@ export const OSCClassPod   = ({ channels, uiComponent }: { channels: string[], u
 export const LCRClassPod   = ({ channels, uiComponent }: { channels: string[], uiComponent?: string }) => <BaseClassPod title={getClassDescription('LCR')} channels={channels} klass={'LCR'} uiComponent={uiComponent} />
 export const SALClassPod   = ({ channels, uiComponent }: { channels: string[], uiComponent?: string }) => <BaseClassPod title={getClassDescription('SAL')} channels={channels} klass={'SAL'} uiComponent={uiComponent} />
 
-export function ClassPodResolver({ klass, channels, uiComponent }: { klass: string, channels: string[], uiComponent?: string }) {
+export function ClassPodResolver({ klass, channels, uiComponent, registry }: { klass: string, channels: string[], uiComponent?: string, registry?: any }) {
   const k = (klass || '').toUpperCase()
-  return <BaseClassPod title={getClassDescription(k)} channels={channels} klass={k} uiComponent={uiComponent} />
+  return <BaseClassPod title={getClassDescription(k)} channels={channels} klass={k} uiComponent={uiComponent} registry={registry} />
 }
