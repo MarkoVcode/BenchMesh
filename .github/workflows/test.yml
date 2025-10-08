@@ -28,6 +28,11 @@ jobs:
           cd benchmesh-serial-service/frontend
           npm run lint || echo "Linting not configured"
 
+      - name: Run frontend tests
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run test -- --run
+
       - name: Build frontend
         run: |
           cd benchmesh-serial-service/frontend

@@ -4,7 +4,7 @@ import { useMeasurement } from '../../MeasurementContext'
 // Generic Electronic Load component
 // - Settings: Mode dropdown (like DMM) populated from /instruments/ELL/{device_id}
 // - Readings: U/I/P displays (like PSU) with measurement checkboxes
-export function GenericELL({ channelPath }: { channelPath?: string }) {
+export function GenericELL({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
 

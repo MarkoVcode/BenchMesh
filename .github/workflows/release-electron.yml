@@ -10,7 +10,49 @@ permissions:
   contents: write  # Required to create releases and upload assets
 
 jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install frontend dependencies
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm ci
+
+      - name: Run frontend tests
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run test -- --run
+
+      - name: Build frontend
+        run: |
+          cd benchmesh-serial-service/frontend
+          npm run build
+
+      - name: Install backend dependencies
+        run: |
+          cd benchmesh-serial-service
+          pip install -r requirements.txt
+
+      - name: Run backend tests
+        run: |
+          cd benchmesh-serial-service
+          python -m pytest -v
+
   create-release:
+    needs: run-tests
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}

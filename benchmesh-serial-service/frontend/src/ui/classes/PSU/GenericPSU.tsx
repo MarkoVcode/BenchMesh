@@ -5,7 +5,7 @@ import { useMeasurement } from '../../MeasurementContext'
 // PSU face with two columns: Settings (editable V/A) and Readings (readonly V/A/P)
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
 // - Readings: mirrors V and A and derives P = V*A, all readonly but styled identically
-export function GenericPSU({ channelPath }: { channelPath?: string }) {
+export function GenericPSU({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
 
