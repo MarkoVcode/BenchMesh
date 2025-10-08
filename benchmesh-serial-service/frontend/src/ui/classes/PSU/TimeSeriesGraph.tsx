@@ -24,46 +24,10 @@ export function TimeSeriesGraph({
   const [showPopup, setShowPopup] = useState(false)
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
 
-  // Fetch data from API
+  // This component is deprecated - use MeasurementStatusBar graph functionality instead
   useEffect(() => {
-    if (!channelPath) return
-
-    const fetchData = async () => {
-      try {
-        const [vRes, iRes, pRes] = await Promise.all([
-         // fetch(`${apiBase}${channelPath}/query_output_voltage`),
-         // fetch(`${apiBase}${channelPath}/query_output_current`),
-         // fetch(`${apiBase}${channelPath}/query_output_power`)
-        ])
-
-        const [vData, iData, pData] = await Promise.all([
-          vRes.ok ? vRes.json().catch(() => ({ value: 0 })) : { value: 0 },
-          iRes.ok ? iRes.json().catch(() => ({ value: 0 })) : { value: 0 },
-          pRes.ok ? pRes.json().catch(() => ({ value: 0 })) : { value: 0 }
-        ])
-
-        const newPoint: DataPoint = {
-          timestamp: Date.now(),
-          voltage: parseFloat(vData.value) || 0,
-          current: parseFloat(iData.value) || 0,
-          power: parseFloat(pData.value) || 0
-        }
-
-        setData(prev => {
-          const updated = [...prev, newPoint]
-          return updated.slice(-maxDataPoints)
-        })
-      } catch (err) {
-        console.debug('Failed to fetch data for graph:', err)
-      }
-    }
-
-    // Initial fetch
-    fetchData()
-
-    // Set up interval
-    const interval = setInterval(fetchData, updateInterval)
-    return () => clearInterval(interval)
+    // Disabled to prevent errors - graphing is now handled by MeasurementStatusBar
+    return
   }, [channelPath, apiBase, maxDataPoints, updateInterval])
 
   // Draw the graph

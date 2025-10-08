@@ -72,9 +72,9 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
       channelPath,
       parameter: 'voltage',
       label: `${deviceId} Ch${channel} ${currentSymbol}`,
-      unit: currentUnit
+      unit: `${unitPrefix}${currentUnit}`
     })
-  }, [channelPath, deviceId, channel, currentSymbol, currentUnit, registerSource])
+  }, [channelPath, deviceId, channel, currentSymbol, currentUnit, unitPrefix, registerSource])
 
   // Fetch class features (modes) before rendering content
   useEffect(() => {

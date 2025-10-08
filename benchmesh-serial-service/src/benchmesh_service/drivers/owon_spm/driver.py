@@ -115,25 +115,40 @@ class OWONSPM:
         return self.t.read_until_reol(1024)
 
     def set_current_dc_range(self, channel: int, value):
-
-        self.t.write_line('CURRent:DC:RANGe:AUTO ON')
+        self.t.write_line('FUNCtion:CURR:DC')
         return self.t.read_until_reol(1024)
 
     def set_current_ac_range(self, channel: int, value):
-        self.t.write_line('CURRent:AC:RANGe:AUTO ON')
+        self.t.write_line('FUNCtion:CURR:AC')
         return self.t.read_until_reol(1024)    
 
     def set_voltage_dc_range(self, channel: int, value):
         self.t.write_line('FUNCtion:VOLTage:DC')
-        self.t.read_until_reol(1024)
-        self.t.write_line('VOLTage:DC:RANGe:AUTO ON')
+     #   self.t.read_until_reol(1024)
+      #  self.t.write_line('VOLTage:DC:RANGe:AUTO ON')
         return self.t.read_until_reol(1024)
 
     def set_voltage_ac_range(self, channel: int, value):
         self.t.write_line('FUNCtion:VOLTage:AC')
-        self.t.read_until_reol(1024)
-        self.t.write_line('VOLTage:AC:RANGe:AUTO ON')
+     #   self.t.read_until_reol(1024)
+     #   self.t.write_line('VOLTage:AC:RANGe:AUTO ON')
         return self.t.read_until_reol(1024)
+
+    def set_resistance_range(self, channel: int, value):
+        self.t.write_line('FUNCtion:RESistance')
+        return self.t.read_until_reol(1024)
+
+    def set_capacitance_range(self, channel: int, value):
+        self.t.write_line('FUNCtion:CAPacitance')
+        return self.t.read_until_reol(1024)
+    
+    def set_diode(self, channel: int):
+        self.t.write_line('FUNCtion:DIODe')
+        return self.t.read_until_reol(1024)
+
+    def set_continuity(self, channel: int):
+        self.t.write_line('FUNCtion:CONTinuity')
+        return self.t.read_until_reol(1024)    
 
     def set_mode(self, channel: int, value):
         if value == "CURRent_DC":

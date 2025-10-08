@@ -8,24 +8,102 @@ interface MeasurementRecord {
 
 // Helper function to extract measurement value from registry
 function getValueFromRegistry(registry: any, source: MeasurementSource): number | null {
-  if (!registry || !source) return null
+  if (!registry || !source) {
+    console.debug('[getValueFromRegistry] No registry or source')
+    return null
+  }
 
-  // Parse channelPath like /instruments/DMM/{deviceId}/{channel}
+  // Parse channelPath like /instruments/PSU/{deviceId}/{channel} or /instruments/DMM/{deviceId}/{channel}
   const parts = source.channelPath.split('/').filter(Boolean)
-  if (parts.length < 4) return null
+  if (parts.length < 4) {
+    console.debug('[getValueFromRegistry] Invalid channelPath:', source.channelPath)
+    return null
+  }
 
-  const klass = parts[1]
-  const deviceId = parts[2]
-  const channel = parts[3]
+  const klass = parts[1]  // e.g., "PSU", "DMM"
+  const deviceId = parts[2]  // e.g., "psu-1", "dmm-1"
+  const channel = parts[3]  // e.g., "1"
   const statusKey = `status_ch${channel}`
 
-  const channelData = registry[deviceId]?.[klass]?.[statusKey]
-  if (!channelData) return null
+  console.debug(`[getValueFromRegistry] Looking for: deviceId=${deviceId}, klass=${klass}, statusKey=${statusKey}`)
 
-  const rawValue = channelData.measurement1_num
-  if (rawValue === undefined || rawValue === null) return null
+  // Navigate registry: registry[deviceId][klass][statusKey]
+  const deviceData = registry[deviceId]
+  if (!deviceData) {
+    console.debug(`[getValueFromRegistry] Device not found: ${deviceId}, available:`, Object.keys(registry))
+    return null
+  }
 
-  return parseFloat(String(rawValue))
+  const classData = deviceData[klass]
+  if (!classData) {
+    console.debug(`[getValueFromRegistry] Class not found: ${klass}, available:`, Object.keys(deviceData))
+    return null
+  }
+
+  const channelData = classData[statusKey]
+  if (!channelData) {
+    console.debug(`[getValueFromRegistry] Channel not found: ${statusKey}, available:`, Object.keys(classData))
+    return null
+  }
+
+  console.debug(`[getValueFromRegistry] channelData keys:`, Object.keys(channelData))
+  console.debug(`[getValueFromRegistry] channelData:`, channelData)
+
+  // Different instruments store values differently
+  let rawValue: any = null
+
+  // DMM uses measurement1_num
+  if (channelData.measurement1_num !== undefined && channelData.measurement1_num !== null) {
+    rawValue = channelData.measurement1_num
+    console.debug(`[getValueFromRegistry] Found DMM value: measurement1_num=${rawValue}`)
+  }
+  // PSU can use various field names - try multiple possibilities
+  else if (source.parameter === 'voltage') {
+    // Try different field names
+    if (channelData.output_voltage_num !== undefined) {
+      rawValue = channelData.output_voltage_num
+      console.debug(`[getValueFromRegistry] Found PSU voltage: output_voltage_num=${rawValue}`)
+    } else if (channelData.voltage_num !== undefined) {
+      rawValue = channelData.voltage_num
+      console.debug(`[getValueFromRegistry] Found PSU voltage: voltage_num=${rawValue}`)
+    } else if (channelData.voltage !== undefined) {
+      rawValue = channelData.voltage
+      console.debug(`[getValueFromRegistry] Found PSU voltage: voltage=${rawValue}`)
+    }
+  }
+  else if (source.parameter === 'current') {
+    if (channelData.output_current_num !== undefined) {
+      rawValue = channelData.output_current_num
+      console.debug(`[getValueFromRegistry] Found PSU current: output_current_num=${rawValue}`)
+    } else if (channelData.current_num !== undefined) {
+      rawValue = channelData.current_num
+      console.debug(`[getValueFromRegistry] Found PSU current: current_num=${rawValue}`)
+    } else if (channelData.current !== undefined) {
+      rawValue = channelData.current
+      console.debug(`[getValueFromRegistry] Found PSU current: current=${rawValue}`)
+    }
+  }
+  else if (source.parameter === 'power') {
+    if (channelData.output_power_num !== undefined) {
+      rawValue = channelData.output_power_num
+      console.debug(`[getValueFromRegistry] Found PSU power: output_power_num=${rawValue}`)
+    } else if (channelData.power_num !== undefined) {
+      rawValue = channelData.power_num
+      console.debug(`[getValueFromRegistry] Found PSU power: power_num=${rawValue}`)
+    } else if (channelData.power !== undefined) {
+      rawValue = channelData.power
+      console.debug(`[getValueFromRegistry] Found PSU power: power=${rawValue}`)
+    }
+  }
+
+  if (rawValue === undefined || rawValue === null) {
+    console.debug(`[getValueFromRegistry] No value found for parameter=${source.parameter}, available keys:`, Object.keys(channelData))
+    return null
+  }
+
+  const result = parseFloat(String(rawValue))
+  console.debug(`[getValueFromRegistry] Returning value: ${result}`)
+  return result
 }
 
 const FREQUENCIES = [
@@ -396,10 +474,19 @@ function GraphPanel({
 }: any) {
   const resizeRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map())
   const [graphData, setGraphData] = useState<Map<string, Array<{ time: number, value: number }>>>(new Map())
 
   const { sources, registry } = useMeasurement()
+
+  // Store the frequency at the time graphing starts
+  const activeFrequencyRef = useRef(frequency)
+
+  useEffect(() => {
+    if (isGraphing) {
+      activeFrequencyRef.current = frequency
+    }
+  }, [isGraphing])
 
   useEffect(() => {
     if (!isDragging) return
@@ -422,75 +509,119 @@ function GraphPanel({
 
   // Fetch data for graphing using WebSocket registry data
   useEffect(() => {
-    if (!isGraphing || selectedSources.length === 0) return
+    if (!isGraphing || selectedSources.length === 0) {
+      console.log('[Graph] Effect triggered but not starting:', { isGraphing, sourcesCount: selectedSources.length })
+      return
+    }
 
-    const interval = setInterval(() => {
+    console.log('[Graph] Starting graphing for sources:', selectedSources.map((s: any) => s.id))
+    console.log('[Graph] Frequency:', activeFrequencyRef.current, 'ms')
+    console.log('[Graph] Registry exists:', !!registry, 'Registry keys:', registry ? Object.keys(registry) : 'none')
+
+    // Run immediately once
+    console.log('[Graph] Running initial data collection...')
+    const collectData = () => {
+      console.log('[Graph] collectData() called at', new Date().toISOString())
       const now = Date.now()
 
       for (const source of selectedSources) {
+        console.log(`[Graph] Processing source: ${source.id}`)
         const value = getValueFromRegistry(registry, source)
-        if (value === null) continue
+        console.log(`[Graph] ${source.id}: value=${value}, parameter=${source.parameter}, channelPath=${source.channelPath}`)
+
+        if (value === null) {
+          console.warn(`[Graph] Null value for ${source.id}, skipping`)
+          continue
+        }
 
         setGraphData(prev => {
           const next = new Map(prev)
           const points = next.get(source.id) || []
-          next.set(source.id, [...points, { time: now, value }].slice(-100))
+          const newPoints = [...points, { time: now, value }].slice(-100)
+          next.set(source.id, newPoints)
+          console.log(`[Graph] ${source.id}: added point, total points=${newPoints.length}`)
           return next
         })
       }
-    }, frequency)
+    }
 
-    return () => clearInterval(interval)
-  }, [isGraphing, frequency, selectedSources, registry])
+    collectData()
 
-  // Draw graph
+    const interval = setInterval(collectData, activeFrequencyRef.current)
+    console.log('[Graph] Interval set with ID:', interval, 'frequency:', activeFrequencyRef.current)
+
+    return () => {
+      console.log('[Graph] Stopping graphing, clearing interval:', interval)
+      clearInterval(interval)
+    }
+  }, [isGraphing, selectedSources, registry])
+
+  // Draw individual graphs for each source
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    console.log('[Graph Draw] Redrawing graphs, selectedSources:', selectedSources.length, 'graphData size:', graphData.size)
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    selectedSources.forEach((source: any) => {
+      const canvas = canvasRefs.current.get(source.id)
+      if (!canvas) {
+        console.warn(`[Graph Draw] No canvas found for ${source.id}`)
+        return
+      }
 
-    const width = canvas.width
-    const height = canvas.height
-    const padding = { top: 40, right: 80, bottom: 40, left: 80 }
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        console.warn(`[Graph Draw] No context for ${source.id}`)
+        return
+      }
 
-    ctx.fillStyle = '#0f1216'
-    ctx.fillRect(0, 0, width, height)
+      const width = canvas.width
+      const height = canvas.height
+      const padding = { top: 40, right: 80, bottom: 40, left: 80 }
 
-    if (selectedSources.length === 0 || graphData.size === 0) {
-      ctx.fillStyle = '#666'
-      ctx.font = '14px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('No data to display', width / 2, height / 2)
-      return
-    }
+      // Clear canvas
+      ctx.fillStyle = '#0f1216'
+      ctx.fillRect(0, 0, width, height)
 
-    const colors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff', '#44ffff']
-
-    // Draw grid
-    ctx.strokeStyle = '#202737'
-    ctx.lineWidth = 1
-    for (let i = 0; i <= 5; i++) {
-      const y = padding.top + (i / 5) * (height - padding.top - padding.bottom)
-      ctx.beginPath()
-      ctx.moveTo(padding.left, y)
-      ctx.lineTo(width - padding.right, y)
-      ctx.stroke()
-    }
-
-    // Draw each source
-    selectedSources.forEach((source: any, sourceIdx: number) => {
       const points = graphData.get(source.id) || []
-      if (points.length < 2) return
+      console.log(`[Graph Draw] ${source.id}: ${points.length} points`)
 
-      const color = colors[sourceIdx % colors.length]
+      if (points.length < 2) {
+        ctx.fillStyle = '#666'
+        ctx.font = '14px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('Waiting for data...', width / 2, height / 2)
+        console.log(`[Graph Draw] ${source.id}: Not enough points (${points.length}), showing "Waiting for data..."`)
+        return
+      }
+
+      console.log(`[Graph Draw] ${source.id}: Drawing ${points.length} points`)
+
       const values = points.map(p => p.value)
       const min = Math.min(...values)
       const max = Math.max(...values)
       const range = max - min || 1
 
-      ctx.strokeStyle = color
+      // Draw grid
+      ctx.strokeStyle = '#202737'
+      ctx.lineWidth = 1
+      for (let i = 0; i <= 5; i++) {
+        const y = padding.top + (i / 5) * (height - padding.top - padding.bottom)
+        ctx.beginPath()
+        ctx.moveTo(padding.left, y)
+        ctx.lineTo(width - padding.right, y)
+        ctx.stroke()
+      }
+
+      // Draw vertical grid
+      for (let i = 0; i <= 10; i++) {
+        const x = padding.left + (i / 10) * (width - padding.left - padding.right)
+        ctx.beginPath()
+        ctx.moveTo(x, padding.top)
+        ctx.lineTo(x, height - padding.bottom)
+        ctx.stroke()
+      }
+
+      // Draw the line
+      ctx.strokeStyle = '#60a5fa'
       ctx.lineWidth = 2
       ctx.beginPath()
 
@@ -506,22 +637,29 @@ function GraphPanel({
       })
       ctx.stroke()
 
-      // Draw legend
-      ctx.fillStyle = color
-      ctx.fillRect(padding.left + sourceIdx * 120, 10, 20, 3)
+      // Draw title
+      ctx.fillStyle = '#b7c0d1'
+      ctx.font = 'bold 14px sans-serif'
+      ctx.textAlign = 'left'
+      ctx.fillText(`${source.label}`, padding.left, 20)
+
+      // Draw Y-axis scale
       ctx.fillStyle = '#b7c0d1'
       ctx.font = '11px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText(`${source.label} [${source.unit}]`, padding.left + sourceIdx * 120 + 25, 15)
+      ctx.textAlign = 'right'
+      for (let i = 0; i <= 5; i++) {
+        const value = max - (i / 5) * range
+        const y = padding.top + (i / 5) * (height - padding.top - padding.bottom)
+        ctx.fillText(`${value.toFixed(3)} ${source.unit}`, padding.left - 10, y + 4)
+      }
 
-      // Draw scale on right
-      ctx.fillStyle = color
+      // Draw current value indicator
+      const lastValue = values[values.length - 1]
+      ctx.fillStyle = '#60a5fa'
+      ctx.font = 'bold 12px sans-serif'
       ctx.textAlign = 'left'
-      ctx.font = '10px sans-serif'
-      ctx.fillText(`${max.toFixed(2)} ${source.unit}`, width - padding.right + 5, padding.top + sourceIdx * 20)
-      ctx.fillText(`${min.toFixed(2)} ${source.unit}`, width - padding.right + 5, padding.top + sourceIdx * 20 + 10)
+      ctx.fillText(`Current: ${lastValue.toFixed(3)} ${source.unit}`, width - padding.right - 150, 20)
     })
-
   }, [graphData, selectedSources])
 
   const clearGraph = () => {
@@ -558,6 +696,7 @@ function GraphPanel({
           <select
             value={frequency}
             onChange={(e) => onFrequencyChange(Number(e.target.value))}
+            disabled={isGraphing}
             style={{
               marginLeft: '8px',
               padding: '4px 8px',
@@ -565,7 +704,9 @@ function GraphPanel({
               color: 'var(--text-0)',
               border: '1px solid var(--border)',
               borderRadius: '4px',
-              fontSize: '12px'
+              fontSize: '12px',
+              cursor: isGraphing ? 'not-allowed' : 'pointer',
+              opacity: isGraphing ? 0.5 : 1
             }}
           >
             {FREQUENCIES.map(f => (
@@ -594,14 +735,16 @@ function GraphPanel({
 
         <button
           onClick={clearGraph}
+          disabled={isGraphing}
           style={{
             padding: '6px 12px',
             background: 'rgba(255,255,255,.05)',
             color: 'var(--text-1)',
             border: '1px solid var(--border)',
             borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '12px'
+            cursor: isGraphing ? 'not-allowed' : 'pointer',
+            fontSize: '12px',
+            opacity: isGraphing ? 0.5 : 1
           }}
         >
           🗑 Clear
@@ -612,18 +755,29 @@ function GraphPanel({
         </span>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
         {selectedSources.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-2)', padding: '40px' }}>
             No measurements selected. Check measurement boxes in instrument panels above.
           </div>
         ) : (
-          <canvas
-            ref={canvasRef}
-            width={1200}
-            height={(height - 100) * 2}
-            style={{ width: '100%', height: height - 100, display: 'block' }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {selectedSources.map((source: any) => (
+              <canvas
+                key={source.id}
+                ref={(el) => {
+                  if (el) {
+                    canvasRefs.current.set(source.id, el)
+                  } else {
+                    canvasRefs.current.delete(source.id)
+                  }
+                }}
+                width={1200}
+                height={400}
+                style={{ width: '100%', height: '200px', display: 'block', border: '1px solid var(--border)', borderRadius: '4px' }}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
