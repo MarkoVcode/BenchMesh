@@ -100,9 +100,14 @@ CHANGELOG_ENTRY="## [$VERSION] - $TODAY
 "
 
 # Insert changelog entry after [Unreleased] section
-sed -i "/## \[Unreleased\]/a\\
-\\
-$CHANGELOG_ENTRY" CHANGELOG.md
+# Create temporary file with the new entry
+TEMP_FILE=$(mktemp)
+echo "$CHANGELOG_ENTRY" > "$TEMP_FILE"
+
+# Use sed to insert the contents after [Unreleased]
+sed -i '/## \[Unreleased\]/r '"$TEMP_FILE" CHANGELOG.md
+sed -i '/## \[Unreleased\]/a\\' CHANGELOG.md
+rm "$TEMP_FILE"
 
 print_info "Version numbers updated to v$VERSION"
 print_info "CHANGELOG.md template created for v$VERSION"
