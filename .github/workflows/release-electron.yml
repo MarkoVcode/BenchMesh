@@ -188,13 +188,30 @@ jobs:
           cd electron
           npm run build:linux
 
+      - name: List built files
+        run: |
+          echo "Contents of dist directory:"
+          ls -la dist/
+
       - name: Upload Linux Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} \
-            ./dist/BenchMesh-${{ needs.get-version.outputs.version }}.AppImage#BenchMesh-${{ needs.get-version.outputs.version }}-Linux-x86_64.AppImage \
-            ./dist/benchmesh-electron_${{ needs.get-version.outputs.version }}_amd64.deb#BenchMesh-${{ needs.get-version.outputs.version }}-amd64.deb
+          # Find the actual AppImage and DEB files
+          APPIMAGE_FILE=$(find ./dist -name "*.AppImage" -type f | head -1)
+          DEB_FILE=$(find ./dist -name "*.deb" -type f | head -1)
+
+          if [ -n "$APPIMAGE_FILE" ] && [ -f "$APPIMAGE_FILE" ]; then
+            gh release upload ${{ github.ref_name }} "$APPIMAGE_FILE#BenchMesh-${{ needs.get-version.outputs.version }}-Linux-x86_64.AppImage"
+          else
+            echo "Warning: AppImage file not found"
+          fi
+
+          if [ -n "$DEB_FILE" ] && [ -f "$DEB_FILE" ]; then
+            gh release upload ${{ github.ref_name }} "$DEB_FILE#BenchMesh-${{ needs.get-version.outputs.version }}-amd64.deb"
+          else
+            echo "Warning: DEB file not found"
+          fi
 
   build-windows:
     needs: [create-release, get-version]
@@ -239,6 +256,7 @@ jobs:
           npm install
 
       - name: Update version in electron package.json
+        shell: bash
         run: |
           cd electron
           CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -254,14 +272,32 @@ jobs:
           cd electron
           npm run build:win
 
+      - name: List built files
+        shell: bash
+        run: |
+          echo "Contents of dist directory:"
+          ls -la dist/
+
       - name: Upload Windows Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          gh release upload ${{ github.ref_name }} \
-            "./dist/BenchMesh Setup ${{ needs.get-version.outputs.version }}.exe#BenchMesh-Setup-${{ needs.get-version.outputs.version }}.exe" \
-            "./dist/BenchMesh ${{ needs.get-version.outputs.version }}.exe#BenchMesh-Portable-${{ needs.get-version.outputs.version }}.exe"
+          # Find the actual installer and portable EXE files
+          SETUP_FILE=$(find ./dist -name "*Setup*.exe" -type f | head -1)
+          PORTABLE_FILE=$(find ./dist -name "*.exe" -type f | grep -v "Setup" | head -1)
+
+          if [ -n "$SETUP_FILE" ] && [ -f "$SETUP_FILE" ]; then
+            gh release upload ${{ github.ref_name }} "$SETUP_FILE#BenchMesh-Setup-${{ needs.get-version.outputs.version }}.exe"
+          else
+            echo "Warning: Setup EXE file not found"
+          fi
+
+          if [ -n "$PORTABLE_FILE" ] && [ -f "$PORTABLE_FILE" ]; then
+            gh release upload ${{ github.ref_name }} "$PORTABLE_FILE#BenchMesh-Portable-${{ needs.get-version.outputs.version }}.exe"
+          else
+            echo "Warning: Portable EXE file not found"
+          fi
 
   build-macos:
     needs: [create-release, get-version]
@@ -320,13 +356,30 @@ jobs:
           cd electron
           npm run build:mac
 
+      - name: List built files
+        run: |
+          echo "Contents of dist directory:"
+          ls -la dist/
+
       - name: Upload macOS Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} \
-            ./dist/BenchMesh-${{ needs.get-version.outputs.version }}.dmg#BenchMesh-${{ needs.get-version.outputs.version }}-macOS.dmg \
-            ./dist/BenchMesh-${{ needs.get-version.outputs.version }}-mac.zip#BenchMesh-${{ needs.get-version.outputs.version }}-macOS.zip
+          # Find the actual DMG and ZIP files created
+          DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -1)
+          ZIP_FILE=$(find ./dist -name "*-mac.zip" -type f | head -1)
+
+          if [ -n "$DMG_FILE" ] && [ -f "$DMG_FILE" ]; then
+            gh release upload ${{ github.ref_name }} "$DMG_FILE#BenchMesh-${{ needs.get-version.outputs.version }}-macOS.dmg"
+          else
+            echo "Warning: DMG file not found"
+          fi
+
+          if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
+            gh release upload ${{ github.ref_name }} "$ZIP_FILE#BenchMesh-${{ needs.get-version.outputs.version }}-macOS.zip"
+          else
+            echo "Warning: ZIP file not found"
+          fi
 
   build-self-hosted:
     needs: [create-release, get-version]
