@@ -1,6 +1,6 @@
 {
   "name": "benchmesh-electron",
-  "version": "0.0.3",
+  "version": "0.0.9",
   "description": "BenchMesh Electron Wrapper - Desktop application for instrument control and automation",
   "homepage": "https://github.com/yourusername/BenchMesh",
   "author": {

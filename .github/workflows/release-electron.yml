@@ -1,4 +1,4 @@
-name: Release Electron App
+name: Release BenchMesh App
 
 on:
   push:
@@ -167,6 +167,11 @@ jobs:
           cd electron
           npm install
 
+      - name: Update version in electron package.json
+        run: |
+          cd electron
+          npm version ${{ needs.create-release.outputs.version }} --no-git-tag-version
+
       - name: Build Electron app (Linux)
         run: |
           cd electron
@@ -188,7 +193,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./dist/BenchMesh_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_path: ./dist/benchmesh-electron_${{ needs.create-release.outputs.version }}_amd64.deb
           asset_name: BenchMesh-${{ needs.create-release.outputs.version }}-amd64.deb
           asset_content_type: application/vnd.debian.binary-package
 
@@ -233,6 +238,11 @@ jobs:
         run: |
           cd electron
           npm install
+
+      - name: Update version in electron package.json
+        run: |
+          cd electron
+          npm version ${{ needs.create-release.outputs.version }} --no-git-tag-version
 
       - name: Build Electron app (Windows)
         run: |
@@ -299,6 +309,11 @@ jobs:
         run: |
           cd electron
           npm install
+
+      - name: Update version in electron package.json
+        run: |
+          cd electron
+          npm version ${{ needs.create-release.outputs.version }} --no-git-tag-version
 
       - name: Build Electron app (macOS)
         run: |
