@@ -150,6 +150,12 @@ jobs:
           npm ci
           cd ../..
 
+      - name: Ensure .node-red directory exists
+        run: |
+          mkdir -p .node-red
+          echo '{}' > .node-red/.config.nodes.json
+          echo '{}' > .node-red/.config.runtime.json
+
       - name: Build frontend
         run: |
           cd benchmesh-serial-service/frontend
@@ -210,6 +216,13 @@ jobs:
           npm ci
           cd ../..
 
+      - name: Ensure .node-red directory exists
+        run: |
+          mkdir -p .node-red
+          echo '{}' > .node-red/.config.nodes.json
+          echo '{}' > .node-red/.config.runtime.json
+        shell: bash
+
       - name: Build frontend
         run: |
           cd benchmesh-serial-service/frontend
@@ -269,6 +282,12 @@ jobs:
           cd benchmesh-serial-service/frontend
           npm ci
           cd ../..
+
+      - name: Ensure .node-red directory exists
+        run: |
+          mkdir -p .node-red
+          echo '{}' > .node-red/.config.nodes.json
+          echo '{}' > .node-red/.config.runtime.json
 
       - name: Build frontend
         run: |
