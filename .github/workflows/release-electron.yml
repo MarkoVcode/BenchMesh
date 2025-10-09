@@ -175,7 +175,13 @@ jobs:
       - name: Update version in electron package.json
         run: |
           cd electron
-          npm version ${{ needs.get-version.outputs.version }} --no-git-tag-version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          TARGET_VERSION="${{ needs.get-version.outputs.version }}"
+          if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
+            npm version $TARGET_VERSION --no-git-tag-version --allow-same-version
+          else
+            echo "Version already set to $TARGET_VERSION, skipping"
+          fi
 
       - name: Build Electron app (Linux)
         run: |
@@ -235,7 +241,13 @@ jobs:
       - name: Update version in electron package.json
         run: |
           cd electron
-          npm version ${{ needs.get-version.outputs.version }} --no-git-tag-version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          TARGET_VERSION="${{ needs.get-version.outputs.version }}"
+          if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
+            npm version $TARGET_VERSION --no-git-tag-version --allow-same-version
+          else
+            echo "Version already set to $TARGET_VERSION, skipping"
+          fi
 
       - name: Build Electron app (Windows)
         run: |
@@ -295,7 +307,13 @@ jobs:
       - name: Update version in electron package.json
         run: |
           cd electron
-          npm version ${{ needs.get-version.outputs.version }} --no-git-tag-version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          TARGET_VERSION="${{ needs.get-version.outputs.version }}"
+          if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
+            npm version $TARGET_VERSION --no-git-tag-version --allow-same-version
+          else
+            echo "Version already set to $TARGET_VERSION, skipping"
+          fi
 
       - name: Build Electron app (macOS)
         run: |
