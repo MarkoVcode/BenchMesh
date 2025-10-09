@@ -339,7 +339,10 @@ jobs:
 
           # Copy necessary files
           cp -r benchmesh-serial-service dist-web/benchmesh/
-          cp -r .node-red dist-web/benchmesh/
+          # Copy .node-red if it exists (created on first run)
+          if [ -d .node-red ]; then
+            cp -r .node-red dist-web/benchmesh/
+          fi
           cp start.sh dist-web/benchmesh/
           cp package.json dist-web/benchmesh/
           cp package-lock.json dist-web/benchmesh/
