@@ -28,19 +28,92 @@
           "features": {
             "channels": 1,
             "modes": {
-              "VOLTage_DC": {"unit": "V", "symbol": "U", "note": "DC", "techname": "VOLT", "ui_name": "Voltage DC", "ui_component": "GenericRange"},
-              "VOLTage_AC": {"unit": "V", "symbol": "U", "note": "AC", "techname": "VOLT AC", "ui_name": "Voltage AC", "ui_component": "GenericRange"},
-              "CURRent_DC": {"unit": "A", "symbol": "I", "note": "DC", "techname": "CURR", "ui_name": "Current DC", "ui_component": "GenericRange"},
-              "CURRent_AC": {"unit": "A", "symbol": "I", "note": "AC", "techname": "CURR AC", "ui_name": "Current AC", "ui_component": "GenericRange"},
-              "RESistance": {"unit": "Ω", "symbol": "R", "techname": "RES", "ui_name": "Resistance", "ui_component": "GenericRange"},
-              "FRESistance": {"unit": "Ω", "symbol": "R", "note": "4W", "techname": "RES", "ui_name": "Resistance", "ui_component": "GenericRange"},
-              "CAPacitance": {"unit": "F", "symbol": "C", "techname": "CAP", "ui_name": "Capacitance", "ui_component": "GenericRange"},
-              "DIODe": {"unit": "V", "symbol": "D", "techname": "DIOD", "ui_name": "Diode"},
-              "CONTinuity": {"unit": "Ω", "symbol": "R", "note": "buzzer", "techname": "CONT", "ui_name": "Continuity"},
-              "TEMPerature_KITS90": {"unit": "K", "symbol": "T", "techname": "TEMP", "ui_name": "Temperature KITS90", "ui_component": "GenericTemp"},
-              "TEMPerature_PT100": {"unit": "K", "symbol": "T", "ui_name": "Temperature PT100"},
-              "FREQuency": {"unit": "Hz", "symbol": "f", "techname": "FREQ", "ui_name": "Frequency"},
-              "PERiod": {"unit": "s", "symbol": "T", "techname": "PER", "ui_name": "Period"}
+              "VOLT": {
+                "unit": "V",
+                "symbol": "U",
+                "note": "DC",
+                "techname": "VOLT",
+                "ui_name": "Voltage DC",
+                "ui_component": "GenericRange"
+              },
+              "VOLT_AC": {
+                "unit": "V",
+                "symbol": "U",
+                "note": "AC",
+                "techname": "VOLT AC",
+                "ui_name": "Voltage AC",
+                "ui_component": "GenericRange"
+              },
+              "CURR": {
+                "unit": "A",
+                "symbol": "I",
+                "note": "DC",
+                "techname": "CURR",
+                "ui_name": "Current DC",
+                "ui_component": "GenericRange"
+              },
+              "CURR_AC": {
+                "unit": "A",
+                "symbol": "I",
+                "note": "AC",
+                "techname": "CURR AC",
+                "ui_name": "Current AC",
+                "ui_component": "GenericRange"
+              },
+              "RES": {
+                "unit": "Ω",
+                "symbol": "R",
+                "techname": "RES",
+                "ui_name": "Resistance",
+                "ui_component": "GenericRange"
+              },
+              "FRESistance": {
+                "unit": "Ω",
+                "symbol": "R",
+                "note": "4W",
+                "techname": "RES",
+                "ui_name": "Resistance",
+                "ui_component": "GenericRange"
+              },
+              "CAP": {
+                "unit": "F",
+                "symbol": "C",
+                "techname": "CAP",
+                "ui_name": "Capacitance",
+                "ui_component": "GenericRange"
+              },
+              "DIOD": {
+                "unit": "V",
+                "symbol": "D",
+                "techname": "DIOD",
+                "ui_name": "Diode"
+              },
+              "CONT": {
+                "unit": "Ω",
+                "symbol": "R",
+                "note": "buzzer",
+                "techname": "CONT",
+                "ui_name": "Continuity"
+              },
+              "TEMP": {
+                "unit": "K",
+                "symbol": "T",
+                "techname": "TEMP",
+                "ui_name": "Temperature",
+                "ui_component": "GenericTemp"
+              },
+              "FREQ": {
+                "unit": "Hz",
+                "symbol": "f",
+                "techname": "FREQ",
+                "ui_name": "Frequency"
+              },
+              "PER": {
+                "unit": "s",
+                "symbol": "T",
+                "techname": "PER",
+                "ui_name": "Period"
+              }
             },
             "hold": true,
             "delta": true,
@@ -82,20 +155,6 @@
               1200,
               8000
             ],
-            "TEMPerature:RTD:display": [
-              {
-                "value": "C",
-                "display": "Celsius"
-              },
-              {
-                "value": "F",
-                "display": "Fahrenheit"
-              },
-              {
-                "value": "K",
-                "display": "Kelvin"
-              }
-            ],
             "speed": [
               {
                 "value": "F",
@@ -111,7 +170,7 @@
               }
             ],
             "RANGe": {
-              "CAPacitance": [
+              "CAP": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -195,7 +254,7 @@
                   "display": "500MΩ"
                 }
               ],
-              "RESistance": [
+              "RES": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -237,7 +296,7 @@
                   "display": "500MΩ"
                 }
               ],
-              "CURRent_AC": [
+              "CURR_AC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -275,7 +334,7 @@
                   "display": "10A"
                 }
               ],
-              "CURRent_DC": [
+              "CURR": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -313,7 +372,7 @@
                   "display": "10A"
                 }
               ],
-              "VOLTage_AC": [
+              "VOLT_AC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -347,7 +406,7 @@
                   "display": "750V"
                 }
               ],
-              "VOLTage_DC": [
+              "VOLT": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -384,7 +443,36 @@
                   "value": "1000",
                   "display": "1000V"
                 }
-              ]
+              ],
+              "TEMP": {
+                "Scale": [
+                  {
+                    "unit": "°C",
+                    "symbol": "C",
+                    "display": "Celsius"
+                  },
+                  {
+                    "unit": "°F",
+                    "symbol": "F",
+                    "display": "Fahrenheit"
+                  },
+                  {
+                    "unit": "K",
+                    "symbol": "K",
+                    "display": "Kelvin"
+                  }
+                ],
+                "Sensor": [
+                  {
+                    "value": "KITS90",
+                    "display": "KITS90"
+                  },
+                  {
+                    "value": "PT100",
+                    "display": "PT100"
+                  }
+                ]
+              }
             }
           }
         }

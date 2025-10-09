@@ -152,21 +152,21 @@ class OWONSPM:
         return self.t.read_until_reol(1024)    
 
     def set_mode(self, channel: int, value):
-        if value == "CURRent_DC":
+        if value == "CURR_DC":
             self.set_current_dc_range(1, "AUTO")
-        elif value == "CURRent_AC":
+        elif value == "CURR_AC":
             self.set_current_ac_range(1, "AUTO")
-        elif value == "VOLTage_DC":
+        elif value == "VOLT_DC":
             self.set_voltage_dc_range(1, "AUTO")
-        elif value == "VOLTage_AC":
+        elif value == "VOLT_AC":
             self.set_voltage_ac_range(1, "AUTO")
-        elif value == "RESistance":
+        elif value == "RES":
             self.set_resistance_range(1, "AUTO")
-        elif value == "CAPacitance":
+        elif value == "CAP":
             self.set_capacitance_range(1, "AUTO")
-        elif value == "DIODe":
+        elif value == "DIOD":
             self.set_diode(1)
-        elif value == "CONTinuity":
+        elif value == "CONT":
             self.set_continuity(1)               
         return
 

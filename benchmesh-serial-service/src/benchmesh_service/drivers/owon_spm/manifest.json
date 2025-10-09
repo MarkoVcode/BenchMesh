@@ -102,19 +102,19 @@
           "features": {
             "channels": 1,
             "modes": {
-              "VOLTage_DC": {"unit": "V", "symbol": "U", "note": "DC", "techname": "VOLT:DC", "ui_name": "Voltage DC", "ui_component": "GenericRange"},
-              "VOLTage_AC": {"unit": "V", "symbol": "U", "note": "AC", "techname": "VOLT:AC", "ui_name": "Voltage AC", "ui_component": "GenericRange"},
-              "CURRent_DC": {"unit": "A", "symbol": "I", "note": "DC", "techname": "CURR:DC", "ui_name": "Current DC", "ui_component": "GenericRange"},
-              "CURRent_AC": {"unit": "A", "symbol": "I", "note": "AC", "techname": "CURR:AC", "ui_name": "Current AC", "ui_component": "GenericRange"},
-              "RESistance": {"unit": "Ω", "symbol": "R", "techname": "RES", "ui_name": "Resistance", "ui_component": "GenericRange"},
-              "CAPacitance": {"unit": "F", "symbol": "C", "techname": "CAP", "ui_name": "Capacitance", "ui_component": "GenericRange"},
-              "DIODe": {"unit": "V", "symbol": "D", "techname": "DIOD", "ui_name": "Diode"},
-              "CONTinuity": {"unit": "Ω", "symbol": "R", "note": "buzzer", "techname": "CONT", "ui_name": "Continuity"}
+              "VOLT_DC": {"unit": "V", "symbol": "U", "note": "DC", "techname": "VOLT:DC", "ui_name": "Voltage DC", "ui_component": "GenericRange"},
+              "VOLT_AC": {"unit": "V", "symbol": "U", "note": "AC", "techname": "VOLT:AC", "ui_name": "Voltage AC", "ui_component": "GenericRange"},
+              "CURR_DC": {"unit": "A", "symbol": "I", "note": "DC", "techname": "CURR:DC", "ui_name": "Current DC", "ui_component": "GenericRange"},
+              "CURR_AC": {"unit": "A", "symbol": "I", "note": "AC", "techname": "CURR:AC", "ui_name": "Current AC", "ui_component": "GenericRange"},
+              "RES": {"unit": "Ω", "symbol": "R", "techname": "RES", "ui_name": "Resistance", "ui_component": "GenericRange"},
+              "CAP": {"unit": "F", "symbol": "C", "techname": "CAP", "ui_name": "Capacitance", "ui_component": "GenericRange"},
+              "DIOD": {"unit": "V", "symbol": "D", "techname": "DIOD", "ui_name": "Diode"},
+              "CONT": {"unit": "Ω", "symbol": "R", "note": "buzzer", "techname": "CONT", "ui_name": "Continuity"}
             },
             "hold": true,
             "delta": true,
             "RANGe": {
-              "CAPacitance": [
+              "CAP": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -148,7 +148,7 @@
                   "display": "10mF"
                 }
               ],
-              "RESistance": [
+              "RES": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -190,7 +190,7 @@
                   "display": "100MΩ"
                 }
               ],
-              "CURRent_AC": [
+              "CURR_AC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -212,7 +212,7 @@
                   "display": "10A"
                 }
               ],
-              "CURRent_DC": [
+              "CURR_DC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -234,7 +234,7 @@
                   "display": "10A"
                 }
               ],
-              "VOLTage_AC": [
+              "VOLT_AC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
@@ -268,7 +268,7 @@
                   "display": "750V"
                 }
               ],
-              "VOLTage_DC": [
+              "VOLT_DC": [
                 {
                   "value": "AUTO",
                   "display": "AUTO"
