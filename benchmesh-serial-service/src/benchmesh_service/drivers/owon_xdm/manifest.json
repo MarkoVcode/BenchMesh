@@ -445,6 +445,16 @@
                 }
               ],
               "TEMP": {
+                "Sensor": [
+                  {
+                    "value": "KITS90",
+                    "display": "KITS90"
+                  },
+                  {
+                    "value": "PT100",
+                    "display": "PT100"
+                  }
+                ],
                 "Scale": [
                   {
                     "unit": "°C",
@@ -460,16 +470,6 @@
                     "unit": "K",
                     "symbol": "K",
                     "display": "Kelvin"
-                  }
-                ],
-                "Sensor": [
-                  {
-                    "value": "KITS90",
-                    "display": "KITS90"
-                  },
-                  {
-                    "value": "PT100",
-                    "display": "PT100"
                   }
                 ]
               }

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
 import { GenericRange } from './GenericRange'
 import { GenericTemp } from './GenericTemp'
+import { SamplingStats } from '../../SamplingStats'
 
 // Generic DMM component styled similarly to GenericPSU
 // - Before rendering, fetch GET /instruments/DMM/{device_id} to obtain features (modes list)
@@ -185,7 +186,14 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
             />
           )}
           {mode && modesData[mode]?.ui_component === 'GenericTemp' && (
-            <GenericTemp mode={mode} channelPath={channelPath} />
+            <GenericTemp
+              mode={mode}
+              channelPath={channelPath}
+              tempConfig={fullConfig?.RANGe?.TEMP}
+              klass={klass}
+              deviceId={deviceId}
+              channel={channel}
+            />
           )}
         </div>
         <div className="psu-section">
@@ -340,6 +348,12 @@ function parsePath(channelPath?: string): { klass?: string, deviceId?: string, c
 
 function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kind?: 'U' | 'I' | 'P', label: React.ReactNode, value: string, channelPath?: string, parameter?: string }) {
   const { selectedForRecord, selectedForGraph, toggleRecord, toggleGraph } = useMeasurement()
+  const valueRef = useRef<string>(value)
+
+  // Keep ref updated with latest value
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
 
   const sourceId = useMemo(() => {
     if (!channelPath || !parameter) return ''
@@ -348,48 +362,56 @@ function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kin
     return `${deviceId}-${channel}-${kind}`
   }, [channelPath, parameter, kind])
 
+  const getCurrentValue = () => {
+    const numericValue = parseFloat(valueRef.current)
+    return isNaN(numericValue) ? null : numericValue
+  }
+
   return (
-    <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto auto auto' }}>
-      <div className="psu-label">{label}</div>
-      <span className="psu-number readonly" aria-hidden>
-        <span>{value || '0'}</span>
-      </span>
-      {channelPath && (
-        <>
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <label
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
-              title="Record in table"
-            >
-              <input
-                type="checkbox"
-                checked={selectedForRecord.has(sourceId)}
-                onChange={() => toggleRecord(sourceId)}
-                style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--accent)' }}
-              />
-              <span style={{ marginLeft: '2px' }}>📊</span>
-            </label>
-            <label
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
-              title="Show in graph"
-            >
-              <input
-                type="checkbox"
-                checked={selectedForGraph.has(sourceId)}
-                onChange={() => toggleGraph(sourceId)}
-                style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--good)' }}
-              />
-              <span style={{ marginLeft: '2px' }}>📈</span>
-            </label>
-          </div>
-          <span className="psu-api" title={
-            kind === 'U' ? `GET ${channelPath}/query_voltage` :
-            kind === 'I' ? `GET ${channelPath}/query_current` :
-            kind === 'P' ? `GET ${channelPath}/query_power` : ''
-          }>API</span>
-        </>
-      )}
-    </div>
+    <>
+      <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto auto auto' }}>
+        <div className="psu-label">{label}</div>
+        <span className="psu-number readonly" aria-hidden>
+          <span>{value || '0'}</span>
+        </span>
+        {channelPath && (
+          <>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <label
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
+                title="Record in table"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedForRecord.has(sourceId)}
+                  onChange={() => toggleRecord(sourceId)}
+                  style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--accent)' }}
+                />
+                <span style={{ marginLeft: '2px' }}>📊</span>
+              </label>
+              <label
+                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
+                title="Show in graph"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedForGraph.has(sourceId)}
+                  onChange={() => toggleGraph(sourceId)}
+                  style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--good)' }}
+                />
+                <span style={{ marginLeft: '2px' }}>📈</span>
+              </label>
+            </div>
+            <span className="psu-api" title={
+              kind === 'U' ? `GET ${channelPath}/query_voltage` :
+              kind === 'I' ? `GET ${channelPath}/query_current` :
+              kind === 'P' ? `GET ${channelPath}/query_power` : ''
+            }>API</span>
+          </>
+        )}
+      </div>
+      <SamplingStats getCurrentValue={getCurrentValue} label="Statistical Sampling" />
+    </>
   )
 }
 

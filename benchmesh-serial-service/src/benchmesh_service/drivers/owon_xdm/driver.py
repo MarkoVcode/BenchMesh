@@ -68,6 +68,14 @@ class OWONXDM:
         self.t.write_line('CONF:TEMPerature:RTD ' + str(sensor))
         return self.t.read_until_reol(1024) 
 
+    def set_temp_sensor(self, channel: int, sensor):
+        self.t.write_line('CONF:TEMPerature:RTD ' + str(sensor))
+        return self.t.read_until_reol(1024)
+    
+    def set_temp_scale(self, channel: int, unit):
+        self.t.write_line('TEMPerature:RTD:UNIT ' + str(unit))
+        return self.t.read_until_reol(1024)
+
     def query_measurement(self, channel: int):
         self.t.write_line('MEAS1?')
         return self.t.read_until_reol(1024)    
