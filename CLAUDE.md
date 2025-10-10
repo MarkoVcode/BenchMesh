@@ -194,3 +194,8 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - Documentation and udev rules in `system/udev_rules.txt` for persistent device paths
 - Driver manifests support per-class polling intervals (e.g., PSU class polls every 2s, SPM every 3s)
 - Frontend proxies API requests to backend during development via Vite config
+
+## Guidelines
+
+- apply TDD principles when adding new features
+- always run tests after the code changes

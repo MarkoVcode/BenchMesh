@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { InstrumentPod, Instrument } from './InstrumentPod'
 import { MeasurementProvider } from './MeasurementContext'
 import { MeasurementStatusBar } from './MeasurementStatusBar'
+import { ConfigModal } from './ConfigModal'
 
 function useApiBase() {
   // API is served by FastAPI app; assume same origin during production.
@@ -97,14 +98,39 @@ export default function App() {
   const apiBase = useApiBase()
   const { data: instruments, loading, error } = useInstruments(apiBase)
   const { registry, wsDiag } = useRegistrySocket(apiBase)
+  const [configModalOpen, setConfigModalOpen] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
 
   const waitingForApi = (!instruments || instruments.length === 0) && !!error
+  const hasInstruments = instruments && instruments.length > 0
+
+  // Auto-open config modal if registry is active but no instruments configured
+  useEffect(() => {
+    if (!autoOpenedConfig && !loading && wsDiag.ok && !hasInstruments && !waitingForApi) {
+      setConfigModalOpen(true)
+      setAutoOpenedConfig(true)
+    }
+  }, [autoOpenedConfig, loading, wsDiag.ok, hasInstruments, waitingForApi])
+
+  function handleConfigUpdated() {
+    setRefreshTrigger(prev => prev + 1)
+  }
 
   return (
     <MeasurementProvider registry={registry}>
       <div style={{ paddingBottom: '48px' }}>
         <div className="topbar">
           <div className="brand">BenchMesh</div>
+          <div className="topbar-center">
+            <button
+              className="config-button"
+              onClick={() => setConfigModalOpen(true)}
+              title="Configure Instruments"
+            >
+              ⚙️ Configuration
+            </button>
+          </div>
           <div className="statusbar">
             <div className="statuspill" title="WebSocket data flow">
               <span className="dot" style={{ background: wsDiag.ok ? 'var(--good)' : 'var(--bad)' }} />
@@ -117,17 +143,26 @@ export default function App() {
           </div>
         </div>
 
-        <div className="container">
-          <h2 className="heading">Instruments <span className="subtle">live</span></h2>
-          {loading && <p className="subtle">Loading…</p>}
-          {waitingForApi && <p className="subtle">Awaiting connection to the service… retrying every 1s</p>}
-          {error && !waitingForApi && <p style={{ color: 'var(--bad)' }}>{error}</p>}
-          <div className="grid">
-            {instruments.map((ins) => (
-              <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
-            ))}
+        <ConfigModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          apiBase={apiBase}
+          onConfigUpdated={handleConfigUpdated}
+        />
+
+        {hasInstruments && (
+          <div className="container">
+            <h2 className="heading">Instruments <span className="subtle">live</span></h2>
+            {loading && <p className="subtle">Loading…</p>}
+            {waitingForApi && <p className="subtle">Awaiting connection to the service… retrying every 1s</p>}
+            {error && !waitingForApi && <p style={{ color: 'var(--bad)' }}>{error}</p>}
+            <div className="grid">
+              {instruments.map((ins) => (
+                <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       <MeasurementStatusBar />
     </MeasurementProvider>

@@ -157,6 +157,104 @@ def get_status():
     connected = sum(1 for did in device_ids if _manager.connections.get(did))
     return {"devices_total": total, "connected": connected, "disconnected": total - connected}
 
+@app.get("/drivers", summary="List available drivers", response_model=dict)
+def list_drivers():
+    """
+    Scan drivers folder and return available drivers with their vendor and family information.
+    Returns a dict mapping driver_id (folder name) to {vendor, family} extracted from manifest.json
+    """
+    drivers = {}
+    drivers_dir = os.path.join(os.path.dirname(__file__), 'drivers')
+
+    if not os.path.isdir(drivers_dir):
+        return drivers
+
+    for entry in os.listdir(drivers_dir):
+        entry_path = os.path.join(drivers_dir, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        if entry.startswith('__') or entry.startswith('.'):
+            continue
+
+        manifest_path = os.path.join(entry_path, 'manifest.json')
+        if not os.path.isfile(manifest_path):
+            continue
+
+        try:
+            with open(manifest_path, 'r') as f:
+                manifest = json.load(f)
+                vendor = manifest.get('vendor', 'Unknown')
+                family = manifest.get('family', 'Unknown')
+                drivers[entry] = {
+                    "vendor": vendor,
+                    "family": family
+                }
+        except Exception:
+            continue
+
+    return drivers
+
+@app.get("/drivers/{driver_id}", summary="List models for a specific driver", response_model=list)
+def list_driver_models(driver_id: str):
+    """
+    Get list of supported models for a specific driver.
+    Returns a list of model identifiers (keys from the manifest's models object).
+    Example: ["72-2540", "72-2530"]
+    """
+    drivers_dir = os.path.join(os.path.dirname(__file__), 'drivers')
+    manifest_path = os.path.join(drivers_dir, driver_id, 'manifest.json')
+
+    if not os.path.isfile(manifest_path):
+        raise HTTPException(status_code=404, detail=f"Driver '{driver_id}' not found")
+
+    try:
+        with open(manifest_path, 'r') as f:
+            manifest = json.load(f)
+            models = manifest.get('models', {})
+            if not isinstance(models, dict):
+                return []
+            return list(models.keys())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read manifest: {str(e)}")
+
+@app.get("/config", summary="Get current configuration from serial_manager")
+def get_config():
+    """Get the current runtime configuration from serial_manager.devices"""
+    global _manager
+    if not _manager:
+        return {"devices": []}
+    return {"devices": _manager.devices}
+
+@app.post("/config", summary="Update configuration and restart connections")
+def update_config(config: Dict[str, List[Dict]]):
+    """
+    Update the entire configuration and restart all connections.
+    The payload must contain a 'devices' key with a list of device configs.
+    This replaces the entire configuration - if you send 1 device, all others are removed.
+    """
+    global _manager
+
+    if not isinstance(config, dict) or 'devices' not in config:
+        raise HTTPException(status_code=400, detail="Config must contain 'devices' key")
+
+    devices = config.get('devices', [])
+    if not isinstance(devices, list):
+        raise HTTPException(status_code=400, detail="'devices' must be a list")
+
+    # Stop existing manager and all its threads
+    if _manager:
+        _manager.stop()
+
+    # Create new manager with the new configuration
+    _manager = SerialManager(devices)
+    _manager.start()
+
+    return {
+        "status": "success",
+        "message": f"Configuration updated with {len(devices)} device(s)",
+        "devices": _manager.devices
+    }
+
 @app.get("/instruments", summary="List instruments and last IDN", response_model=list)
 def list_instruments():
     global _manager

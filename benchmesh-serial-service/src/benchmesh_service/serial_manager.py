@@ -18,19 +18,13 @@ from .metrics import MetricsRecorder
 logger = logging.getLogger(__name__)
 
 
-MANIFEST_ALIASES = {
-    'tenma_psu': 'tenma_72',
-}
-
-
 def _repo_root() -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 
 def _load_manifest(driver_key: str) -> Dict:
-    manifest_key = MANIFEST_ALIASES.get(driver_key, driver_key)
     # Prefer manifest colocated with driver package (new layout)
-    pkg_dir = os.path.join(os.path.dirname(__file__), 'drivers', manifest_key)
+    pkg_dir = os.path.join(os.path.dirname(__file__), 'drivers', driver_key)
     pkg_manifest = os.path.join(pkg_dir, 'manifest.json')
     if os.path.exists(pkg_manifest):
         with open(pkg_manifest, 'r') as f:
@@ -38,7 +32,7 @@ def _load_manifest(driver_key: str) -> Dict:
 
     # Fallback to repository-root drivers directory (legacy layout)
     here = _repo_root()
-    legacy_manifest = os.path.join(here, 'drivers', manifest_key, 'manifest.json')
+    legacy_manifest = os.path.join(here, 'drivers', driver_key, 'manifest.json')
     with open(legacy_manifest, 'r') as f:
         return json.load(f)
 
@@ -89,9 +83,13 @@ class SerialManager:
         cfg_path = source if isinstance(source, str) else os.path.join(_repo_root(), 'config.yaml')
         if not os.path.isabs(cfg_path):
             cfg_path = os.path.join(_repo_root(), cfg_path)
-        with open(cfg_path, 'r') as f:
-            cfg = yaml.safe_load(f)
-        return cfg.get('devices', [])
+        try:
+            with open(cfg_path, 'r') as f:
+                cfg = yaml.safe_load(f)
+            return cfg.get('devices', []) if cfg else []
+        except FileNotFoundError:
+            # No config file - start with empty device list
+            return []
 
     def establish_connections(self):
         print("Establishing connections to devices...")

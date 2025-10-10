@@ -24,6 +24,10 @@ def load_config(path):
     Convenience function used by main.py.
     Returns the full parsed YAML as a dict (or empty dict on missing/empty file).
     """
-    with open(path, 'r') as f:
-        cfg = yaml.safe_load(f) or {}
-    return cfg
+    try:
+        with open(path, 'r') as f:
+            cfg = yaml.safe_load(f) or {}
+        return cfg
+    except FileNotFoundError:
+        # Return empty config if file doesn't exist - allows starting without config
+        return {}
