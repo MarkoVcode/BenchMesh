@@ -13,11 +13,37 @@ describe('SamplingStats', () => {
     vi.useRealTimers()
   })
 
-  it('renders with initial empty state', () => {
+  // Helper function to expand the component
+  const expandComponent = () => {
+    const header = screen.getByText(/Statistical Sampling|Test Sampling/)
+    act(() => {
+      fireEvent.click(header)
+    })
+  }
+
+  it('renders with initial collapsed state', () => {
     const getCurrentValue = vi.fn(() => 5.0)
     render(<SamplingStats getCurrentValue={getCurrentValue} label="Test Sampling" />)
 
     expect(screen.getByText('Test Sampling')).toBeInTheDocument()
+    expect(screen.getByText('▶')).toBeInTheDocument() // Collapsed indicator
+
+    // Controls should not be visible when collapsed
+    expect(screen.queryByText('MIN')).not.toBeInTheDocument()
+    expect(screen.queryByText('START')).not.toBeInTheDocument()
+  })
+
+  it('expands and shows controls when clicked', () => {
+    const getCurrentValue = vi.fn(() => 5.0)
+    render(<SamplingStats getCurrentValue={getCurrentValue} label="Test Sampling" />)
+
+    // Click to expand
+    act(() => {
+      fireEvent.click(screen.getByText('Test Sampling'))
+    })
+
+    // Now controls should be visible
+    expect(screen.getByText('▼')).toBeInTheDocument() // Expanded indicator
     expect(screen.getByText('MIN')).toBeInTheDocument()
     expect(screen.getByText('MAX')).toBeInTheDocument()
     expect(screen.getByText('AVG')).toBeInTheDocument()
@@ -31,6 +57,8 @@ describe('SamplingStats', () => {
   it('starts sampling when START button is clicked', () => {
     const getCurrentValue = vi.fn(() => 5.0)
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
+
+    expandComponent()
 
     const startButton = screen.getByText('START')
 
@@ -51,6 +79,8 @@ describe('SamplingStats', () => {
     const getCurrentValue = vi.fn(() => currentValue)
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
+
+    expandComponent()
 
     act(() => {
       fireEvent.click(screen.getByText('START'))
@@ -88,6 +118,8 @@ describe('SamplingStats', () => {
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
 
+    expandComponent()
+
     act(() => {
       fireEvent.click(screen.getByText('START'))
     })
@@ -115,6 +147,8 @@ describe('SamplingStats', () => {
     const getCurrentValue = vi.fn(() => currentValue)
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
+
+    expandComponent()
 
     // Select 5 samples
     act(() => {
@@ -153,6 +187,8 @@ describe('SamplingStats', () => {
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
 
+    expandComponent()
+
     act(() => {
       fireEvent.click(screen.getByText('START'))
     })
@@ -182,6 +218,8 @@ describe('SamplingStats', () => {
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
 
+    expandComponent()
+
     act(() => {
       fireEvent.click(screen.getByText('START'))
     })
@@ -205,6 +243,8 @@ describe('SamplingStats', () => {
     const getCurrentValue = vi.fn(() => 5.0)
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
+
+    expandComponent()
 
     // Select 2 second interval
     act(() => {
@@ -237,6 +277,8 @@ describe('SamplingStats', () => {
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
 
+    expandComponent()
+
     act(() => {
       fireEvent.click(screen.getByText('START'))
     })
@@ -256,6 +298,8 @@ describe('SamplingStats', () => {
     const getCurrentValue = vi.fn(() => 5.0)
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
+
+    expandComponent()
 
     const samplesDropdown = screen.getByDisplayValue('10') as HTMLSelectElement
     const intervalDropdown = screen.getByDisplayValue('1s') as HTMLSelectElement
@@ -287,6 +331,8 @@ describe('SamplingStats', () => {
     const getCurrentValue = vi.fn(() => values[index++])
 
     render(<SamplingStats getCurrentValue={getCurrentValue} />)
+
+    expandComponent()
 
     act(() => {
       fireEvent.click(screen.getByText('START'))
