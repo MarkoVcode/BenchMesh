@@ -1,6 +1,6 @@
 {
   "name": "benchmesh",
-  "version": "0.0.20",
+  "version": "0.0.30",
   "description": "BenchMesh - Lab Instrument Control System",
   "private": true,
   "scripts": {

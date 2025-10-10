@@ -287,7 +287,7 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                         onChange={(e) => updateDevice(index, 'driver', e.target.value)}
                       >
                         <option value="">Select driver...</option>
-                        {Object.keys(drivers).sort().map((driverId) => (
+                        {drivers && Object.keys(drivers).sort().map((driverId) => (
                           <option key={driverId} value={driverId}>
                             {drivers[driverId].vendor} {drivers[driverId].family} ({driverId})
                           </option>

@@ -16,7 +16,7 @@ devices:
     model: SPM3103
   - id: tenmapsu-1
     name: "TENMA PSU"
-    driver: tenma_psu
+    driver: tenma_72
     port: /dev/tty722540
     baud: 9600
     serial: 8N1

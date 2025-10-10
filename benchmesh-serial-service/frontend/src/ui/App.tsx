@@ -102,16 +102,20 @@ export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
 
-  const waitingForApi = (!instruments || instruments.length === 0) && !!error
+  const apiOk = !loading && !error
   const hasInstruments = instruments && instruments.length > 0
 
   // Auto-open config modal if registry is active but no instruments configured
   useEffect(() => {
-    if (!autoOpenedConfig && !loading && wsDiag.ok && !hasInstruments && !waitingForApi) {
-      setConfigModalOpen(true)
-      setAutoOpenedConfig(true)
+    // Only auto-open after initial load completes
+    if (!autoOpenedConfig && !loading && !error && instruments !== null && instruments.length === 0) {
+      const timer = setTimeout(() => {
+        setConfigModalOpen(true)
+        setAutoOpenedConfig(true)
+      }, 500) // Small delay to ensure everything is rendered
+      return () => clearTimeout(timer)
     }
-  }, [autoOpenedConfig, loading, wsDiag.ok, hasInstruments, waitingForApi])
+  }, [autoOpenedConfig, loading, error, instruments])
 
   function handleConfigUpdated() {
     setRefreshTrigger(prev => prev + 1)
@@ -137,8 +141,8 @@ export default function App() {
               <span>{wsDiag.msg}</span>
             </div>
             <div className="statuspill" title="API connectivity">
-              <span className="dot" style={{ background: waitingForApi ? 'var(--bad)' : 'var(--good)' }} />
-              <span>{waitingForApi ? 'API unreachable' : 'API ok'}</span>
+              <span className="dot" style={{ background: apiOk ? 'var(--good)' : 'var(--bad)' }} />
+              <span>{apiOk ? 'API ok' : error ? 'API unreachable' : 'Loading...'}</span>
             </div>
           </div>
         </div>
@@ -150,12 +154,8 @@ export default function App() {
           onConfigUpdated={handleConfigUpdated}
         />
 
-        {hasInstruments && (
+        {hasInstruments && instruments && (
           <div className="container">
-            <h2 className="heading">Instruments <span className="subtle">live</span></h2>
-            {loading && <p className="subtle">Loading…</p>}
-            {waitingForApi && <p className="subtle">Awaiting connection to the service… retrying every 1s</p>}
-            {error && !waitingForApi && <p style={{ color: 'var(--bad)' }}>{error}</p>}
             <div className="grid">
               {instruments.map((ins) => (
                 <InstrumentPod key={ins.id} instrument={ins} registry={registry} />

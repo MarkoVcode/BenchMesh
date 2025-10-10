@@ -17,9 +17,9 @@ function StatusDot({ online }: { online: boolean }) {
 export function InstrumentPod({ instrument, registry }: { instrument: Instrument, registry: any }) {
   const online = useMemo(() => {
     const r = registry?.[instrument.id]
-    const idn = r?.IDN ?? instrument.IDN
+    const idn = r?.IDN
     return Boolean(idn && String(idn).trim().length > 0)
-  }, [registry, instrument])
+  }, [registry, instrument.id])
 
   return (
     <div className="card">
@@ -32,7 +32,7 @@ export function InstrumentPod({ instrument, registry }: { instrument: Instrument
         {instrument.IDN || registry?.[instrument.id]?.IDN || '—'}
       </div>
       <div className="card-classes">
-        {instrument.classes.map((c) => (
+        {instrument.classes && instrument.classes.map((c) => (
           <div key={c.class}>
             <div>
               {/* Render dedicated nested class pod, honoring ui_component from API */}
