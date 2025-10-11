@@ -21,10 +21,10 @@
           "pooling": [
             {
               "method": "poll_status",
-              "interval": 0.9
+              "interval": 0.6
             }
           ],
-          "ui_component": "GenericELL",
+          "ui_component": "OwonOELELL",
           "features": {
             "channels": 1,
             "parallel": false,
@@ -50,80 +50,52 @@
               }
             },
             "modes": {
-              "CC": {
+              "CURR": {
+                "ui_name": "Constant Current",
                 "setpoint": {
                   "unit": "A",
+                  "symbol": "I",
                   "min": 0.0,
                   "max": 15.0,
                   "step": 0.001,
                   "ui_step": 0.01
-                },
-                "protection": {
-                  "ovp": {
-                    "unit": "V",
-                    "min": 0,
-                    "max": 150,
-                    "step": 0.1
-                  }
                 }
               },
-              "CV": {
+              "VOLT": {
+                "ui_name": "Constant Voltage",
                 "setpoint": {
                   "unit": "V",
+                  "symbol": "U",
                   "min": 0.0,
                   "max": 150.0,
                   "step": 0.01,
                   "ui_step": 0.1
-                },
-                "protection": {
-                  "ocp": {
-                    "unit": "A",
-                    "min": 0,
-                    "max": 15,
-                    "step": 0.01
-                  }
                 }
               },
-              "CR": {
+              "RES": {
+                "ui_name": "Constant Resistance",
                 "setpoint": {
                   "unit": "Ω",
+                  "symbol": "R",
                   "min": 0.05,
                   "max": 1000,
                   "step": 0.01,
                   "ui_step": 0.1
                 }
               },
-              "CP": {
+              "POW": {
+                "ui_name": "Constant Power",
                 "setpoint": {
                   "unit": "W",
+                  "symbol": "P",
                   "min": 0.5,
                   "max": 200,
                   "step": 0.1,
                   "ui_step": 1.0
                 }
               },
-              "DYNAMIC": {
-                "setpoint": {
-                  "unit": "A",
-                  "min": 0.0,
-                  "max": 15.0,
-                  "step": 0.001,
-                  "ui_step": 0.01
-                },
-                "protection": {
-                  "ovp": {
-                    "unit": "V",
-                    "min": 0,
-                    "max": 150,
-                    "step": 0.1
-                  },
-                  "ocp": {
-                    "unit": "A",
-                    "min": 0,
-                    "max": 15,
-                    "step": 0.01
-                  }
-                }
+              "DYN": {
+                "ui_name": "Dynamic"
               }
             }
           }

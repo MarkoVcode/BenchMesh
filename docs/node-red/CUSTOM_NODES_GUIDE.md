@@ -12,6 +12,7 @@ Replace standard inject nodes with controllable automation nodes that can be sta
 - ✅ Visual status indication (green = running, red = stopped)
 - ✅ Control from Node-RED UI, HTTP API, or BenchMesh UI
 - ✅ Tracked globally for monitoring
+- ⚠️ **Safety First**: All automations start DISABLED by default - you must manually start them after deployment
 
 ### 2. **Instrument-Specific Nodes**
 - **DMM (Digital Multimeter)**: Read measurements with auto-parsing
@@ -88,8 +89,9 @@ If running via start.sh, just restart the script.
    - Double-click to configure:
      - Automation Name: "Overcharge Protection"
      - Frequency: 1000 (1 second)
-     - Start Enabled: ✓
+     - Start Enabled: ☐ (leave unchecked - automations are OFF by default for safety)
    - Deploy
+   - **After deployment, manually start the automation** by clicking its button or using the BenchMesh UI
 
 2. **Add DMM Node**
    - Drag `benchmesh-dmm` to canvas

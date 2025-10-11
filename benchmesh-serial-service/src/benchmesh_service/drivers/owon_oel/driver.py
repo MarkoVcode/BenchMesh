@@ -16,7 +16,7 @@ class OwonOEL:
         raw = self.query_status(channel) or ""
         if raw is None or raw == "":
             # Return a minimal but truthy structure to avoid dropping the connection
-            return {"VOUT": None, "IOUT": None, "POUT": None, "OVP": None, "OCP": None, "OTP": None}
+            return {"VOUT": 0, "IOUT": 0, "POUT": 0, "OVP": "OFF", "OCP": "OFF", "OTP": "OFF", "REMOTE": "OFF", "INPUT": "OFF", "MODE": "CURR"}
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
@@ -31,17 +31,11 @@ class OwonOEL:
                     except Exception:
                         pass
                 result[key] = val
-        print("POLL STATUS EXECUTED")
+        result["REMOTE"] = "ON"
+        result["INPUT"] = self.query_input(1)
+        result["MODE"] = self.query_mode(1)
         return result
     
-    def set_remote(self, channel: int):               #not sure about the usecase
-        self.t.write_line('SYST:REM')
-        return self.t.read_until_reol(1024)
-
-    def unset_remote(self, channel: int):             #not sure about the usecase
-        self.t.write_line('SYST:LOC')
-        return self.t.read_until_reol(1024) 
-
 #SYST:SENS ON/off
 #SYST:SENS?
 
@@ -52,15 +46,22 @@ class OwonOEL:
 #DYNamic: Dynamic operation mode.
 
     def set_mode(self, channel: int, value):
-        valid_modes = ["CURRent", "CURR", "VOLTage", "VOLT", "POWer", "POW", "RESistance", "RES", "DYNamic", "DYN"]
-        if str(value).upper() not in [m.upper() for m in valid_modes]:
-            raise ValueError(f"value must be one of {valid_modes}")
-        self.t.write_line('MODE ' + str(value))
+        self.t.write_line('FUNC ' + str(value))
         return self.t.read_until_reol(1024)
     
     def query_mode(self, channel: int):
-        self.t.write_line('MODE?')
-        return self.t.read_until_reol(1024)
+        self.t.write_line('FUNC?')
+        raw = self.t.read_until_reol(1024)
+        if raw.strip() == "current":
+            return "CURR"
+        elif raw.strip() == "voltage":
+            return "VOLT"
+        elif raw.strip() == "resistance":
+            return "RES"
+        elif raw.strip() == "power":
+            return "POW"
+        elif raw.strip() == "dynamic":
+            return "DYN"
     
     #TODO - if query_input is 1 do not allow to enable compansation
     def set_remote_compensation(self, channel: int, value):    #value ON/OFF
@@ -69,14 +70,25 @@ class OwonOEL:
         self.t.write_line('SYST:SENS ' + str(value))
         return self.t.read_until_reol(1024)
 
-    def set_input(self, channel: int):
-        self.t.write_line('INP ON')
+    def set_remote(self, channel: int, value):
+        if str(value).upper() == "ON":
+            self.t.write_line('SYSTem:REMote')
+            return self.t.read_until_reol(1024)
+        elif str(value).upper() == "OFF":
+            self.t.write_line('SYSTem:LOCal')
+            return self.t.read_until_reol(1024)
+
+    def query_remote(self, channel: int):
+        self.t.write_line('SYSTem:REMote?')
+        if (self.t.read_until_reol(1024)).strip() == "1":
+            return "ON"
+        else:
+            return "OFF"
+
+    def set_input(self, channel: int, value):
+        self.t.write_line('INP ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def unset_input(self, channel: int):
-        self.t.write_line('INP OFF')
-        return self.t.read_until_reol(1024)
-
     def query_input(self, channel: int):
         self.t.write_line('INP?')
         return self.t.read_until_reol(1024)

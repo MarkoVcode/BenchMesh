@@ -8,7 +8,7 @@ module.exports = function(RED) {
 
         node.automationName = config.automationName || 'Unnamed Automation';
         node.frequency = parseInt(config.frequency) || 1000;
-        node.enabled = config.enabled !== false; // Default to true
+        node.enabled = config.enabled === true; // Default to false
         node.interval = null;
 
         const startAutomation = () => {

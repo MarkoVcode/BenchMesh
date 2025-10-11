@@ -13,7 +13,7 @@
         "name": "Battery Protection Timer",
         "automationName": "Overcharge Protection",
         "frequency": 1000,
-        "enabled": true,
+        "enabled": false,
         "x": 180,
         "y": 200,
         "wires": [
