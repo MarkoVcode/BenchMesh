@@ -83,6 +83,11 @@ def _mount_static_ui_if_built(app: FastAPI):
     if os.path.isdir(dist_dir):
         app.mount("/ui", StaticFiles(directory=dist_dir, html=True), name="ui")
 
+        # Add root redirect to UI
+        @app.get("/")
+        async def root_redirect():
+            return RedirectResponse(url="/ui/")
+
 
 def _coerce_arg(v: str) -> Any:
     s = v.strip()

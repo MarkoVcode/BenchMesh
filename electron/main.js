@@ -155,7 +155,7 @@ function stopProcesses() {
   })
 }
 
-async function waitForBackend(retries = 20, delay = 500) {
+async function waitForBackend(retries = 30, delay = 1000) {
   for (let i = 0; i < retries; i++) {
     try {
       const http = require('http')
@@ -164,7 +164,7 @@ async function waitForBackend(retries = 20, delay = 500) {
           resolve(res.statusCode === 200)
         })
         req.on('error', () => resolve(false))
-        req.setTimeout(1000, () => {
+        req.setTimeout(2000, () => {
           req.destroy()
           resolve(false)
         })
@@ -172,6 +172,8 @@ async function waitForBackend(retries = 20, delay = 500) {
 
       if (response) {
         console.log('Backend is ready!')
+        // Give it a bit more time to fully initialize
+        await new Promise(resolve => setTimeout(resolve, 1000))
         return true
       }
     } catch (err) {
