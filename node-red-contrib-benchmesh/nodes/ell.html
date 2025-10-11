@@ -1,0 +1,94 @@
+<script type="text/javascript">
+    RED.nodes.registerType('benchmesh-ell',{
+        category: 'BenchMesh',
+        color: '#FF6B6B',
+        defaults: {
+            name: {value:""},
+            deviceId: {value:"eol-1", required:true},
+            channel: {value:"1", required:true},
+            operation: {value:"set_input", required:true},
+            value: {value:"OFF"},
+            apiBase: {value:"http://localhost:57666"}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "font-awesome/fa-bolt",
+        label: function() {
+            return this.name || `ELL ${this.deviceId}`;
+        },
+        labelStyle: function() {
+            return this.name ? "node_label_italic" : "";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="benchmesh-ell">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Electronic Load Control">
+    </div>
+    <div class="form-row">
+        <label for="node-input-deviceId"><i class="fa fa-microchip"></i> Device ID</label>
+        <input type="text" id="node-input-deviceId" placeholder="eol-1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-channel"><i class="fa fa-plug"></i> Channel</label>
+        <input type="text" id="node-input-channel" placeholder="1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
+        <select id="node-input-operation">
+            <option value="set_input">Set Input</option>
+            <option value="set_mode">Set Mode</option>
+            <option value="set_current">Set Current</option>
+            <option value="set_voltage">Set Voltage</option>
+            <option value="set_power">Set Power</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-value"><i class="fa fa-edit"></i> Value</label>
+        <input type="text" id="node-input-value" placeholder="OFF or ON">
+    </div>
+    <div class="form-row">
+        <label for="node-input-apiBase"><i class="fa fa-globe"></i> API Base</label>
+        <input type="text" id="node-input-apiBase" placeholder="http://localhost:57666">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="benchmesh-ell">
+    <p>BenchMesh Electronic Load (ELL) node for controlling electronic loads.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">deviceId <span class="property-type">string</span></dt>
+        <dd>Override the configured device ID</dd>
+
+        <dt class="optional">channel <span class="property-type">string</span></dt>
+        <dd>Override the configured channel number</dd>
+
+        <dt class="optional">operation <span class="property-type">string</span></dt>
+        <dd>Override the operation to perform</dd>
+
+        <dt class="optional">value/payload <span class="property-type">string</span></dt>
+        <dd>Value to set (e.g., ON, OFF, or numeric values)</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Object containing deviceId, channel, operation, value, and response</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node controls a BenchMesh Electronic Load. Common operations include:
+    <ul>
+        <li><b>set_input</b>: Turn load ON or OFF</li>
+        <li><b>set_mode</b>: Set operating mode (CC, CV, CP, CR)</li>
+        <li><b>set_current</b>: Set current limit</li>
+        <li><b>set_voltage</b>: Set voltage limit</li>
+        <li><b>set_power</b>: Set power limit</li>
+    </ul>
+    </p>
+
+    <p>The node displays the current state (ON/OFF) in its status.</p>
+</script>

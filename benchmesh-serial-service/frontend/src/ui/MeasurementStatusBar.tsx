@@ -125,8 +125,42 @@ export function MeasurementStatusBar() {
   const [records, setRecords] = useState<MeasurementRecord[]>([])
   const [isRecording, setIsRecording] = useState(false)
   const [isGraphing, setIsGraphing] = useState(false)
+  const [nodeRedActive, setNodeRedActive] = useState(false)
+  const [automationCount, setAutomationCount] = useState({ total: 0, running: 0 })
 
   const { selectedForRecord, selectedForGraph, sources, registry } = useMeasurement()
+
+  // Check BenchMesh automations
+  useEffect(() => {
+    const checkAutomations = async () => {
+      try {
+        const autoResponse = await fetch(`http://${window.location.hostname}:1880/benchmesh/automations`)
+        if (autoResponse.ok) {
+          const automations = await autoResponse.json()
+          const automationArray = Object.values(automations)
+          const total = automationArray.length
+          const running = automationArray.filter((a: any) => a.enabled).length
+
+          // Button is RED when any automations are running, GREEN when all stopped
+          setNodeRedActive(running > 0)
+          setAutomationCount({ total, running })
+
+          console.log('[BenchMesh] Automations:', { total, running, active: running > 0 })
+        } else {
+          // No automations endpoint or error
+          setNodeRedActive(false)
+          setAutomationCount({ total: 0, running: 0 })
+        }
+      } catch (e) {
+        setNodeRedActive(false)
+        setAutomationCount({ total: 0, running: 0 })
+      }
+    }
+
+    checkAutomations()
+    const interval = setInterval(checkAutomations, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Recording logic using WebSocket registry data
   useEffect(() => {
@@ -229,7 +263,7 @@ export function MeasurementStatusBar() {
         >
           📈 Measurements Graph
         </button>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={() => {
               const nodeRedUrl = `${window.location.protocol}//${window.location.hostname}:1880`
@@ -237,20 +271,38 @@ export function MeasurementStatusBar() {
             }}
             style={{
               padding: '6px 12px',
-              background: 'rgba(255,68,68,.15)',
-              color: '#ff6b6b',
-              border: '1px solid rgba(255,68,68,.35)',
+              background: nodeRedActive ? 'rgba(255,68,68,.15)' : 'rgba(68,255,68,.15)',
+              color: nodeRedActive ? '#ff6b6b' : '#6bff6b',
+              border: nodeRedActive ? '1px solid rgba(255,68,68,.35)' : '1px solid rgba(68,255,68,.35)',
               borderRadius: '6px',
               cursor: 'pointer',
               fontSize: '12px',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '6px',
+              position: 'relative'
             }}
-            title="Open Node-RED Automations in new tab"
+            title={nodeRedActive
+              ? `${automationCount.running} automations running - Click to open Node-RED`
+              : automationCount.total > 0
+                ? `All ${automationCount.total} automations stopped - Click to open Node-RED`
+                : 'No automations configured - Click to open Node-RED'}
           >
-            <span style={{ fontSize: '14px' }}>🔴</span> Node-RED Automations
+            <span style={{ fontSize: '14px' }}>{nodeRedActive ? '🔴' : '🟢'}</span>
+            <span>Node-RED Automations</span>
+            {automationCount.total > 0 && (
+              <span style={{
+                marginLeft: '4px',
+                fontSize: '10px',
+                background: nodeRedActive ? 'rgba(255,68,68,.3)' : 'rgba(68,255,68,.3)',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontWeight: 700
+              }}>
+                {automationCount.running}/{automationCount.total}
+              </span>
+            )}
           </button>
         </div>
       </div>

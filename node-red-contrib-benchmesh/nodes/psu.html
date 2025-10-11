@@ -1,0 +1,58 @@
+<script type="text/javascript">
+    RED.nodes.registerType('benchmesh-psu',{
+        category: 'BenchMesh',
+        color: '#FFD93D',
+        defaults: {
+            name: {value:""},
+            deviceId: {value:"psu-1", required:true},
+            channel: {value:"1", required:true},
+            operation: {value:"query_voltage", required:true},
+            value: {value:""},
+            apiBase: {value:"http://localhost:57666"}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "font-awesome/fa-plug",
+        label: function() {
+            return this.name || `PSU ${this.deviceId}`;
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="benchmesh-psu">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-deviceId"><i class="fa fa-microchip"></i> Device ID</label>
+        <input type="text" id="node-input-deviceId">
+    </div>
+    <div class="form-row">
+        <label for="node-input-channel"><i class="fa fa-plug"></i> Channel</label>
+        <input type="text" id="node-input-channel">
+    </div>
+    <div class="form-row">
+        <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
+        <select id="node-input-operation">
+            <option value="query_voltage">Query Voltage</option>
+            <option value="query_current">Query Current</option>
+            <option value="set_voltage">Set Voltage</option>
+            <option value="set_current">Set Current</option>
+            <option value="set_output">Set Output</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-value"><i class="fa fa-edit"></i> Value</label>
+        <input type="text" id="node-input-value" placeholder="For set operations">
+    </div>
+    <div class="form-row">
+        <label for="node-input-apiBase"><i class="fa fa-globe"></i> API Base</label>
+        <input type="text" id="node-input-apiBase">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="benchmesh-psu">
+    <p>BenchMesh Power Supply Unit (PSU) node.</p>
+    <p>Query or control power supply parameters like voltage, current, and output state.</p>
+</script>

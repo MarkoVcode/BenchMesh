@@ -1,0 +1,47 @@
+<script type="text/javascript">
+    RED.nodes.registerType('benchmesh-instrument',{
+        category: 'BenchMesh',
+        color: '#C0C0C0',
+        defaults: {
+            name: {value:""},
+            path: {value:""},
+            method: {value:"GET"},
+            apiBase: {value:"http://localhost:57666"}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "font-awesome/fa-wrench",
+        label: function() {
+            return this.name || "Generic Instrument";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="benchmesh-instrument">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-path"><i class="fa fa-link"></i> API Path</label>
+        <input type="text" id="node-input-path" placeholder="/instruments/...">
+        <small>e.g., /instruments/DMM/dmm-1/1/query_measurement</small>
+    </div>
+    <div class="form-row">
+        <label for="node-input-method"><i class="fa fa-exchange"></i> Method</label>
+        <select id="node-input-method">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-apiBase"><i class="fa fa-globe"></i> API Base</label>
+        <input type="text" id="node-input-apiBase">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="benchmesh-instrument">
+    <p>Generic BenchMesh instrument node for custom API calls.</p>
+    <p>Use this node when a specific instrument node doesn't exist yet.</p>
+    <p>The path can be provided in configuration or via <code>msg.path</code>.</p>
+</script>

@@ -1,0 +1,97 @@
+<script type="text/javascript">
+    RED.nodes.registerType('benchmesh-threshold',{
+        category: 'BenchMesh',
+        color: '#FFA500',
+        defaults: {
+            name: {value:""},
+            threshold: {value:0, required:true, validate:RED.validators.number()},
+            comparison: {value:"gt", required:true},
+            property: {value:"value"}
+        },
+        inputs:1,
+        outputs:2,
+        outputLabels: ["above threshold", "below threshold"],
+        icon: "font-awesome/fa-balance-scale",
+        label: function() {
+            const ops = {gt: '>', gte: '≥', lt: '<', lte: '≤', eq: '='};
+            const op = ops[this.comparison] || this.comparison;
+            return this.name || `Threshold ${op} ${this.threshold}`;
+        },
+        labelStyle: function() {
+            return this.name ? "node_label_italic" : "";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="benchmesh-threshold">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Threshold Check">
+    </div>
+    <div class="form-row">
+        <label for="node-input-property"><i class="fa fa-ellipsis-h"></i> Property</label>
+        <select id="node-input-property">
+            <option value="value">msg.value</option>
+            <option value="payload">msg.payload</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-comparison"><i class="fa fa-balance-scale"></i> Comparison</label>
+        <select id="node-input-comparison">
+            <option value="gt">Greater than (>)</option>
+            <option value="gte">Greater than or equal (≥)</option>
+            <option value="lt">Less than (<)</option>
+            <option value="lte">Less than or equal (≤)</option>
+            <option value="eq">Equal (=)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-threshold"><i class="fa fa-calculator"></i> Threshold</label>
+        <input type="number" id="node-input-threshold" placeholder="0" step="any">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="benchmesh-threshold">
+    <p>BenchMesh threshold comparison node for simple value checking.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">value/payload <span class="property-type">number</span></dt>
+        <dd>The value to compare against the threshold</dd>
+
+        <dt class="optional">threshold <span class="property-type">number</span></dt>
+        <dd>Override the configured threshold value</dd>
+
+        <dt class="optional">comparison <span class="property-type">string</span></dt>
+        <dd>Override the comparison operation (gt, gte, lt, lte, eq)</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Above threshold
+            <dl class="message-properties">
+                <dt>thresholdResult <span class="property-type">boolean</span></dt>
+                <dd>true - condition met</dd>
+            </dl>
+        </li>
+        <li>Below threshold
+            <dl class="message-properties">
+                <dt>thresholdResult <span class="property-type">boolean</span></dt>
+                <dd>false - condition not met</dd>
+            </dl>
+        </li>
+    </ol>
+
+    <h3>Details</h3>
+    <p>This node compares a numeric value against a threshold and routes the message to one of two outputs based on the result.</p>
+
+    <p>The comparison result and values are added to the message:
+    <ul>
+        <li><code>msg.thresholdResult</code>: true or false</li>
+        <li><code>msg.comparedValue</code>: the value that was compared</li>
+        <li><code>msg.thresholdValue</code>: the threshold it was compared against</li>
+    </ul>
+    </p>
+
+    <p>Perfect for safety checks, alarms, and control logic.</p>
+</script>

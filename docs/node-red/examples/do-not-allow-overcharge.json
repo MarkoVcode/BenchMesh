@@ -1,0 +1,277 @@
+[
+    {
+        "id": "flow1",
+        "type": "tab",
+        "label": "Overcharge Protection",
+        "disabled": false,
+        "info": "# Battery Overcharge Protection\n\nThis flow monitors voltage and activates an electronic load when voltage exceeds 5V to prevent overcharging.\n\n## Components:\n- **Automation**: Controllable 1-second timer\n- **DMM**: Reads voltage from dmm-1\n- **Threshold**: Checks if voltage > 5V\n- **ELL**: Controls electronic load (ON when high, OFF when safe)\n\n## How to Use:\n1. Import this flow\n2. Deploy\n3. Click the automation node button to start/stop\n4. Monitor from BenchMesh UI\n\n## Safety:\n- Green light on automation = protection active\n- Red light = protection stopped (manual intervention needed)"
+    },
+    {
+        "id": "automation_node",
+        "type": "benchmesh-automation",
+        "z": "flow1",
+        "name": "Battery Protection Timer",
+        "automationName": "Overcharge Protection",
+        "frequency": 1000,
+        "enabled": true,
+        "x": 180,
+        "y": 200,
+        "wires": [
+            [
+                "dmm_read"
+            ]
+        ]
+    },
+    {
+        "id": "dmm_read",
+        "type": "benchmesh-dmm",
+        "z": "flow1",
+        "name": "Read Battery Voltage",
+        "deviceId": "dmm-1",
+        "channel": "1",
+        "operation": "query_measurement",
+        "apiBase": "http://localhost:57666",
+        "x": 420,
+        "y": 200,
+        "wires": [
+            [
+                "threshold_check",
+                "debug_voltage"
+            ]
+        ]
+    },
+    {
+        "id": "threshold_check",
+        "type": "benchmesh-threshold",
+        "z": "flow1",
+        "name": "Voltage > 5V?",
+        "threshold": 5,
+        "comparison": "gt",
+        "property": "value",
+        "x": 660,
+        "y": 200,
+        "wires": [
+            [
+                "ell_on"
+            ],
+            [
+                "ell_off"
+            ]
+        ]
+    },
+    {
+        "id": "ell_on",
+        "type": "benchmesh-ell",
+        "z": "flow1",
+        "name": "Turn ON Load (Discharge)",
+        "deviceId": "eol-1",
+        "channel": "1",
+        "operation": "set_input",
+        "value": "ON",
+        "apiBase": "http://localhost:57666",
+        "x": 920,
+        "y": 160,
+        "wires": [
+            [
+                "debug_action"
+            ]
+        ]
+    },
+    {
+        "id": "ell_off",
+        "type": "benchmesh-ell",
+        "z": "flow1",
+        "name": "Turn OFF Load (Safe)",
+        "deviceId": "eol-1",
+        "channel": "1",
+        "operation": "set_input",
+        "value": "OFF",
+        "apiBase": "http://localhost:57666",
+        "x": 920,
+        "y": 240,
+        "wires": [
+            [
+                "debug_action"
+            ]
+        ]
+    },
+    {
+        "id": "debug_voltage",
+        "type": "debug",
+        "z": "flow1",
+        "name": "Voltage Reading",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "value",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "debug_action",
+        "type": "debug",
+        "z": "flow1",
+        "name": "Load Action",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1150,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "comment_header",
+        "type": "comment",
+        "z": "flow1",
+        "name": "🔋 Battery Overcharge Protection System",
+        "info": "This automated safety system monitors battery voltage and prevents overcharging.\n\n**Visual Status Guide:**\n- Automation node GREEN = protection running\n- Automation node RED = protection stopped\n- DMM shows current voltage reading\n- Threshold shows comparison result\n- ELL shows load state (ON/OFF)\n\n**Control Methods:**\n1. Click button on Automation node\n2. Send 'start'/'stop'/'toggle' to Automation input\n3. Use BenchMesh UI automation controls\n4. HTTP API: POST /benchmesh/automations/{id}/toggle",
+        "x": 220,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "comment_flow",
+        "type": "comment",
+        "z": "flow1",
+        "name": "Flow: Timer → Read Voltage → Check Threshold → Control Load",
+        "info": "",
+        "x": 270,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "comment_step1",
+        "type": "comment",
+        "z": "flow1",
+        "name": "1. Trigger every 1 second",
+        "info": "The Automation node triggers every 1 second.\nGreen = running, Red = stopped.\nClick the button to toggle.",
+        "x": 160,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "comment_step2",
+        "type": "comment",
+        "z": "flow1",
+        "name": "2. Read voltage from DMM",
+        "info": "Queries the DMM instrument.\nDisplays current voltage in node status.\nOutputs msg.value as a number.",
+        "x": 410,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "comment_step3",
+        "type": "comment",
+        "z": "flow1",
+        "name": "3. Compare to 5V threshold",
+        "info": "Top output: voltage > 5V (danger)\nBottom output: voltage ≤ 5V (safe)\nShows ✓ or ✗ in status.",
+        "x": 670,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "comment_step4",
+        "type": "comment",
+        "z": "flow1",
+        "name": "4. Control load based on voltage",
+        "info": "High voltage → Turn ON load (discharge)\nSafe voltage → Turn OFF load (idle)\nLoad state shown in node status.",
+        "x": 930,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "inject_manual_start",
+        "type": "inject",
+        "z": "flow1",
+        "name": "Manual Start",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "start",
+        "payloadType": "str",
+        "x": 150,
+        "y": 340,
+        "wires": [
+            [
+                "automation_node"
+            ]
+        ]
+    },
+    {
+        "id": "inject_manual_stop",
+        "type": "inject",
+        "z": "flow1",
+        "name": "Manual Stop",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "stop",
+        "payloadType": "str",
+        "x": 150,
+        "y": 380,
+        "wires": [
+            [
+                "automation_node"
+            ]
+        ]
+    },
+    {
+        "id": "inject_manual_toggle",
+        "type": "inject",
+        "z": "flow1",
+        "name": "Manual Toggle",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "toggle",
+        "payloadType": "str",
+        "x": 160,
+        "y": 420,
+        "wires": [
+            [
+                "automation_node"
+            ]
+        ]
+    },
+    {
+        "id": "comment_manual",
+        "type": "comment",
+        "z": "flow1",
+        "name": "Optional: Manual Controls via Messages",
+        "info": "You can also control the automation by sending messages:\n- 'start': Start the automation\n- 'stop': Stop the automation\n- 'toggle': Toggle current state\n\nThese are alternatives to using the button on the node.",
+        "x": 220,
+        "y": 300,
+        "wires": []
+    }
+]

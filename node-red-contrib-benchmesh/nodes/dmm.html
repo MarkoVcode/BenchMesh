@@ -1,0 +1,83 @@
+<script type="text/javascript">
+    RED.nodes.registerType('benchmesh-dmm',{
+        category: 'BenchMesh',
+        color: '#3FADB5',
+        defaults: {
+            name: {value:""},
+            deviceId: {value:"dmm-1", required:true},
+            channel: {value:"1", required:true},
+            operation: {value:"query_measurement", required:true},
+            apiBase: {value:"http://localhost:57666"}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "font-awesome/fa-tachometer",
+        label: function() {
+            return this.name || `DMM ${this.deviceId}`;
+        },
+        labelStyle: function() {
+            return this.name ? "node_label_italic" : "";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="benchmesh-dmm">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="DMM Measurement">
+    </div>
+    <div class="form-row">
+        <label for="node-input-deviceId"><i class="fa fa-microchip"></i> Device ID</label>
+        <input type="text" id="node-input-deviceId" placeholder="dmm-1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-channel"><i class="fa fa-plug"></i> Channel</label>
+        <input type="text" id="node-input-channel" placeholder="1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-operation"><i class="fa fa-cog"></i> Operation</label>
+        <select id="node-input-operation">
+            <option value="query_measurement">Query Measurement</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-apiBase"><i class="fa fa-globe"></i> API Base</label>
+        <input type="text" id="node-input-apiBase" placeholder="http://localhost:57666">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="benchmesh-dmm">
+    <p>BenchMesh Digital Multimeter (DMM) node for reading measurements.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">deviceId <span class="property-type">string</span></dt>
+        <dd>Override the configured device ID</dd>
+
+        <dt class="optional">channel <span class="property-type">string</span></dt>
+        <dd>Override the configured channel number</dd>
+
+        <dt class="optional">operation <span class="property-type">string</span></dt>
+        <dd>Override the operation to perform</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Full response from the DMM API</dd>
+
+        <dt>value <span class="property-type">number</span></dt>
+        <dd>Parsed numeric value from the measurement</dd>
+
+        <dt>deviceId <span class="property-type">string</span></dt>
+        <dd>The device ID that was queried</dd>
+
+        <dt>channel <span class="property-type">string</span></dt>
+        <dd>The channel that was queried</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node queries a BenchMesh DMM instrument for measurements. The measurement value is automatically parsed and provided as <code>msg.value</code> for easy use in subsequent nodes.</p>
+
+    <p>The node displays the current measurement value in its status.</p>
+</script>

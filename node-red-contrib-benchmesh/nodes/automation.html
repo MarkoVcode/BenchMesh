@@ -1,0 +1,102 @@
+<script type="text/javascript">
+    RED.nodes.registerType('benchmesh-automation',{
+        category: 'BenchMesh',
+        color: '#97D077',
+        defaults: {
+            name: {value:""},
+            automationName: {value:"", required:true},
+            frequency: {value:1000, required:true, validate:RED.validators.number()},
+            enabled: {value:true}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "font-awesome/fa-clock-o",
+        label: function() {
+            return this.name || this.automationName || "Automation";
+        },
+        labelStyle: function() {
+            return this.name ? "node_label_italic" : "";
+        },
+        button: {
+            enabled: function() { return !this.changed; },
+            onclick: function() {
+                const label = this.name || this.automationName || "automation";
+                const node = this;
+
+                $.ajax({
+                    url: `benchmesh/automations/${this.id}/toggle`,
+                    type: "POST",
+                    success: function(resp) {
+                        RED.notify(`Toggled ${label}`, "success");
+                    },
+                    error: function(jqXHR,textStatus,errorThrown) {
+                        RED.notify(`Failed to toggle ${label}: ${textStatus}`, "error");
+                    }
+                });
+            }
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="benchmesh-automation">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Node Name</label>
+        <input type="text" id="node-input-name" placeholder="Optional display name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-automationName"><i class="fa fa-id-card"></i> Automation Name</label>
+        <input type="text" id="node-input-automationName" placeholder="e.g., Overcharge Protection">
+    </div>
+    <div class="form-row">
+        <label for="node-input-frequency"><i class="fa fa-clock-o"></i> Frequency (ms)</label>
+        <input type="number" id="node-input-frequency" placeholder="1000">
+        <small>How often to trigger (milliseconds)</small>
+    </div>
+    <div class="form-row">
+        <label for="node-input-enabled"><i class="fa fa-power-off"></i> Start Enabled</label>
+        <input type="checkbox" id="node-input-enabled" style="width:auto; margin-left:10px;">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="benchmesh-automation">
+    <p>BenchMesh automation controller with individual start/stop control.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string</span></dt>
+        <dd>Control command: 'start', 'stop', or 'toggle'</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">number</span></dt>
+        <dd>Timestamp of trigger</dd>
+
+        <dt>automationId <span class="property-type">string</span></dt>
+        <dd>Unique ID of this automation</dd>
+
+        <dt>automationName <span class="property-type">string</span></dt>
+        <dd>Name of this automation</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node acts as a controllable timer for automations. It triggers at the configured frequency and can be started/stopped individually without affecting other automations.</p>
+
+    <h4>Control Methods:</h4>
+    <ul>
+        <li><b>Button in Node-RED UI</b>: Click the button on the node to toggle</li>
+        <li><b>Input message</b>: Send 'start', 'stop', or 'toggle' to control</li>
+        <li><b>API</b>: Use HTTP POST to /benchmesh/automations/{id}/{action}</li>
+        <li><b>BenchMesh UI</b>: Control from the main application interface</li>
+    </ul>
+
+    <h4>Features:</h4>
+    <ul>
+        <li>Individual enable/disable without redeploying flows</li>
+        <li>Shows running status visually</li>
+        <li>Tracked globally for monitoring</li>
+        <li>Survives Node-RED restarts if configured</li>
+    </ul>
+
+    <p><b>Use instead of inject nodes</b> for automations you want to control individually.</p>
+</script>

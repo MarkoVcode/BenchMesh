@@ -1,0 +1,24 @@
+{
+  "name": "node-red-contrib-benchmesh",
+  "version": "1.0.0",
+  "description": "BenchMesh custom nodes for instrument control and automation",
+  "keywords": [
+    "node-red",
+    "benchmesh",
+    "instruments",
+    "automation",
+    "test-equipment"
+  ],
+  "node-red": {
+    "nodes": {
+      "benchmesh-dmm": "nodes/dmm.js",
+      "benchmesh-psu": "nodes/psu.js",
+      "benchmesh-ell": "nodes/ell.js",
+      "benchmesh-instrument": "nodes/instrument.js",
+      "benchmesh-threshold": "nodes/threshold.js",
+      "benchmesh-automation": "nodes/automation.js"
+    }
+  },
+  "author": "BenchMesh Team",
+  "license": "MIT"
+}
