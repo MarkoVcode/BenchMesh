@@ -2,11 +2,12 @@ import os
 import json
 import asyncio
 import subprocess
+import hashlib
 from typing import Any, Dict, List
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, JSONResponse
 from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
 from .settings import settings
@@ -261,7 +262,7 @@ def update_config(config: Dict[str, List[Dict]]):
     }
 
 @app.get("/instruments", summary="List instruments and last IDN", response_model=list)
-def list_instruments():
+def list_instruments(request: Request):
     global _manager
     items = []
     if not _manager:
@@ -321,7 +322,18 @@ def list_instruments():
             entry['classes'] = classes_list
 
         items.append(entry)
-    return items
+
+    # Generate ETag from JSON content
+    content = json.dumps(items, sort_keys=True)
+    etag = f'"{hashlib.md5(content.encode()).hexdigest()}"'
+
+    # Check If-None-Match header
+    if_none_match = request.headers.get('if-none-match')
+    if if_none_match == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+
+    # Return response with ETag header
+    return JSONResponse(content=items, headers={"ETag": etag})
 
 
 @app.get("/instruments/{klass}/{device_id}", summary="Get manifest features for class on device", response_model=dict)

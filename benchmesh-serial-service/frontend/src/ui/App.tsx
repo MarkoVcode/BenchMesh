@@ -20,15 +20,43 @@ function useInstruments(apiBase: string) {
   useEffect(() => {
     let cancelled = false
     let timer: any
+    let lastETag: string | null = null
+
     async function load() {
       let ok = false
       try {
-        const resp = await fetch(`${apiBase}/instruments`)
+        // Send If-None-Match header if we have an ETag
+        const headers: HeadersInit = {}
+        if (lastETag) {
+          headers['If-None-Match'] = lastETag
+        }
+
+        const resp = await fetch(`${apiBase}/instruments`, { headers })
+
+        // 304 Not Modified - data hasn't changed, skip update
+        if (resp.status === 304) {
+          if (!cancelled) {
+            setError(null)
+            ok = true
+          }
+          return
+        }
+
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+
         const json = await resp.json()
+        const newETag = resp.headers.get('ETag')
+
         if (!cancelled) {
-          setData(json)
+          // Only update state if data actually changed (deep equality check)
+          const dataChanged = JSON.stringify(data) !== JSON.stringify(json)
+          if (dataChanged) {
+            setData(json)
+          }
           setError(null)
+          if (newETag) {
+            lastETag = newETag
+          }
           ok = true
         }
       } catch (e: any) {
