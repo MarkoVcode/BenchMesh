@@ -1,0 +1,123 @@
+# BenchMesh
+
+> A browser-based cockpit for lab instruments. Control, monitor, and automate multiple serial devices from a unified interface.
+
+[![CI Status](https://github.com/MarkoVcode/BenchMesh/workflows/CI/badge.svg)](https://github.com/MarkoVcode/BenchMesh/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
+![BenchMesh Screenshot](docs/static/screenshot.png)
+
+## Features
+
+- 🌐 **Browser-Based UI** - No desktop software installation required
+- 🔌 **Multi-Device Support** - Control multiple instruments simultaneously
+- ⚡ **Real-Time Updates** - Live data streaming via WebSocket
+- 🤖 **Automation Ready** - Node-RED integration for complex workflows
+- 📡 **RESTful API** - Full programmatic control
+- 🔒 **Offline Capable** - All documentation bundled with the application
+
+## Supported Devices
+
+BenchMesh v1.0 includes drivers for:
+
+- **Power Supplies (PSU)**: Tenma 72-series
+- **Electronic Loads (ELL)**: OWON OEL series
+- **Digital Multimeters (DMM)**: OWON XDM series
+
+Additional device support coming in future releases. [See roadmap](docs/ROADMAP.md)
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Node.js 16+ (for Node-RED automation, optional)
+- Serial devices connected via USB or RS232
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/MarkoVcode/BenchMesh.git
+cd BenchMesh
+
+# Install dependencies
+pip install -r benchmesh-serial-service/requirements.txt
+
+# (Optional) Install Node-RED for automation
+npm install
+
+# Start everything
+./start.sh
+```
+
+### Access the Application
+
+- **Web UI**: http://localhost:57666
+- **API Docs**: http://localhost:57666/docs
+- **Node-RED**: http://localhost:1880
+
+## Configuration
+
+Edit `benchmesh-serial-service/config.yaml` to add your devices:
+
+```yaml
+version: 1
+devices:
+  - id: psu-1
+    name: "Bench Power Supply"
+    driver: tenma_72
+    port: /dev/ttyUSB0
+    baud: 9600
+    serial: 8N1
+```
+
+See [Configuration Guide](docs/Configuration.md) for details.
+
+## Documentation
+
+- [Getting Started](docs/Getting-Started.md)
+- [Configuration Guide](docs/Configuration.md)
+- [Automation & Node-RED](docs/Automation.md)
+- [API Reference](docs/API-Reference.md)
+- [Developer Guide](docs/DEVELOPER.md)
+
+Or access built-in documentation: **📚 Documentation** button in the UI.
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Adding a New Driver
+
+See [Driver Development Guide](docs/DRIVER_DEVELOPMENT.md) for step-by-step instructions.
+
+## Roadmap
+
+See [ROADMAP.md](docs/ROADMAP.md) for planned features and device support.
+
+**v1.0 Focus**: Core functionality with 2-3 reference device drivers
+**v1.1**: Additional device classes, improved error handling
+**v2.0**: Historical data logging, advanced charting, plugin system
+
+## License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with [FastAPI](https://fastapi.tiangolo.com/), [React](https://react.dev/), and [Node-RED](https://nodered.org/)
+- Inspired by the need for unified lab instrument control
+
+## Support
+
+- 📖 [Documentation](https://github.com/MarkoVcode/BenchMesh/wiki)
+- 🐛 [Issue Tracker](https://github.com/MarkoVcode/BenchMesh/issues)
+- 💬 [Discussions](https://github.com/MarkoVcode/BenchMesh/discussions)
+
+---
+
+**Status**: v1.0 - Production Ready
+**Tested on**: Ubuntu 22.04, Debian 12
+**Device Support**: PSU, ELL, DMM (see supported devices above)
