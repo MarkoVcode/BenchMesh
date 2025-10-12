@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "swagger-ui-react": "^5.29.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.8",
@@ -21,6 +24,7 @@
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
+    "@types/swagger-ui-react": "^5.18.0",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^24.0.0",
     "typescript": "^5.3.3",

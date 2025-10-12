@@ -24,6 +24,127 @@
         }
       }
     },
+    "/drivers": {
+      "get": {
+        "summary": "List available drivers",
+        "description": "Scan drivers folder and return available drivers with their vendor and family information.\nReturns a dict mapping driver_id (folder name) to {vendor, family} extracted from manifest.json",
+        "operationId": "list_drivers_drivers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response List Drivers Drivers Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drivers/{driver_id}": {
+      "get": {
+        "summary": "List models for a specific driver",
+        "description": "Get list of supported models for a specific driver.\nReturns a list of model identifiers (keys from the manifest's models object).\nExample: [\"72-2540\", \"72-2530\"]",
+        "operationId": "list_driver_models_drivers__driver_id__get",
+        "parameters": [
+          {
+            "name": "driver_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Driver Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {},
+                  "title": "Response List Driver Models Drivers  Driver Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "summary": "Get current configuration from serial_manager",
+        "description": "Get the current runtime configuration from serial_manager.devices",
+        "operationId": "get_config_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Update configuration and restart connections",
+        "description": "Update the entire configuration and restart all connections.\nThe payload must contain a 'devices' key with a list of device configs.\nThis replaces the entire configuration - if you send 1 device, all others are removed.",
+        "operationId": "update_config_config_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "type": "object",
+                "title": "Config"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/instruments": {
       "get": {
         "summary": "List instruments and last IDN",
@@ -44,46 +165,95 @@
         }
       }
     },
+    "/instruments/{klass}/{device_id}": {
+      "get": {
+        "summary": "Get manifest features for class on device",
+        "operationId": "get_manifest_features_instruments__klass___device_id__get",
+        "parameters": [
+          {
+            "name": "klass",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Klass"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Manifest Features Instruments  Klass   Device Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/instruments/{klass}/{device_id}/{channel}/{method}": {
       "get": {
         "summary": "Call driver method (read-only)",
         "operationId": "call_driver_get_instruments__klass___device_id___channel___method__get",
         "parameters": [
           {
+            "name": "klass",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Klass"
-            },
-            "name": "klass",
-            "in": "path"
+            }
           },
           {
+            "name": "device_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Device Id"
-            },
-            "name": "device_id",
-            "in": "path"
+            }
           },
           {
+            "name": "channel",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Channel"
-            },
-            "name": "channel",
-            "in": "path"
+            }
           },
           {
+            "name": "method",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Method"
-            },
-            "name": "method",
-            "in": "path"
+            }
           }
         ],
         "responses": {
@@ -114,49 +284,49 @@
         "operationId": "call_driver_post_instruments__klass___device_id___channel___method___param__post",
         "parameters": [
           {
+            "name": "klass",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Klass"
-            },
-            "name": "klass",
-            "in": "path"
+            }
           },
           {
+            "name": "device_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Device Id"
-            },
-            "name": "device_id",
-            "in": "path"
+            }
           },
           {
+            "name": "channel",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Channel"
-            },
-            "name": "channel",
-            "in": "path"
+            }
           },
           {
+            "name": "method",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Method"
-            },
-            "name": "method",
-            "in": "path"
+            }
           },
           {
+            "name": "param",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Param"
-            },
-            "name": "param",
-            "in": "path"
+            }
           }
         ],
         "responses": {

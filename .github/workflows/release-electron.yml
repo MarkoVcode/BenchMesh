@@ -52,6 +52,11 @@ jobs:
           cd benchmesh-serial-service
           python -m pytest -v
 
+      - name: Generate OpenAPI documentation
+        run: |
+          cd benchmesh-serial-service
+          PYTHONPATH=src python -m benchmesh_service.tools.gen_openapi
+
   get-version:
     runs-on: ubuntu-latest
     outputs:
@@ -396,12 +401,24 @@ jobs:
       - name: Install Node dependencies
         run: npm install
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Build frontend
         run: |
           cd benchmesh-serial-service/frontend
           npm ci
           npm run build
           cd ../..
+
+      - name: Install Python dependencies and generate OpenAPI docs
+        run: |
+          cd benchmesh-serial-service
+          pip install -r requirements.txt
+          PYTHONPATH=src python -m benchmesh_service.tools.gen_openapi
+          cd ..
 
       - name: Create self-hosted archive
         run: |

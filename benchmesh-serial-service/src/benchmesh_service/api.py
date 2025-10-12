@@ -3,6 +3,7 @@ import json
 import asyncio
 import subprocess
 import hashlib
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,9 +13,40 @@ from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
 from .settings import settings
 
-app = FastAPI(title="BenchMesh Serial Service", version="0.1.0")
 API_PORT = int(os.getenv('API_PORT', '57666'))
 UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
+
+_manager: SerialManager | None = None
+_valid_classes: set[str] | None = None
+_frontend_proc: subprocess.Popen | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global _manager
+    _manager = _make_manager()
+    _manager.start()
+    _load_valid_classes()
+    _mount_static_ui_if_built(app)
+    _start_frontend_dev_if_available()
+
+    yield
+
+    # Shutdown
+    global _frontend_proc
+    if _manager:
+        _manager.stop()
+        _manager = None
+    if _frontend_proc:
+        try:
+            _frontend_proc.terminate()
+        except Exception:
+            pass
+        _frontend_proc = None
+
+
+app = FastAPI(title="BenchMesh Serial Service", version="0.1.0", lifespan=lifespan)
 
 # Enable CORS for development (Vite on :52892)
 app.add_middleware(
@@ -24,10 +56,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-_manager: SerialManager | None = None
-_valid_classes: set[str] | None = None
-_frontend_proc: subprocess.Popen | None = None
 
 
 def _make_manager() -> SerialManager:
@@ -115,30 +143,6 @@ def _get_driver_or_error(device_id: str):
     if not drv:
         raise HTTPException(status_code=400, detail="Device not connected")
     return drv
-
-
-@app.on_event("startup")
-def on_startup():
-    global _manager
-    _manager = _make_manager()
-    _manager.start()
-    _load_valid_classes()
-    _mount_static_ui_if_built(app)
-    _start_frontend_dev_if_available()
-
-
-@app.on_event("shutdown")
-def on_shutdown():
-    global _manager, _frontend_proc
-    if _manager:
-        _manager.stop()
-        _manager = None
-    if _frontend_proc:
-        try:
-            _frontend_proc.terminate()
-        except Exception:
-            pass
-        _frontend_proc = None
 
 
 @app.get("/", include_in_schema=False)

@@ -8,7 +8,14 @@ const mockInstruments = [
   { id: 'psu-1', IDN: 'ACME PSU-1000', classes: [{ class: 'PSU', channels: ['/instruments/PSU/psu-1/1'] }] },
 ]
 
-global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => mockInstruments } as any)
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  status: 200,
+  json: async () => mockInstruments,
+  headers: {
+    get: (name: string) => name === 'ETag' ? '"mock-etag"' : null
+  }
+} as any)
 
 // Mock WebSocket
 class MockWebSocket {

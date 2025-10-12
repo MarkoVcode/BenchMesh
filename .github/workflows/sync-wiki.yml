@@ -1,0 +1,48 @@
+name: Sync Documentation to Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**/*.md'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone wiki repository
+        run: |
+          git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
+
+      - name: Copy documentation files
+        run: |
+          cp docs/Home.md wiki/
+          cp docs/Getting-Started.md wiki/
+          cp docs/Configuration.md wiki/
+          cp docs/Automation.md wiki/
+          cp docs/API-Reference.md wiki/
+
+      - name: Commit and push to wiki
+        run: |
+          cd wiki
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes detected"
+            exit 0
+          fi
+
+          git add *.md
+          git commit -m "Update documentation from main repository (${GITHUB_SHA::7})"
+          git push origin master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

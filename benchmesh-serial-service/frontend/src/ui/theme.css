@@ -98,10 +98,10 @@ hr.sep{ border:0; border-top:1px solid var(--border); margin:10px 0; }
 
 
 /* Configuration button in topbar */
-.topbar-center{ flex:1; display:flex; justify-content:center; }
-.config-button{ 
-  font-size:12px; padding:4px 12px; border:1px solid var(--border); 
-  background:rgba(96,165,250,.15); color:var(--text-0); border-radius:6px; 
+.topbar-center{ flex:1; display:flex; justify-content:center; gap:8px; }
+.config-button{
+  font-size:12px; padding:4px 12px; border:1px solid var(--border);
+  background:rgba(96,165,250,.15); color:var(--text-0); border-radius:6px;
   cursor:pointer; font-weight:500; transition:all .2s ease;
 }
 .config-button:hover{ background:rgba(96,165,250,.25); border-color:#60a5fa; }
@@ -220,4 +220,462 @@ hr.sep{ border:0; border-top:1px solid var(--border); margin:10px 0; }
   padding:12px 16px; border-radius:6px; margin-bottom:16px;
   background:rgba(22,163,74,.12); color:#86efac; border:1px solid rgba(22,163,74,.25);
   font-size:13px;
+}
+
+/* Documentation Viewer Styles */
+.docs-modal-content{
+  background:var(--bg-2); border:1px solid var(--border); border-radius:12px;
+  width:95%; max-width:1400px; height:90vh;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+  display:flex; flex-direction:column;
+  animation:slideUp .3s ease;
+}
+
+.docs-header{
+  padding:16px 20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(180deg, var(--bg-1), var(--bg-2));
+}
+.docs-header h2{
+  margin:0; font-size:20px; font-weight:600; color:var(--text-0);
+  display:flex; align-items:center; gap:8px;
+}
+
+.docs-body{
+  display:flex; flex:1; overflow:hidden; min-height:0;
+}
+
+/* Sidebar Navigation */
+.docs-sidebar{
+  width:260px; border-right:1px solid var(--border);
+  background:var(--bg-1); padding:16px 0;
+  overflow-y:auto;
+}
+
+.docs-nav{
+  display:flex; flex-direction:column; gap:4px; padding:0 12px;
+}
+
+.docs-nav-item{
+  padding:10px 16px; border-radius:8px; border:none;
+  background:transparent; color:var(--text-1);
+  text-align:left; cursor:pointer; font-size:14px; font-weight:500;
+  transition:all .2s ease;
+  border:1px solid transparent;
+}
+
+.docs-nav-item:hover{
+  background:rgba(96,165,250,.08); color:var(--text-0);
+  border-color:rgba(96,165,250,.2);
+}
+
+.docs-nav-item.active{
+  background:rgba(96,165,250,.15); color:var(--accent);
+  border-color:rgba(96,165,250,.35);
+  font-weight:600;
+}
+
+/* Content Area */
+.docs-content{
+  flex:1; overflow-y:auto; padding:32px 40px;
+  background:var(--bg-0);
+}
+
+/* Markdown Styling */
+.docs-markdown{
+  max-width:900px; margin:0 auto;
+  color:var(--text-0); line-height:1.7;
+}
+
+.docs-markdown h1{
+  font-size:32px; font-weight:700; margin:0 0 24px 0;
+  color:var(--text-0); border-bottom:2px solid var(--border);
+  padding-bottom:12px;
+}
+
+.docs-markdown h2{
+  font-size:24px; font-weight:600; margin:32px 0 16px 0;
+  color:var(--text-0); border-bottom:1px solid var(--border);
+  padding-bottom:8px;
+}
+
+.docs-markdown h3{
+  font-size:20px; font-weight:600; margin:24px 0 12px 0;
+  color:var(--text-0);
+}
+
+.docs-markdown h4{
+  font-size:16px; font-weight:600; margin:20px 0 10px 0;
+  color:var(--text-1);
+}
+
+.docs-markdown p{
+  margin:12px 0; color:var(--text-0); font-size:15px;
+}
+
+.docs-markdown ul, .docs-markdown ol{
+  margin:12px 0; padding-left:28px; color:var(--text-0);
+}
+
+.docs-markdown li{
+  margin:6px 0; line-height:1.6;
+}
+
+.docs-markdown a{
+  color:var(--accent); text-decoration:none; border-bottom:1px solid transparent;
+  transition:border-color .2s ease;
+}
+.docs-markdown a:hover{
+  border-bottom-color:var(--accent);
+}
+
+.docs-markdown code.inline-code{
+  background:rgba(96,165,250,.12); color:#bcd9ff;
+  padding:2px 6px; border-radius:4px; font-size:13px;
+  border:1px solid rgba(96,165,250,.25);
+  font-family:'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.docs-markdown pre{
+  background:var(--bg-1); border:1px solid var(--border);
+  border-radius:8px; padding:16px; overflow-x:auto;
+  margin:16px 0; font-size:13px;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.2);
+}
+
+.docs-markdown pre code{
+  color:var(--text-0); font-family:'Consolas', 'Monaco', 'Courier New', monospace;
+  line-height:1.5;
+}
+
+.docs-markdown blockquote{
+  border-left:4px solid var(--accent); background:rgba(96,165,250,.05);
+  margin:16px 0; padding:12px 20px; color:var(--text-1);
+  border-radius:0 6px 6px 0;
+}
+
+.docs-markdown .table-wrapper{
+  overflow-x:auto; margin:16px 0;
+}
+
+.docs-markdown table{
+  width:100%; border-collapse:collapse;
+  border:1px solid var(--border); border-radius:8px;
+  overflow:hidden;
+}
+
+.docs-markdown th{
+  background:var(--bg-1); color:var(--text-0);
+  padding:12px 16px; text-align:left; font-weight:600;
+  border-bottom:2px solid var(--border); font-size:14px;
+}
+
+.docs-markdown td{
+  padding:10px 16px; border-bottom:1px solid var(--border);
+  color:var(--text-0); font-size:14px;
+}
+
+.docs-markdown tr:last-child td{
+  border-bottom:none;
+}
+
+.docs-markdown tr:hover{
+  background:rgba(255,255,255,.02);
+}
+
+.docs-markdown hr{
+  border:0; border-top:1px solid var(--border);
+  margin:24px 0;
+}
+
+.docs-markdown strong{
+  font-weight:600; color:var(--text-0);
+}
+
+.docs-markdown em{
+  font-style:italic; color:var(--text-1);
+}
+
+/* Swagger UI Integration */
+.docs-swagger-wrapper{
+  max-width:100%;
+}
+
+.docs-api-intro{
+  max-width:900px; margin:0 auto 32px auto;
+  padding-bottom:24px; border-bottom:2px solid var(--border);
+}
+
+.docs-swagger-container{
+  background:var(--bg-1); border-radius:12px;
+  padding:24px; border:1px solid var(--border);
+}
+
+/* Override Swagger UI styles to match BenchMesh theme */
+.docs-swagger-container .swagger-ui{
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system;
+  color:var(--text-0) !important;
+}
+
+/* Info section */
+.docs-swagger-container .swagger-ui .info{
+  margin:0;
+}
+
+.docs-swagger-container .swagger-ui .info .title{
+  color:var(--text-0) !important; font-size:28px;
+}
+
+.docs-swagger-container .swagger-ui .info .description{
+  color:var(--text-1) !important;
+}
+
+.docs-swagger-container .swagger-ui .info .base-url{
+  color:var(--accent) !important;
+}
+
+/* Operation blocks */
+.docs-swagger-container .swagger-ui .opblock-tag{
+  border-bottom:1px solid var(--border);
+  color:var(--text-0) !important;
+  font-size:18px !important;
+}
+
+.docs-swagger-container .swagger-ui .opblock{
+  border:1px solid var(--border);
+  background:var(--bg-2);
+  border-radius:8px;
+  margin:16px 0;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+
+.docs-swagger-container .swagger-ui .opblock .opblock-summary{
+  border-radius:8px;
+  background:rgba(255,255,255,.02);
+}
+
+.docs-swagger-container .swagger-ui .opblock .opblock-summary:hover{
+  background:rgba(255,255,255,.04);
+}
+
+/* Make endpoint paths and descriptions visible */
+.docs-swagger-container .swagger-ui .opblock .opblock-summary-path{
+  color:var(--text-0) !important;
+  font-weight:600;
+}
+
+.docs-swagger-container .swagger-ui .opblock .opblock-summary-description{
+  color:var(--text-1) !important;
+}
+
+.docs-swagger-container .swagger-ui .opblock .opblock-summary-method{
+  font-weight:700;
+}
+
+/* GET method - blue */
+.docs-swagger-container .swagger-ui .opblock.opblock-get{
+  border-color:rgba(96,165,250,.35);
+  background:rgba(96,165,250,.05);
+}
+
+.docs-swagger-container .swagger-ui .opblock.opblock-get .opblock-summary-method{
+  background:#60a5fa;
+  color:#fff;
+}
+
+/* POST method - green */
+.docs-swagger-container .swagger-ui .opblock.opblock-post{
+  border-color:rgba(34,197,94,.35);
+  background:rgba(34,197,94,.05);
+}
+
+.docs-swagger-container .swagger-ui .opblock.opblock-post .opblock-summary-method{
+  background:#22c55e;
+  color:#fff;
+}
+
+/* PUT method - orange */
+.docs-swagger-container .swagger-ui .opblock.opblock-put{
+  border-color:rgba(251,146,60,.35);
+  background:rgba(251,146,60,.05);
+}
+
+.docs-swagger-container .swagger-ui .opblock.opblock-put .opblock-summary-method{
+  background:#fb923c;
+  color:#fff;
+}
+
+/* DELETE method - red */
+.docs-swagger-container .swagger-ui .opblock.opblock-delete{
+  border-color:rgba(239,68,68,.35);
+  background:rgba(239,68,68,.05);
+}
+
+.docs-swagger-container .swagger-ui .opblock.opblock-delete .opblock-summary-method{
+  background:#ef4444;
+  color:#fff;
+}
+
+/* Expanded operation details */
+.docs-swagger-container .swagger-ui .opblock-body{
+  background:var(--bg-1);
+  color:var(--text-0) !important;
+}
+
+.docs-swagger-container .swagger-ui .opblock-description-wrapper,
+.docs-swagger-container .swagger-ui .opblock-description-wrapper p{
+  color:var(--text-1) !important;
+}
+
+/* Parameters section */
+.docs-swagger-container .swagger-ui .parameters-col_description{
+  color:var(--text-1) !important;
+}
+
+.docs-swagger-container .swagger-ui .parameter__name{
+  color:var(--text-0) !important;
+  font-weight:600;
+}
+
+.docs-swagger-container .swagger-ui .parameter__type{
+  color:var(--accent) !important;
+}
+
+.docs-swagger-container .swagger-ui table thead tr th,
+.docs-swagger-container .swagger-ui table thead tr td{
+  color:var(--text-0) !important;
+  border-bottom:1px solid var(--border);
+}
+
+.docs-swagger-container .swagger-ui .parameters-col_name{
+  color:var(--text-0) !important;
+}
+
+/* Response section */
+.docs-swagger-container .swagger-ui .responses-inner h4,
+.docs-swagger-container .swagger-ui .responses-inner h5{
+  color:var(--text-0) !important;
+}
+
+.docs-swagger-container .swagger-ui .response-col_status{
+  color:var(--text-0) !important;
+  font-weight:600;
+}
+
+.docs-swagger-container .swagger-ui .response-col_description{
+  color:var(--text-1) !important;
+}
+
+/* Models/Schemas section */
+.docs-swagger-container .swagger-ui .model-title{
+  color:var(--text-0) !important;
+}
+
+.docs-swagger-container .swagger-ui .model{
+  color:var(--text-0) !important;
+}
+
+.docs-swagger-container .swagger-ui .model .property{
+  color:var(--text-1) !important;
+}
+
+.docs-swagger-container .swagger-ui .model-box{
+  background:var(--bg-1);
+  border-radius:8px;
+  padding:12px;
+}
+
+/* Code examples */
+.docs-swagger-container .swagger-ui .highlight-code{
+  background:var(--bg-1) !important;
+}
+
+.docs-swagger-container .swagger-ui .highlight-code .microlight{
+  color:var(--text-0) !important;
+}
+
+/* Buttons */
+.docs-swagger-container .swagger-ui .btn{
+  border-radius:6px;
+  font-weight:500;
+  background:var(--accent);
+  color:#fff;
+  border:none;
+}
+
+.docs-swagger-container .swagger-ui .btn:hover{
+  background:#4d92e6;
+}
+
+.docs-swagger-container .swagger-ui .btn.cancel{
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  color:var(--text-0);
+}
+
+.docs-swagger-container .swagger-ui .btn.execute{
+  background:var(--good);
+  border:none;
+}
+
+/* Try it out section */
+.docs-swagger-container .swagger-ui .try-out{
+  background:var(--bg-2);
+}
+
+.docs-swagger-container .swagger-ui input[type="text"],
+.docs-swagger-container .swagger-ui textarea,
+.docs-swagger-container .swagger-ui select{
+  background:var(--bg-1) !important;
+  border:1px solid var(--border) !important;
+  color:var(--text-0) !important;
+}
+
+/* Wrapper and main sections */
+.docs-swagger-container .swagger-ui .wrapper{
+  color:var(--text-0);
+}
+
+.docs-swagger-container .swagger-ui .scheme-container{
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px;
+  margin-bottom:16px;
+}
+
+/* Authorization */
+.docs-swagger-container .swagger-ui .auth-wrapper{
+  background:var(--bg-2);
+  border:1px solid var(--border);
+}
+
+/* Markdown content in descriptions */
+.docs-swagger-container .swagger-ui .markdown p,
+.docs-swagger-container .swagger-ui .markdown li,
+.docs-swagger-container .swagger-ui .markdown td,
+.docs-swagger-container .swagger-ui .markdown th{
+  color:var(--text-1) !important;
+}
+
+.docs-swagger-container .swagger-ui .markdown code{
+  background:rgba(96,165,250,.12);
+  color:#bcd9ff;
+  padding:2px 6px;
+  border-radius:4px;
+}
+
+/* Loading indicator */
+.docs-swagger-container .swagger-ui .loading-container{
+  color:var(--text-1);
+}
+
+/* Errors */
+.docs-swagger-container .swagger-ui .errors-wrapper{
+  background:rgba(239,68,68,.1);
+  border:1px solid rgba(239,68,68,.3);
+  color:#ffb3b3;
+  border-radius:8px;
+  padding:12px;
+  margin:12px 0;
 }

@@ -3,6 +3,7 @@ import { InstrumentPod, Instrument } from './InstrumentPod'
 import { MeasurementProvider } from './MeasurementContext'
 import { MeasurementStatusBar } from './MeasurementStatusBar'
 import { ConfigModal } from './ConfigModal'
+import { DocsViewer } from './DocsViewer'
 
 function useApiBase() {
   // API is served by FastAPI app; assume same origin during production.
@@ -127,6 +128,7 @@ export default function App() {
   const { data: instruments, loading, error } = useInstruments(apiBase)
   const { registry, wsDiag } = useRegistrySocket(apiBase)
   const [configModalOpen, setConfigModalOpen] = useState(false)
+  const [docsModalOpen, setDocsModalOpen] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
 
@@ -162,6 +164,13 @@ export default function App() {
             >
               ⚙️ Configuration
             </button>
+            <button
+              className="config-button"
+              onClick={() => setDocsModalOpen(true)}
+              title="View Documentation"
+            >
+              📚 Documentation
+            </button>
           </div>
           <div className="statusbar">
             <div className="statuspill" title="WebSocket data flow">
@@ -181,6 +190,13 @@ export default function App() {
           apiBase={apiBase}
           onConfigUpdated={handleConfigUpdated}
         />
+
+        {docsModalOpen && (
+          <DocsViewer
+            onClose={() => setDocsModalOpen(false)}
+            apiBase={apiBase}
+          />
+        )}
 
         {hasInstruments && instruments && (
           <div className="container">
