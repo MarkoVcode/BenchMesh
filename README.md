@@ -1,207 +1,413 @@
-# BenchMesh
+<div align="center">
+
 ![BenchMesh Logo](docs/static/BenchMesh.png)
 
-A consistent, browser-based cockpit for lab instruments; connect, control, log, correlate, and automate from one place.
+# BenchMesh
 
+**A consistent, browser-based cockpit for lab instruments**
 
-Below are two Mermaid diagrams describing the current structure and behavior. Paste them into any Mermaid-compatible renderer (e.g., GitHub) to visualize.
+Connect, control, log, correlate, and automate multiple serial devices from one place.
 
-## Architecture diagram
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org/)
+[![CI](https://github.com/MarkoVcode/BenchMesh/workflows/Tests/badge.svg)](https://github.com/MarkoVcode/BenchMesh/actions)
+[![GitHub issues](https://img.shields.io/github/issues/MarkoVcode/BenchMesh)](https://github.com/MarkoVcode/BenchMesh/issues)
+[![GitHub stars](https://img.shields.io/github/stars/MarkoVcode/BenchMesh)](https://github.com/MarkoVcode/BenchMesh/stargazers)
 
-```mermaid
-graph TD
-  A[config.yaml] -->|devices list| B[SerialManager]
-  subgraph API
-    C[FastAPI app]
-    C1[/GET /status/]
-    C2[/GET /instruments/]
-  end
-  C1 --> C
-  C2 --> C
-  C -->|queries state| B
+[Documentation](docs/Home.md) • [Getting Started](docs/Getting-Started.md) • [API Reference](docs/API-Reference.md) • [Contributing](CONTRIBUTING.md)
 
-  subgraph SerialManager internals
-    B1[connections: {id -> driver}]
-    B2[registry: {id -> {IDN, status}}]
-    B3[dev_locks: {id -> RLock}]
-    B4[dev_threads: {id -> Thread}]
-    B5[last_probe, last_open_attempt, last_ok]
-  end
-  B --> B1
-  B --> B2
-  B --> B3
-  B --> B4
-  B --> B5
+</div>
 
-  subgraph Drivers
-    D1[TenmaPSU]
-    D2[OWON SPM]
-    D3[OWON XDM]
-    D4[OWON OEL]
-  end
+---
 
-  B1 --> D1
-  B1 --> D2
-  B1 --> D3
-  B1 --> D4
+## Table of Contents
 
-  subgraph Transport
-    T1[SerialTransport]
-    T2[pyserial.Serial]
-  end
-  D1 --> T1
-  D2 --> T1
-  D3 --> T1
-  D4 --> T1
-  T1 --> T2
-  T2 -->|/dev/ttyUSBx etc| OS[(OS serial ports)]
+- [About](#about)
+- [Features](#features)
+- [Supported Devices](#supported-devices)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Development](#development)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
+- [Acknowledgments](#acknowledgments)
 
-  style B fill:#eef,stroke:#66f
-  style C fill:#efe,stroke:#2a2
-  style D1 fill:#ffe,stroke:#aa0
-  style D2 fill:#ffe,stroke:#aa0
-  style D3 fill:#ffe,stroke:#aa0
-  style D4 fill:#ffe,stroke:#aa0
-  style T1 fill:#fef,stroke:#a2a
-  style T2 fill:#fef,stroke:#a2a
+## About
+
+BenchMesh is a unified control platform for laboratory instruments. It provides a modern web interface and RESTful API for managing multiple serial devices simultaneously, with real-time monitoring and automation capabilities through Node-RED integration.
+
+### The Problem
+
+Modern laboratories have instruments from various manufacturers, each with their own software, protocols, and interfaces. This creates:
+- **Fragmentation** - Multiple software tools to learn and maintain
+- **No correlation** - Difficult to coordinate measurements across devices
+- **Limited automation** - Vendor software rarely supports scripting
+- **No remote access** - Desktop applications require physical presence
+
+### The Solution
+
+BenchMesh provides:
+- **Unified interface** - One web UI for all instruments
+- **Real-time monitoring** - Live data updates via WebSocket
+- **RESTful API** - Full programmatic control
+- **Automation ready** - Node-RED visual programming
+- **Modular drivers** - Easy to add new devices
+- **Remote capable** - Browser-based, access from anywhere
+
+## Features
+
+- **Multi-Device Control** - Connect and control multiple instruments simultaneously
+- **Browser-Based UI** - No desktop software installation required, access from any device
+- **Real-Time Updates** - Live data streaming with WebSocket
+- **RESTful API** - Full programmatic control via HTTP endpoints
+- **Modular Architecture** - Clean separation between transport, drivers, and API
+- **Auto-Reconnection** - Automatic device reconnection on failure
+- **Node-RED Integration** - Visual programming for complex workflows
+- **Driver Development** - Easy-to-follow guide for adding new devices
+- **Secure API** - Method resolution prevents arbitrary code execution
+- **MCP Testing Service** - Automated testing through Claude Code
+- **Comprehensive Documentation** - Wiki with guides, examples, and troubleshooting
+
+## Supported Devices
+
+BenchMesh currently supports:
+
+### Power Supplies (PSU)
+- TENMA 72-2540 Series
+
+### Power Meters (SPM)
+- OWON SPM3000 Series
+
+### Digital Multimeters (DMM)
+- OWON XDM Series
+
+### Electronic Loads (ELL)
+- OWON OEL Series
+
+### Function Generators (AWG)
+- OWON DGE Series
+
+**Want to add your device?** See the [Driver Development Guide](docs/Driver-Development.md).
+
+## Quick Start
+
+### Prerequisites
+
+- **Python 3.8+** for the backend service
+- **Node.js 16+** for Node-RED (optional, for automation)
+- **Serial devices** connected via USB-to-Serial or RS232
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/MarkoVcode/BenchMesh.git
+   cd BenchMesh
+   ```
+
+2. **Configure your devices**:
+   ```bash
+   cp config.yaml.example config.yaml
+   nano config.yaml  # Edit with your device settings
+   ```
+
+   ```yaml
+   version: 1
+   devices:
+     - id: psu-1
+       name: "TENMA PSU"
+       driver: tenma_72
+       port: /dev/ttyUSB0
+       baud: 9600
+       serial: 8N1
+   ```
+
+3. **Start BenchMesh**:
+   ```bash
+   ./start.sh
+   ```
+
+4. **Access the interface**:
+   - **Main UI**: http://localhost:57666
+   - **API Docs**: http://localhost:57666/docs
+   - **Node-RED**: http://localhost:1880
+
+For detailed installation instructions, see [Getting Started](docs/Getting-Started.md).
+
+## Usage
+
+### Web Interface
+
+![Dashboard Screenshot](docs/static/dashboard-screenshot.png)
+
+The dashboard provides:
+- Real-time device status
+- Device controls (voltage, current, output)
+- Configuration management
+- Live data updates
+
+### API
+
+Control devices programmatically:
+
+```bash
+# Get device status
+curl http://localhost:57666/instruments
+
+# Query voltage
+curl http://localhost:57666/instruments/PSU/psu-1/1/voltage
+
+# Set voltage
+curl -X POST http://localhost:57666/instruments/PSU/psu-1/1/voltage/12.0
+
+# Enable output
+curl -X POST http://localhost:57666/instruments/PSU/psu-1/1/output/true
 ```
 
-## Behavior (per-device worker)
+```python
+import requests
 
-```mermaid
-sequenceDiagram
-  participant Main as main.py
-  participant SM as SerialManager
-  participant WT as WorkerThread(dev-id)
-  participant D as Driver (e.g., TenmaPSU)
-  participant ST as SerialTransport
+# Get all instruments
+response = requests.get('http://localhost:57666/instruments')
+devices = response.json()
 
-  Main->>SM: start()
-  SM->>WT: spawn per-device thread
-  WT->>SM: reconnect(dev)
-  SM->>D: instantiate driver (from manifest/config)
-  D->>ST: open()
-  Note right of D: On (re)connect only:
-  D->>D: identify() -> "*IDN?"
-  D->>ST: write_line('*IDN?')
-  ST-->>D: read_until_reol() -> IDN
-  D-->>SM: IDN
-  SM->>SM: registry[id]['IDN'] = IDN
+# Control a power supply
+requests.post('http://localhost:57666/instruments/PSU/psu-1/1/voltage/12.0')
+requests.post('http://localhost:57666/instruments/PSU/psu-1/1/output/true')
 
-  loop Every ~2 seconds
-    WT->>D: poll_status()
-    alt TenmaPSU
-      D->>D: read_output_voltage(); read_output_current(); read_status()
-    else Others (placeholder)
-      D->>D: return {"A":"B"}
-    end
-    D-->>WT: status JSON
-    WT->>SM: registry[id]['status'] = status
-  end
-
-  Note over SM: Every ~5s: DEBUG log registry snapshot
-
-  alt poll error
-    WT->>D: poll_status() raises
-    WT->>D: close()
-    WT->>SM: connections[id] = None; last_open_attempt = now
-    Note over WT: Reconnect attempts every ~2s while disconnected
-  end
+# Query measurements
+voltage = requests.get('http://localhost:57666/instruments/PSU/psu-1/1/output_voltage')
+print(f"Voltage: {voltage.json()}")
 ```
 
-## Registry data model (conceptual)
-- registry: dict keyed by device id from config.yaml
-  - registry[device_id]["IDN"] -> str from identify() on connect/reconnect
-  - registry[device_id]["status"] -> JSON object from poll_status() every ~2s
+For complete API documentation, see [API Reference](docs/API-Reference.md).
 
-## Notes
-- FastAPI exposes:
-  - GET [/status](benchmesh-serial-service/src/benchmesh_service/api.py): summary counts of connected/disconnected
-  - GET [/instruments](benchmesh-serial-service/src/benchmesh_service/api.py): list of {id, IDN} and classes
-- Drivers:
-  - TenmaPSU.poll_status builds a composite JSON from read_output_voltage, read_output_current, read_status
-  - OWON drivers currently return a placeholder {"A":"B"}; can be extended later
-- Concurrency:
-  - One worker thread per device, protected by per-device RLock
-  - Reconnect backoff: ~2s between attempts per device
+### Automation with Node-RED
 
-If you’d like, we can export these to PlantUML or generate SVG/PNG artifacts, or embed the diagrams into the repo (e.g., docs/architecture.md).
+Create visual automation workflows:
 
-## Manual driver testing (CLI)
-The repository includes a small CLI to manually test driver methods while honoring config.yaml and manifests.
+1. Access Node-RED at http://localhost:1880
+2. Use HTTP Request nodes to control devices
+3. Create automated test sequences
+4. Log data to files or databases
 
-- Module: benchmesh_service.tools.driver_cli
-- Location: [benchmesh-serial-service/src/benchmesh_service/tools/driver_cli.py](benchmesh-serial-service/src/benchmesh_service/tools/driver_cli.py)
+See [Automation Guide](docs/Automation.md) for examples.
 
-### Usage
-- Ensure you run commands from repo root so Python can resolve benchmesh_service from benchmesh-serial-service/src.
-- If needed, set PYTHONPATH=benchmesh-serial-service/src
+### Driver CLI
 
-### Examples
-- List devices from config.yaml:
-  ```bash
-  python -m benchmesh_service.tools.driver_cli list --config config.yaml
-  ```
+Test drivers directly from the command line:
 
-- List available methods for a device (by id):
-  ```bash
-  python -m benchmesh_service.tools.driver_cli methods --id tenmapsu-1 --config config.yaml
-  ```
+```bash
+# List available methods for a device
+python -m benchmesh_service.tools.driver_cli methods \
+    --id psu-1 --config config.yaml
 
-- Call a method without args:
-  ```bash
-  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
-  ```
+# Call a method
+python -m benchmesh_service.tools.driver_cli call \
+    --id psu-1 --method query_identify --config config.yaml
 
-- Call a method with positional args (auto-coerced int/float/bool):
-  ```bash
-  python -m benchmesh_service.tools.driver_cli call --id spm-1 --method set_voltage 5.0 --config config.yaml
-  ```
+# Set voltage
+python -m benchmesh_service.tools.driver_cli call \
+    --id psu-1 --method set_voltage 12.0 --config config.yaml
+```
 
-- Call a method with kwargs (JSON object):
-  ```bash
-  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output true --kwargs '{"ch":1}' --config config.yaml
-  ```
+## Architecture
 
-Other examples:
-- ```bash
-  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method identify --config config.yaml
-  ```
-- ```bash
-  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method read_status --config config.yaml
-  ```
-- ```bash
-  python -m benchmesh_service.tools.driver_cli call --id tenmapsu-1 --method set_output --config config.yaml true
-  ```
-- ```bash
-  python -m benchmesh_service.tools.driver_cli call --id spm-1 --method poll_status --config config.yaml
-  ```
-- ```bash
-  python -m benchmesh_service.tools.driver_cli call --id some-id --method set_voltage 5.0 --kwargs '{"ch":1}' --config config.yaml
-  ```
+BenchMesh follows a clean, modular architecture:
 
-Notes
-- Only the targeted device is instantiated to keep testing isolated.
-- Results are printed as JSON when the return type is a collection; otherwise as text.
-- Bytes responses are decoded to text when possible.
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Browser Interface                      │
+│                React + TypeScript + Vite                │
+└───────────────┬────────────────────┬────────────────────┘
+                │                    │
+                │ HTTP/REST          │ WebSocket
+                ▼                    ▼
+┌───────────────────────────────────────────────────────┐
+│              FastAPI Backend Service                  │
+│                                                       │
+│  ┌─────────────────────────────────────────────────┐ │
+│  │        SerialManager (Orchestrator)            │ │
+│  └───────┬──────────────────────────┬──────────────┘ │
+│          │                          │                 │
+│          │ Per-device Workers       │ Device Threads │
+│          ▼                          ▼                 │
+│  ┌──────────────────────────────────────────────┐   │
+│  │      Modular Driver Layer (Pluggable)       │   │
+│  └──────────────┬───────────────────────────────┘   │
+│                 │                                     │
+│                 │ Serial Commands                     │
+│                 ▼                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  SerialTransport (pyserial abstraction)     │   │
+│  └──────────────┬───────────────────────────────┘   │
+└─────────────────┼───────────────────────────────────┘
+                  │
+                  ▼
+         ┌────────────────────┐
+         │  Physical Devices  │
+         └────────────────────┘
+```
 
-## License
+**Key design principles:**
+- **Per-device worker threads** - Isolated failures, simple polling
+- **Manifest-driven drivers** - Declarative device configuration
+- **Secure API method resolution** - Only `query_*` and `set_*` methods exposed
+- **Automatic reconnection** - Resilient to connection failures
 
-BenchMesh is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+For detailed architecture documentation, see [Architecture](docs/Architecture.md).
 
-This means you are free to:
-- ✓ Use BenchMesh commercially
-- ✓ Modify the source code
-- ✓ Distribute copies
-- ✓ Use it privately
+## Documentation
 
-The only requirement is to include the copyright notice and license terms in any substantial portions of the software.
+Comprehensive documentation is available in the [docs/](docs/) directory:
 
-### Third-Party Dependencies
+### For Users
+- **[Getting Started](docs/Getting-Started.md)** - Installation and setup
+- **[Configuration](docs/Configuration.md)** - Device configuration guide
+- **[API Reference](docs/API-Reference.md)** - Complete API documentation
+- **[Automation](docs/Automation.md)** - Node-RED integration
+- **[Troubleshooting](docs/Troubleshooting.md)** - Common issues and FAQ
 
-BenchMesh uses several open source libraries. All dependencies use permissive licenses (MIT, BSD-3-Clause, Apache-2.0) that are fully compatible with commercial and private use. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for complete license information.
+### For Developers
+- **[Architecture](docs/Architecture.md)** - System design and components
+- **[Driver Development](docs/Driver-Development.md)** - Creating new drivers
+- **[Testing](docs/Testing.md)** - Running and writing tests
+- **[Contributing](CONTRIBUTING.md)** - Contribution guidelines
+
+### For Production
+- **[Deployment](docs/Deployment.md)** - Production deployment guide
+
+## Development
+
+### Setting Up Development Environment
+
+```bash
+# Clone repository
+git clone https://github.com/MarkoVcode/BenchMesh.git
+cd BenchMesh
+
+# Backend setup
+cd benchmesh-serial-service
+pip install -r requirements.txt
+pip install pytest pytest-cov black flake8
+
+# Run backend tests
+pytest tests/
+
+# Frontend setup
+cd frontend
+npm ci
+
+# Run frontend tests
+npm test
+```
+
+### Running Tests
+
+```bash
+# Backend tests
+pytest benchmesh-serial-service/tests
+
+# Frontend tests
+cd benchmesh-serial-service/frontend && npm test
+
+# Integration tests (requires hardware)
+pytest -m integration benchmesh-serial-service/tests
+
+# With MCP service
+python3 mcp_services/testing/client_helper.py
+```
+
+### Code Style
+
+- **Python**: PEP 8, formatted with `black`
+- **TypeScript/JavaScript**: 2-space indentation
+- **Commits**: Conventional Commits format
+
+See [Contributing Guide](CONTRIBUTING.md) for details.
+
+## Roadmap
+
+### Current Version (v1.0)
+- [x] Multi-device support
+- [x] RESTful API
+- [x] WebSocket real-time updates
+- [x] Node-RED integration
+- [x] Driver for TENMA, OWON devices
+- [x] MCP testing service
+
+### Planned Features
+- [ ] Database integration for historical data
+- [ ] Multi-user support with authentication
+- [ ] MQTT integration for IoT ecosystems
+- [ ] Plugin system for dynamic driver loading
+- [ ] Mobile-optimized UI
+- [ ] Data visualization dashboards
+- [ ] Scripting API for automated test sequences
+
+### Driver Expansion
+- [ ] Rigol power supplies
+- [ ] Keysight multimeters
+- [ ] Siglent oscilloscopes
+- [ ] BK Precision instruments
+
+Want to contribute? Check our [Contributing Guide](CONTRIBUTING.md)!
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
+We welcome contributions! Here's how you can help:
 
+- **Report bugs** - Open an [issue](https://github.com/MarkoVcode/BenchMesh/issues)
+- **Suggest features** - Start a [discussion](https://github.com/MarkoVcode/BenchMesh/discussions)
+- **Add drivers** - See [Driver Development Guide](docs/Driver-Development.md)
+- **Improve docs** - Documentation PRs are always welcome
+- **Fix bugs** - Check the [good first issue](https://github.com/MarkoVcode/BenchMesh/labels/good%20first%20issue) label
+
+Please read our [Contributing Guide](CONTRIBUTING.md) before submitting PRs.
+
+### Contributors
+
+Thanks to all contributors who have helped make BenchMesh better!
+
+<!-- ALL-CONTRIBUTORS-LIST:START -->
+<!-- This section is auto-generated. Manual changes will be overwritten. -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+## License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+**TL;DR**: You can use BenchMesh commercially, modify it, and distribute it. Just include the original license.
+
+### Third-Party Licenses
+
+BenchMesh uses several open-source libraries. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for complete license information.
+
+## Contact
+
+- **GitHub Issues**: [Report bugs](https://github.com/MarkoVcode/BenchMesh/issues)
+- **GitHub Discussions**: [Ask questions](https://github.com/MarkoVcode/BenchMesh/discussions)
+- **Repository**: [MarkoVcode/BenchMesh](https://github.com/MarkoVcode/BenchMesh)
+
+## Acknowledgments
+
+- **FastAPI** - Modern, fast web framework for the API
+- **React** - Powerful UI library
+- **Node-RED** - Visual programming for automation
+- **pyserial** - Cross-platform serial port access
+- All the open-source libraries that make this project possible
+
+---
+
+<div align="center">
+
+**[⬆ back to top](#table-of-contents)**
+
+Made with ❤️ for the lab automation community
+
+</div>
