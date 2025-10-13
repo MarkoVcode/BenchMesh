@@ -1,4 +1,6 @@
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 
 def setup_logger():
@@ -9,7 +11,19 @@ def setup_logger():
 
     logger.setLevel(logging.DEBUG)
 
-    fh = logging.FileHandler("benchmesh_service.log")
+    # Use centralized logs directory at repository root
+    # This ensures logs always go to the same location regardless of where service is run from
+    log_dir = Path(__file__).parent.parent.parent.parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / "benchmesh_service.log"
+
+    # Use rotating file handler to prevent logs from growing infinitely
+    # Max 10MB per file, keep 5 backup files (total ~50MB max)
+    fh = RotatingFileHandler(
+        log_file,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5
+    )
     fh.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler()
