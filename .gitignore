@@ -58,6 +58,11 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Logs directory (keep structure but ignore log files)
+logs/*.log
+logs/*.log.*
+!logs/.gitkeep
+
 # Flask stuff:
 instance/
 .webassets-cache
@@ -145,4 +150,10 @@ storybook-static/
 # Node-RED
 .node-red/
 package-lock.json
+
+# MCP Services
+mcp_services/**/__pycache__/
+mcp_services/**/*.pyc
+mcp_services/**/venv/
+mcp_services/**/.pytest_cache/
 

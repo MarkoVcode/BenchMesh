@@ -130,6 +130,51 @@ GitHub Actions runs on all branches and PRs:
 - Backend tests: `pytest benchmesh-serial-service/tests`
 - Frontend tests: `npx vitest run --reporter=dot`
 
+## Testing MCP Service
+
+BenchMesh includes a comprehensive Model Context Protocol (MCP) service for automated testing. This service enables Claude Code to run tests automatically after code changes, supporting the project's TDD philosophy.
+
+### Quick Start
+
+```bash
+# Install MCP service dependencies
+cd mcp_services/testing
+pip install -r requirements.txt --user
+
+# Test the service
+cd /home/marek/project/BenchMesh
+python3 mcp_services/testing/client_helper.py
+```
+
+### Available Test Tools
+
+The MCP service provides:
+- **Backend Tests**: Run pytest tests with filtering (46 tests discovered)
+- **Frontend Tests**: Run vitest tests (21 tests discovered)
+- **Integration Tests**: Run integration tests separately
+- **Smart Testing**: Automatically run tests for changed files
+- **Test Discovery**: Find all available tests
+- **JSON Reports**: Structured test results with detailed metrics
+
+### Usage Examples
+
+```python
+from mcp_services.testing.client_helper import test_all, test_backend, test_changed
+
+# Run all tests
+results = await test_all(verbose=True)
+
+# Run specific backend tests
+results = await test_backend("test_api_instruments.py")
+
+# Test changed files
+results = await test_changed([
+    "benchmesh-serial-service/src/benchmesh_service/api.py"
+])
+```
+
+See `mcp_services/testing/README.md` and `mcp_services/testing/QUICKSTART.md` for complete documentation.
+
 ## API Naming Convention & Security
 
 The API implements a **secure method resolution system** that prevents arbitrary method execution:

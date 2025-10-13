@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "benchmesh-testing": {
+      "command": "python3",
+      "args": ["mcp_services/testing/server.py"],
+      "description": "BenchMesh comprehensive testing service",
+      "capabilities": [
+        "Backend pytest tests (unit + integration)",
+        "Frontend vitest tests",
+        "Electron app tests",
+        "Test discovery",
+        "Smart test running based on changed files"
+      ]
+    }
+  }
+}
