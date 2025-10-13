@@ -101,7 +101,9 @@ jobs:
           #### Electron Desktop Applications
           - **Linux**: AppImage (portable) or .deb (Debian/Ubuntu installer)
           - **Windows**: .exe installer or portable
-          - **macOS**: .dmg (drag-and-drop) or .zip
+          - **macOS**:
+            - Intel (x64): Download \`*-Intel-x64.dmg\` or \`*-Intel-x64.zip\`
+            - Apple Silicon (arm64): Download \`*-AppleSilicon-arm64.dmg\` or \`*-AppleSilicon-arm64.zip\`
 
           #### Self-Hosted Web Application
           - Download \`benchmesh-web-${{ needs.get-version.outputs.version }}.tar.gz\`
@@ -112,7 +114,7 @@ jobs:
           **Electron App:**
           - Linux: \`chmod +x BenchMesh-*.AppImage && ./BenchMesh-*.AppImage\`
           - Windows: Run the installer or portable .exe
-          - macOS: Open .dmg and drag to Applications
+          - macOS: Open appropriate .dmg for your processor (Intel x64 or Apple Silicon arm64) and drag to Applications
 
           **Self-Hosted:**
           \`\`\`bash
@@ -370,20 +372,36 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Find the actual DMG and ZIP files created
-          DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -1)
-          ZIP_FILE=$(find ./dist -name "*-mac.zip" -type f | head -1)
+          # Find and upload both Intel (x64) and Apple Silicon (arm64) builds
+          DMG_X64=$(find ./dist -name "*-mac-x64.dmg" -type f | head -1)
+          DMG_ARM64=$(find ./dist -name "*-mac-arm64.dmg" -type f | head -1)
+          ZIP_X64=$(find ./dist -name "*-mac-x64.zip" -type f | head -1)
+          ZIP_ARM64=$(find ./dist -name "*-mac-arm64.zip" -type f | head -1)
 
-          if [ -n "$DMG_FILE" ] && [ -f "$DMG_FILE" ]; then
-            gh release upload ${{ github.ref_name }} "$DMG_FILE#BenchMesh-${{ needs.get-version.outputs.version }}-macOS.dmg"
+          # Upload Intel (x64) builds
+          if [ -n "$DMG_X64" ] && [ -f "$DMG_X64" ]; then
+            gh release upload ${{ github.ref_name }} "$DMG_X64#BenchMesh-${{ needs.get-version.outputs.version }}-macOS-Intel-x64.dmg"
           else
-            echo "Warning: DMG file not found"
+            echo "Warning: Intel DMG file not found"
           fi
 
-          if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
-            gh release upload ${{ github.ref_name }} "$ZIP_FILE#BenchMesh-${{ needs.get-version.outputs.version }}-macOS.zip"
+          if [ -n "$ZIP_X64" ] && [ -f "$ZIP_X64" ]; then
+            gh release upload ${{ github.ref_name }} "$ZIP_X64#BenchMesh-${{ needs.get-version.outputs.version }}-macOS-Intel-x64.zip"
           else
-            echo "Warning: ZIP file not found"
+            echo "Warning: Intel ZIP file not found"
+          fi
+
+          # Upload Apple Silicon (arm64) builds
+          if [ -n "$DMG_ARM64" ] && [ -f "$DMG_ARM64" ]; then
+            gh release upload ${{ github.ref_name }} "$DMG_ARM64#BenchMesh-${{ needs.get-version.outputs.version }}-macOS-AppleSilicon-arm64.dmg"
+          else
+            echo "Warning: Apple Silicon DMG file not found"
+          fi
+
+          if [ -n "$ZIP_ARM64" ] && [ -f "$ZIP_ARM64" ]; then
+            gh release upload ${{ github.ref_name }} "$ZIP_ARM64#BenchMesh-${{ needs.get-version.outputs.version }}-macOS-AppleSilicon-arm64.zip"
+          else
+            echo "Warning: Apple Silicon ZIP file not found"
           fi
 
   build-self-hosted:
