@@ -138,7 +138,7 @@ class SerialManager:
                             self.t = t
                         def close(self):
                             self.t.close()
-                        def identify(self):
+                        def query_identify(self):
                             self.t.write_line('*IDN?')
                             return self.t.read_until_reol(1024)
                     drv = _Adapter(drv)

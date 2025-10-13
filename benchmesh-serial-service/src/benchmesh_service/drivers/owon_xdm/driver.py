@@ -6,15 +6,19 @@ class OWONXDM:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
         self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
-    def identify(self):
+    def query_identify(self):
         self.t.write_line('*IDN?')
+        return self.t.read_until_reol(1024)
+    
+    def set_reset(self):
+        self.t.write_line('*RST')
         return self.t.read_until_reol(1024)
 
     def poll_status(self, channel: int):
         query_measurement = self.query_measurement(1)
         num_str, sym, n = format_scientific_to_si(query_measurement)
         function = self.query_function(1)
-        raw = self.identify() or b""
+        raw = self.query_identify() or b""
         if not raw:
             return None
         print(num_str)

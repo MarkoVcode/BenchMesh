@@ -118,7 +118,7 @@ Different device classes support different methods:
 
 **Available Methods**:
 
-- `identify()` - Get device identification
+- `query_identify()` - Get device identification
 - `poll_status()` - Get current voltage, current, output state
 - `set_voltage(voltage: float, ch: int = 1)` - Set output voltage
 - `set_current(current: float, ch: int = 1)` - Set current limit
@@ -139,7 +139,7 @@ curl -X POST http://localhost:57666/api/call \
 
 **Available Methods**:
 
-- `identify()` - Get device identification
+- `query_identify()` - Get device identification
 - `poll_status()` - Get current measurement
 - `measure()` - Take a measurement
 - `set_mode(mode: str)` - Set measurement mode (voltage, current, resistance, etc.)
@@ -154,7 +154,7 @@ curl http://localhost:57666/instruments | jq '.[] | select(.id=="dmm-1") | .stat
 
 **Available Methods**:
 
-- `identify()` - Get device identification
+- `query_identify()` - Get device identification
 - `poll_status()` - Get current load status
 - `set_mode(mode: str)` - Set load mode (CC, CV, CR, CP)
 - `set_current(current: float)` - Set constant current

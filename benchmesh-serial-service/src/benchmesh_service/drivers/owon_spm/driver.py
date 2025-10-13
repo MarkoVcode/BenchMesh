@@ -6,8 +6,12 @@ class OWONSPM:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
         self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
-    def identify(self):
+    def query_identify(self):
         self.t.write_line('*IDN?')
+        return self.t.read_until_reol(1024)
+    
+    def set_reset(self):
+        self.t.write_line('*RST')
         return self.t.read_until_reol(1024)
 
     def query_output_voltage(self, channel: int):

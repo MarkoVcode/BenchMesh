@@ -19,12 +19,8 @@ class DeviceConnection:
     def identify(self) -> Optional[str]:
         if not self.driver:
             return None
-        if hasattr(self.driver, 'identify'):
-            return self.driver.identify()
-        t = getattr(self.driver, 't', None)
-        if t:
-            t.write_line('*IDN?')
-            return t.read_until_reol(256)
+        if hasattr(self.driver, 'query_identify'):
+            return self.driver.query_identify()
         return None
 
     def close(self):

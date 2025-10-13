@@ -4,8 +4,12 @@ class OwonOEL:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
         self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
-    def identify(self):
+    def query_identify(self):
         self.t.write_line('*IDN?')
+        return self.t.read_until_reol(1024)
+    
+    def set_reset(self):
+        self.t.write_line('*RST')
         return self.t.read_until_reol(1024)
 
     def query_status(self, channel: int):
@@ -93,17 +97,45 @@ class OwonOEL:
         self.t.write_line('INP?')
         return self.t.read_until_reol(1024)
     
-    def set_short(self, channel: int):
-        self.t.write_line('INP:SHOR ON')
+    def set_short(self, channel: int, value):  #ON/OFF
+        self.t.write_line('INP:SHOR ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def unset_short(self, channel: int):
-        self.t.write_line('INP:SHOR OFF')
-        return self.t.read_until_reol(1024)
-
     def query_short(self, channel: int):
         self.t.write_line('INP:SHOR?')
         return self.t.read_until_reol(1024)
+    
+    def set_res(self, channel: int, value):
+        self.t.write_line('RES ' + str(value))
+        return self.t.read_until_reol(1024)
+
+    def set_curr(self, channel: int, value):
+        self.t.write_line('CURR ' + str(value))
+        return self.t.read_until_reol(1024)
+
+    def set_volt(self, channel: int, value):
+        self.t.write_line('VOLT ' + str(value))
+        return self.t.read_until_reol(1024)
+    
+    def set_pow(self, channel: int, value):
+        self.t.write_line('POW ' + str(value))
+        return self.t.read_until_reol(1024)  
+
+    def query_res(self, channel: int):
+        self.t.write_line('RES?')
+        return self.t.read_until_reol(1024)
+
+    def query_curr(self, channel: int):
+        self.t.write_line('CURR?')
+        return self.t.read_until_reol(1024)
+
+    def query_volt(self, channel: int):
+        self.t.write_line('VOLT?')
+        return self.t.read_until_reol(1024)
+    
+    def query_pow(self, channel: int):
+        self.t.write_line('POW?')
+        return self.t.read_until_reol(1024) 
 
     def write(self, data: bytes):
         self.t.write(data)

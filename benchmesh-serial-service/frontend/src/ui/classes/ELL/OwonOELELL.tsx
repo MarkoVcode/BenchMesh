@@ -19,9 +19,34 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
   const [remoteMode, setRemoteMode] = useState(false)
   const [busyRemote, setBusyRemote] = useState(false)
   const [setpointValue, setSetpointValue] = useState<string>('')
+  const [busySetpoint, setBusySetpoint] = useState(false)
   const [voltage, setVoltage] = useState<number | null>(null)
   const [current, setCurrent] = useState<number | null>(null)
   const [power, setPower] = useState<number | null>(null)
+
+  // Function to fetch current setpoint value for a given mode
+  const fetchSetpointValue = async (modeKey: string) => {
+    if (!klass || !deviceId || !modeKey) return
+
+    try {
+      const ch = channel || '1'
+      const modeKeyLower = modeKey.toLowerCase()
+      const url = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/query_${modeKeyLower}`
+      const resp = await fetch(url)
+      if (!resp.ok) return
+
+      // Response comes as JSON with "value" field
+      const json = await resp.json()
+      if (json && typeof json.value !== 'undefined') {
+        const numVal = parseFloat(json.value)
+        if (!isNaN(numVal)) {
+          setSetpointValue(String(numVal))
+        }
+      }
+    } catch (err) {
+      console.debug(`Failed to fetch setpoint for mode ${modeKey}:`, err)
+    }
+  }
 
   // Monitor WebSocket registry for remote mode, input status, current mode, and readings
   useEffect(() => {
@@ -46,7 +71,12 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       }
 
       if (typeof status.MODE === 'string' && status.MODE !== mode) {
-        setMode(status.MODE)
+        const newMode = status.MODE
+        setMode(newMode)
+        // Fetch setpoint value when mode changes from WebSocket
+        if (Object.keys(modes).length > 0 && modes[newMode]?.setpoint && !setpointValue) {
+          fetchSetpointValue(newMode)
+        }
       }
 
       // Update readings from registry
@@ -62,7 +92,7 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
         setPower(status.POUT)
       }
     }
-  }, [registry, deviceId, channel, mode])
+  }, [registry, deviceId, channel, mode, modes, setpointValue])
 
   // Register measurement sources
   useEffect(() => {
@@ -137,6 +167,12 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     try {
       const ch = channel || '1'
       await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+
+      // After mode change, fetch the current setpoint value for this mode
+      // Only fetch if the new mode has a setpoint definition (not DYN)
+      if (modes[newMode]?.setpoint) {
+        setTimeout(() => fetchSetpointValue(newMode), 500) // Small delay to let device update
+      }
     } catch (err) {
       console.debug('Mode change failed', err)
     } finally {
@@ -173,6 +209,30 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       console.debug('Remote toggle failed', err)
     } finally {
       setBusyRemote(false)
+    }
+  }
+
+  const handleSetpointSet = async () => {
+    if (!klass || !deviceId || busySetpoint || !setpointValue || !mode) return
+
+    const numVal = parseFloat(setpointValue)
+    if (isNaN(numVal)) return
+
+    // Validate against min/max
+    const setpoint = modes[mode]?.setpoint
+    if (!setpoint) return
+    if (numVal < setpoint.min || numVal > setpoint.max) return
+
+    setBusySetpoint(true)
+    try {
+      const ch = channel || '1'
+      // Convert mode to lowercase (CURR -> curr, VOLT -> volt, RES -> res, POW -> pow)
+      const modeKey = mode.toLowerCase()
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_${modeKey}/${numVal}`, { method: 'POST' })
+    } catch (err) {
+      console.debug('Setpoint set failed', err)
+    } finally {
+      setBusySetpoint(false)
     }
   }
 
@@ -242,46 +302,64 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
 
               {/* Setpoint input - only show if current mode has a setpoint definition */}
               {mode && modes[mode]?.setpoint && (
-                <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto', width: '100%', marginTop: '12px' }}>
-                  <div className="psu-label">
-                    <span className="psu-symbol">{modes[mode].setpoint.symbol}</span>
-                    <span className="psu-unit">[{modes[mode].setpoint.unit}]</span>
+                <div style={{ marginTop: '12px', width: '100%' }}>
+                  <div className="psu-block" style={{ gridTemplateColumns: 'auto 0.5fr auto auto', width: '100%' }}>
+                    <div className="psu-label">
+                      <span className="psu-symbol">{modes[mode].setpoint.symbol}</span>
+                      <span className="psu-unit">[{modes[mode].setpoint.unit}]</span>
+                    </div>
+                    <input
+                      type="text"
+                      className="psu-number editable"
+                      value={setpointValue}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        // Only allow numbers and decimal point
+                        if (/^[0-9]*\.?[0-9]*$/.test(val)) {
+                          setSetpointValue(val)
+                        }
+                      }}
+                      onBlur={() => {
+                        // Validate against min/max
+                        const numVal = parseFloat(setpointValue)
+                        if (!isNaN(numVal)) {
+                          const { min, max } = modes[mode].setpoint
+                          if (numVal < min) setSetpointValue(String(min))
+                          else if (numVal > max) setSetpointValue(String(max))
+                        }
+                      }}
+                      title={`Min: ${modes[mode].setpoint.min}, Max: ${modes[mode].setpoint.max}`}
+                      style={{
+                        width: '100%',
+                        padding: '4px 8px',
+                        background: 'rgba(255,255,255,.03)',
+                        border: '1px solid rgba(255,255,255,.25)',
+                        borderRadius: '4px',
+                        color: '#c26a1a',
+                        fontVariantNumeric: 'tabular-nums',
+                        fontWeight: 700,
+                        fontSize: '16px'
+                      }}
+                    />
+                    <button
+                      className="psu-set"
+                      type="button"
+                      disabled={busySetpoint || !setpointValue}
+                      title={`POST ${apiBase}/instruments/${klass || 'ELL'}/${deviceId || '{id}'}/${channel || '1'}/set_${mode.toLowerCase()}/${setpointValue}`}
+                      onClick={handleSetpointSet}
+                    >
+                      {busySetpoint ? (<><span className="spinner"/>SET</>) : 'SET'}
+                    </button>
+                    <span className="psu-api" title={`POST /instruments/${klass || 'ELL'}/${deviceId || '{id}'}/${channel || '1'}/set_${mode.toLowerCase()}/{value}`}>API</span>
                   </div>
-                  <input
-                    type="text"
-                    className="psu-number editable"
-                    value={setpointValue}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      // Only allow numbers and decimal point
-                      if (/^[0-9]*\.?[0-9]*$/.test(val)) {
-                        setSetpointValue(val)
-                      }
-                    }}
-                    onBlur={() => {
-                      // Validate against min/max
-                      const numVal = parseFloat(setpointValue)
-                      if (!isNaN(numVal)) {
-                        const { min, max } = modes[mode].setpoint
-                        if (numVal < min) setSetpointValue(String(min))
-                        else if (numVal > max) setSetpointValue(String(max))
-                      }
-                    }}
-                    placeholder={`${modes[mode].setpoint.min} - ${modes[mode].setpoint.max}`}
-                    title={`Min: ${modes[mode].setpoint.min}, Max: ${modes[mode].setpoint.max}`}
-                    style={{
-                      width: '100%',
-                      padding: '4px 8px',
-                      background: 'rgba(255,255,255,.03)',
-                      border: '1px solid rgba(255,255,255,.25)',
-                      borderRadius: '4px',
-                      color: '#c26a1a',
-                      fontVariantNumeric: 'tabular-nums',
-                      fontWeight: 700,
-                      fontSize: '16px'
-                    }}
-                  />
-                  <span className="psu-api" title="Setpoint configuration">SET</span>
+                  <div style={{
+                    fontSize: '11px',
+                    color: 'var(--text-2)',
+                    marginTop: '4px',
+                    marginLeft: '100px'
+                  }}>
+                    Range: {modes[mode].setpoint.min} - {modes[mode].setpoint.max} {modes[mode].setpoint.unit}
+                  </div>
                 </div>
               )}
 

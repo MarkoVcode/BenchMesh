@@ -58,14 +58,14 @@ def test_identify_empty_and_partial_responses_do_not_set_idn(manual_clock):
             assert not ser._written
         # Advance to allow identify and ensure empty identify does not set IDN
         manual_clock.advance(m.policy.identify_interval)
-        # Force driver identify to return empty string
+        # Force driver query_identify to return empty string
         drv = m.connections[dev_id]
-        setattr(drv, 'identify', lambda: '')
+        setattr(drv, 'query_identify', lambda: '')
         m._open_or_identify(dev)
         assert m.registry[dev_id].get('IDN') is None
         # Now force a proper identify response
         manual_clock.advance(m.policy.identify_interval)
-        setattr(drv, 'identify', lambda: 'OK,MODEL,SN')
+        setattr(drv, 'query_identify', lambda: 'OK,MODEL,SN')
         m._open_or_identify(dev)
         assert m.registry[dev_id].get('IDN') == 'OK,MODEL,SN'
 
