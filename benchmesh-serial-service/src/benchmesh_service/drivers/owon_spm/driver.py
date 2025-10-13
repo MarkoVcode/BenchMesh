@@ -95,14 +95,6 @@ class OWONSPM:
         self.t.write_line('CURR ' + str(value))
         return self.t.read_until_reol(1024)
 
-    def set_remote(self, channel: int):               #not sure about the usecase
-        self.t.write_line('SYST:REM')
-        return self.t.read_until_reol(1024)
-
-    def unset_remote(self, channel: int):             #not sure about the usecase
-        self.t.write_line('SYST:LOC')
-        return self.t.read_until_reol(1024)        
-
     def set_ocp_value(self, channel: int, value):
         self.t.write_line('CURR:LIM ' + str(value))
         return self.t.read_until_reol(1024)

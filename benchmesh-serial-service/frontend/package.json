@@ -2,6 +2,7 @@
   "name": "benchmesh-ui",
   "private": true,
   "version": "0.0.51",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

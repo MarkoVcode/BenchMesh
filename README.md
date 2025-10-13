@@ -185,3 +185,23 @@ Notes
 - Results are printed as JSON when the return type is a collection; otherwise as text.
 - Bytes responses are decoded to text when possible.
 
+## License
+
+BenchMesh is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+This means you are free to:
+- ✓ Use BenchMesh commercially
+- ✓ Modify the source code
+- ✓ Distribute copies
+- ✓ Use it privately
+
+The only requirement is to include the copyright notice and license terms in any substantial portions of the software.
+
+### Third-Party Dependencies
+
+BenchMesh uses several open source libraries. All dependencies use permissive licenses (MIT, BSD-3-Clause, Apache-2.0) that are fully compatible with commercial and private use. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for complete license information.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
+

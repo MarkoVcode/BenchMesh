@@ -2,6 +2,7 @@
   "name": "benchmesh-electron",
   "version": "0.0.51",
   "description": "BenchMesh Electron Wrapper - Desktop application for instrument control and automation",
+  "license": "MIT",
   "homepage": "https://github.com/yourusername/BenchMesh",
   "author": {
     "name": "BenchMesh Team",
