@@ -145,6 +145,51 @@ def _get_driver_or_error(device_id: str):
     return drv
 
 
+def _resolve_method_name(driver: Any, partial_name: str, http_method: str) -> str:
+    """
+    Resolve partial method names to full driver method names based on HTTP verb.
+
+    For GET requests: ONLY allows "query_{name}" pattern
+    For POST requests: ONLY allows "set_{name}" pattern
+
+    This security measure prevents arbitrary method execution on driver objects,
+    including private methods or methods not intended for API exposure.
+
+    Args:
+        driver: The driver instance
+        partial_name: The partial method name (e.g., "voltage", "current")
+        http_method: The HTTP method ("GET" or "POST")
+
+    Returns:
+        The resolved method name that exists on the driver
+
+    Raises:
+        HTTPException: If no valid method is found
+    """
+    # Determine the required prefix based on HTTP method
+    if http_method == "GET":
+        prefixed = f"query_{partial_name}"
+    elif http_method == "POST":
+        prefixed = f"set_{partial_name}"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported HTTP method: {http_method}"
+        )
+
+    # Only allow the prefixed version - no arbitrary method calls
+    if hasattr(driver, prefixed) and callable(getattr(driver, prefixed)):
+        return prefixed
+
+    # Method not found
+    raise HTTPException(
+        status_code=400,
+        detail=f"Method '{prefixed}' not found on driver. " +
+               f"Driver must implement {http_method.lower()} methods with appropriate prefix " +
+               f"('query_' for GET, 'set_' for POST)"
+    )
+
+
 @app.get("/", include_in_schema=False)
 def root():
     # If static UI is mounted, redirect there. Otherwise, assume dev server on 52893.
@@ -422,14 +467,15 @@ def call_driver_get(klass: str, device_id: str, channel: str, method: str):
         raise HTTPException(status_code=404, detail="Unknown device id")
 
     drv = _get_driver_or_error(device_id)
-    if not hasattr(drv, method) or not callable(getattr(drv, method)):
-        raise HTTPException(status_code=400, detail="Unknown or non-callable driver method")
+
+    # Resolve method name (e.g., "voltage" -> "query_voltage")
+    resolved_method = _resolve_method_name(drv, method, "GET")
 
     # Execute under device lock to avoid races with polling
     lock = _manager.dev_locks.get(device_id) if _manager else None
     import inspect
     ch = int(channel)
-    func = getattr(drv, method)
+    func = getattr(drv, resolved_method)
     try:
         if lock:
             with lock:
@@ -467,13 +513,14 @@ def call_driver_post(klass: str, device_id: str, channel: str, method: str, para
         raise HTTPException(status_code=404, detail="Unknown device id")
 
     drv = _get_driver_or_error(device_id)
-    if not hasattr(drv, method) or not callable(getattr(drv, method)):
-        raise HTTPException(status_code=400, detail="Unknown or non-callable driver method")
+
+    # Resolve method name (e.g., "current" -> "set_current")
+    resolved_method = _resolve_method_name(drv, method, "POST")
 
     import inspect
     arg = _coerce_arg(param)
     ch = int(channel)
-    func = getattr(drv, method)
+    func = getattr(drv, resolved_method)
 
     lock = _manager.dev_locks.get(device_id) if _manager else None
     try:

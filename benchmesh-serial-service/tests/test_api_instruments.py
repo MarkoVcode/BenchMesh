@@ -17,8 +17,8 @@ class FakeDriver:
         self.calls = []
         self.last_arg = None
 
-    def identify(self):
-        self.calls.append(("identify", ()))
+    def query_identify(self):
+        self.calls.append(("query_identify", ()))
         return "FAKE,IDN"
 
     def set_output(self, ch, v):
@@ -54,18 +54,20 @@ def client_with_fake_mgr(monkeypatch):
 
 def test_get_instrument_method_success(client_with_fake_mgr):
     client, fake = client_with_fake_mgr
+    # Use partial name - API will resolve to query_identify
     path = "/instruments/PSU/tenmapsu-1/1/identify"
     r = client.get(path)
     assert r.status_code == 200
     body = r.json()
     assert body["path"] == path
     assert body["value"] == "FAKE,IDN"
-    assert ("identify", ()) in fake.connections["tenmapsu-1"].calls
+    assert ("query_identify", ()) in fake.connections["tenmapsu-1"].calls
 
 
 def test_post_instrument_method_success_with_param(client_with_fake_mgr):
     client, fake = client_with_fake_mgr
-    r = client.post("/instruments/PSU/tenmapsu-1/1/set_output/true")
+    # Use partial name - API will resolve to set_output
+    r = client.post("/instruments/PSU/tenmapsu-1/1/output/true")
     assert r.status_code == 204
     drv = fake.connections["tenmapsu-1"]
     assert drv.last_arg is True
@@ -95,8 +97,9 @@ def test_method_exception_returns_400(monkeypatch):
     fake = FakeManager()
     # Replace driver with one that raises
     fake.connections["tenmapsu-1"] = FakeDriver()
-    setattr(fake.connections["tenmapsu-1"], "identify", fake.connections["tenmapsu-1"].blow_up)
+    setattr(fake.connections["tenmapsu-1"], "query_identify", fake.connections["tenmapsu-1"].blow_up)
     monkeypatch.setattr(api, "_make_manager", lambda: fake)
     with TestClient(api.app) as client:
+        # Use partial name - API will resolve to query_identify
         r = client.get("/instruments/PSU/tenmapsu-1/1/identify")
         assert r.status_code == 400

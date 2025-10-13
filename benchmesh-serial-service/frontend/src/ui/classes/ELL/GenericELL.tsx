@@ -84,7 +84,7 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
     const k = klass || 'ELL'
     const did = deviceId || '{id}'
     const ch = channel || '1'
-    return `/instruments/${k}/${did}/${ch}/set_mode/{value}`
+    return `/instruments/${k}/${did}/${ch}/mode/{value}`
   }, [klass, deviceId, channel])
 
   const handleModeChange = async (newMode: string) => {
@@ -93,7 +93,8 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
     setBusy(true)
     try {
       const ch = channel || '1'
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+      // Use partial name - API will resolve to set_mode
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
     } catch (err) {
       console.debug('Mode change failed', err)
     } finally {
@@ -108,7 +109,8 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
       const ch = channel || '1'
       const next = !inputEnabled
       const cmd = next ? 'ON' : 'OFF'
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_input/${cmd}`, { method: 'POST' })
+      // Use partial name - API will resolve to set_input
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/input/${cmd}`, { method: 'POST' })
       setInputEnabled(next)
     } catch (err) {
       console.debug('Input toggle failed', err)
@@ -149,7 +151,7 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
               className={`psu-set psu-output ${inputEnabled ? 'danger' : ''}`}
               style={{ width: '100%', padding: '8px 12px', fontSize: '12px' }}
               onClick={handleInputToggle}
-              title={`POST ${apiBase}/instruments/${klass || 'ELL'}/${deviceId || '{id}'}/${channel || '1'}/set_input/${inputEnabled ? 'OFF' : 'ON'}`}
+              title={`POST ${apiBase}/instruments/${klass || 'ELL'}/${deviceId || '{id}'}/${channel || '1'}/input/${inputEnabled ? 'OFF' : 'ON'}`}
             >
               {busyInput ? (<><span className="spinner"/>{inputEnabled ? 'DISABLE INPUT' : 'ENABLE INPUT'}</>) : (inputEnabled ? 'DISABLE INPUT' : 'ENABLE INPUT')}
             </button>

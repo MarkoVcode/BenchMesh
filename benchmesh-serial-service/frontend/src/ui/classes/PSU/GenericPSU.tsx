@@ -115,11 +115,12 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
             try {
               const next = !outputEnabled
               const cmd = next ? 'ON' : 'OFF'
-              await fetch(`${apiBase}${channelPath}/set_output/${cmd}`, { method: 'POST' })
+              // Use partial name - API will resolve to set_output
+              await fetch(`${apiBase}${channelPath}/output/${cmd}`, { method: 'POST' })
               setOutputEnabled(next)
             } catch {} finally { setBusyOutput(false) }
           }}
-          title={`POST ${channelPath}/set_output/${outputEnabled ? 'OFF' : 'ON'}`}
+          title={`POST ${channelPath}/output/${outputEnabled ? 'OFF' : 'ON'}`}
         >
           {busyOutput ? (<><span className="spinner"/>{outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}</>) : (outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT')}
         </button>

@@ -31,7 +31,8 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     try {
       const ch = channel || '1'
       const modeKeyLower = modeKey.toLowerCase()
-      const url = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/query_${modeKeyLower}`
+      // Use partial name - API will resolve to query_{mode}
+      const url = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/${modeKeyLower}`
       const resp = await fetch(url)
       if (!resp.ok) return
 
@@ -166,7 +167,8 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     setBusy(true)
     try {
       const ch = channel || '1'
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+      // Use partial name - API will resolve to set_mode
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
 
       // After mode change, fetch the current setpoint value for this mode
       // Only fetch if the new mode has a setpoint definition (not DYN)
@@ -187,7 +189,8 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       const ch = channel || '1'
       const next = !inputEnabled
       const cmd = next ? 'ON' : 'OFF'
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_input/${cmd}`, { method: 'POST' })
+      // Use partial name - API will resolve to set_input
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/input/${cmd}`, { method: 'POST' })
       // Don't optimistically set state - wait for WebSocket update
     } catch (err) {
       console.debug('Input toggle failed', err)
@@ -203,7 +206,8 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       const ch = channel || '1'
       const next = !remoteMode
       const cmd = next ? 'ON' : 'OFF'
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_remote/${cmd}`, { method: 'POST' })
+      // Use partial name - API will resolve to set_remote
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/remote/${cmd}`, { method: 'POST' })
       // Don't optimistically set state - wait for WebSocket update
     } catch (err) {
       console.debug('Remote toggle failed', err)
@@ -227,8 +231,9 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     try {
       const ch = channel || '1'
       // Convert mode to lowercase (CURR -> curr, VOLT -> volt, RES -> res, POW -> pow)
+      // Use partial name - API will resolve to set_{mode}
       const modeKey = mode.toLowerCase()
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_${modeKey}/${numVal}`, { method: 'POST' })
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/${modeKey}/${numVal}`, { method: 'POST' })
     } catch (err) {
       console.debug('Setpoint set failed', err)
     } finally {

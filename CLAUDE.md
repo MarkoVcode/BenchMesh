@@ -130,6 +130,31 @@ GitHub Actions runs on all branches and PRs:
 - Backend tests: `pytest benchmesh-serial-service/tests`
 - Frontend tests: `npx vitest run --reporter=dot`
 
+## API Naming Convention & Security
+
+The API implements a **secure method resolution system** that prevents arbitrary method execution:
+
+### GET Requests (Query)
+Partial method names are **strictly** resolved to `query_*` methods only:
+- `GET /instruments/PSU/device-1/1/voltage` → calls `driver.query_voltage(1)`
+- `GET /instruments/DMM/device-2/1/current` → calls `driver.query_current(1)`
+
+### POST Requests (Set)
+Partial method names are **strictly** resolved to `set_*` methods only:
+- `POST /instruments/PSU/device-1/1/current/2.5` → calls `driver.set_current(1, 2.5)`
+- `POST /instruments/ELL/device-3/1/mode/CURR` → calls `driver.set_mode(1, "CURR")`
+
+### Security Features
+1. **No Arbitrary Method Execution**: Only methods with `query_` or `set_` prefixes can be called via API
+2. **No Private Method Access**: Methods like `_internal_method()` or `__init__()` cannot be accessed
+3. **HTTP Verb Enforcement**: GET only allows query methods, POST only allows set methods
+4. **Protection Against Mistakes**: Cannot accidentally call setters with GET or queries with POST
+
+**Example of what is NOT allowed (security protection):**
+- `GET /instruments/PSU/device-1/1/poll_status` → **Rejected** (no query_poll_status)
+- `POST /instruments/PSU/device-1/1/_private_method/value` → **Rejected** (private method)
+- `GET /instruments/PSU/device-1/1/set_voltage` → **Rejected** (setter on GET request)
+
 ## Configuration System
 
 Devices are defined in `config.yaml` (YAML v1 schema):
@@ -160,11 +185,18 @@ Manifest aliases in `serial_manager.py` and `manifest_resolver.py` map legacy dr
 2. Create `driver.py` with a class exposing:
    - `query_identify()` → returns IDN string
    - `poll_status()` → returns status dict
-   - Device-specific control methods
+   - Device-specific control methods following naming convention:
+     - Read methods: `query_voltage()`, `query_current()`, `query_status()`, etc.
+     - Write methods: `set_voltage()`, `set_current()`, `set_mode()`, etc.
 3. Create `manifest.json` defining models, classes, polling config, and EOL characters
 4. Update `drivers/classes.json` if adding new 3-letter class codes
 5. Add driver instantiation logic to `driver_factory.py` if needed
 6. Create tests in `tests/` using pytest and mock serial communication
+
+**Driver Naming Convention:**
+- **Query methods** (read): prefix with `query_` (e.g., `query_voltage`, `query_current`)
+- **Setter methods** (write): prefix with `set_` (e.g., `set_voltage`, `set_current`)
+- This enables the API's smart resolution: GET `/voltage` → `query_voltage()`, POST `/current/2.5` → `set_current()`
 
 Driver should accept `transport: SerialTransport` in constructor and use it for all communication.
 
@@ -176,7 +208,9 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - `poll_worker.py`: DeviceWorker runs per-device polling loop in dedicated thread
 - `registry.py`: DeviceRegistry thread-safe storage for device IDN and status
 - `transport.py`: SerialTransport wraps pyserial with EOL handling
-- `api.py`: FastAPI app with endpoints `/status`, `/instruments`, `/api/call`, and WebSocket `/ws`
+- `api.py`: FastAPI app with endpoints `/status`, `/instruments`, instrument control endpoints, and WebSocket `/ws`
+  - Implements **secure** method resolution: GET requests resolve `voltage` → `query_voltage`, POST requests resolve `current` → `set_current`
+  - Prevents arbitrary method execution - only `query_*` and `set_*` methods can be called via API
 - `connection.py`: DeviceConnection tracks connection state per device
 - `reconnect.py`: ReconnectPolicy implements backoff strategy
 

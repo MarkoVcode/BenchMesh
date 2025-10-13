@@ -137,7 +137,8 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     setBusy(true)
     try {
       const ch = channel || '1'
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+      // Use partial name - API will resolve to set_mode
+      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
     } catch (err) {
       console.debug('Mode change failed', err)
     } finally {
