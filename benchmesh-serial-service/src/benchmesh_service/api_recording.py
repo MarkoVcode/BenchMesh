@@ -175,24 +175,32 @@ def create_recording_router() -> APIRouter:
             RecordingSeries.start_time.desc()
         ).all()
 
-        return {
-            "recordings": [
-                {
-                    "id": s.id,
-                    "name": s.name,
-                    "description": s.description,
-                    "start_time": s.start_time.isoformat(),
-                    "end_time": s.end_time.isoformat() if s.end_time else None,
-                    "interval_seconds": s.interval_seconds,
-                    "channels": json.loads(s.channels),
-                    "total_duration_seconds": s.total_duration_seconds,
-                    "pause_duration_seconds": s.pause_duration_seconds,
-                    "paused_at": s.paused_at.isoformat() if s.paused_at else None,
-                    "status": "paused" if s.paused_at else ("stopped" if s.end_time else "recording")
-                }
-                for s in series_list
-            ]
-        }
+        # Calculate total duration for each recording
+        recordings = []
+        for s in series_list:
+            # Calculate total duration (excluding pauses)
+            if s.end_time:
+                # Recording stopped: use actual duration
+                total_duration = (s.end_time - s.start_time).total_seconds() - s.pause_duration_seconds
+            else:
+                # Recording active: use current time
+                total_duration = (datetime.utcnow() - s.start_time).total_seconds() - s.pause_duration_seconds
+
+            recordings.append({
+                "id": s.id,
+                "name": s.name,
+                "description": s.description,
+                "start_time": s.start_time.isoformat(),
+                "end_time": s.end_time.isoformat() if s.end_time else None,
+                "interval_seconds": s.interval_seconds,
+                "channels": json.loads(s.channels),
+                "total_duration_seconds": max(0, total_duration),  # Ensure non-negative
+                "pause_duration_seconds": s.pause_duration_seconds,
+                "paused_at": s.paused_at.isoformat() if s.paused_at else None,
+                "status": "paused" if s.paused_at else ("stopped" if s.end_time else "recording")
+            })
+
+        return {"recordings": recordings}
 
     @router.get("/{series_id}")
     async def get_recording(series_id: int, db: Session = Depends(get_db)):
@@ -318,7 +326,7 @@ def create_recording_router() -> APIRouter:
             # Empty CSV with just headers
             channels = json.loads(series.channels)
             fieldnames = ["timestamp"] + [
-                f"{ch['device_id']}.{ch['parameter']}" for ch in channels
+                f"{ch['device_id']}_{ch['class_name']}_{ch['channel']}_{ch['method_name']}" for ch in channels
             ]
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()

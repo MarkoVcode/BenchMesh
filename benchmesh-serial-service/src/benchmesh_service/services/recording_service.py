@@ -50,7 +50,7 @@ class RecordingService:
         Args:
             db: Database session
             name: Unique name for the recording
-            channels: List of channel definitions with device_id, parameter, label
+            channels: List of channel definitions with device_id, class_name, channel, method_name, label
             interval_seconds: Data collection interval in seconds
             description: Optional description
 
@@ -294,21 +294,26 @@ class RecordingService:
 
                 for channel in channels:
                     device_id = channel["device_id"]
-                    parameter = channel["parameter"]
-                    key = f"{device_id}.{parameter}"
+                    class_name = channel["class_name"]
+                    channel_num = channel["channel"]
+                    method_name = channel["method_name"]
+
+                    # Key format matches frontend: device_id_class_name_channel_method_name
+                    key = f"{device_id}_{class_name}_{channel_num}_{method_name}"
 
                     try:
-                        # Get driver and query parameter
+                        # Get driver and query method
                         if self.serial_manager:
                             driver = self.serial_manager.get_driver(device_id)
                             if driver:
-                                method_name = f"query_{parameter}"
-                                if hasattr(driver, method_name):
-                                    value = getattr(driver, method_name)()
+                                query_method = f"query_{method_name}"
+                                if hasattr(driver, query_method):
+                                    # Call the method with channel number as parameter
+                                    value = getattr(driver, query_method)(channel_num)
                                     measurements[key] = value
                     except Exception as e:
                         logger.warning(
-                            f"Error reading {parameter} from {device_id}: {e}"
+                            f"Error reading {method_name} from {device_id} channel {channel_num}: {e}"
                         )
 
                 # Store data point if we got any measurements
