@@ -61,6 +61,16 @@ cp "$DOCS_DIR/Getting-Started.md" "$TEMP_WIKI_DIR/"
 cp "$DOCS_DIR/Configuration.md" "$TEMP_WIKI_DIR/"
 cp "$DOCS_DIR/Automation.md" "$TEMP_WIKI_DIR/"
 cp "$DOCS_DIR/API-Reference.md" "$TEMP_WIKI_DIR/"
+cp "$DOCS_DIR/Architecture.md" "$TEMP_WIKI_DIR/"
+cp "$DOCS_DIR/Deployment.md" "$TEMP_WIKI_DIR/"
+cp "$DOCS_DIR/Driver-Development.md" "$TEMP_WIKI_DIR/"
+cp "$DOCS_DIR/Testing.md" "$TEMP_WIKI_DIR/"
+cp "$DOCS_DIR/Troubleshooting.md" "$TEMP_WIKI_DIR/"
+
+# Copy static assets (images, etc.)
+echo "Copying static assets..."
+mkdir -p "$TEMP_WIKI_DIR/static"
+cp -r "$DOCS_DIR/static/"* "$TEMP_WIKI_DIR/static/"
 
 # Navigate to wiki directory
 cd "$TEMP_WIKI_DIR"
@@ -74,8 +84,8 @@ fi
 
 # Commit and push changes
 echo "Committing changes..."
-git add *.md
-git commit -m "Update documentation from main repository"
+git add *.md static/
+git commit -m "Update documentation and assets from main repository"
 
 echo "Pushing to wiki..."
 git push origin master
