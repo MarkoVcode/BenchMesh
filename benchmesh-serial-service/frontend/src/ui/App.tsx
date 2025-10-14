@@ -4,6 +4,7 @@ import { MeasurementProvider } from './MeasurementContext'
 import { MeasurementStatusBar } from './MeasurementStatusBar'
 import { ConfigModal } from './ConfigModal'
 import { DocsViewer } from './DocsViewer'
+import { RecordingModal } from './recording/RecordingModal'
 
 function useApiBase() {
   // API is served by FastAPI app; assume same origin during production.
@@ -129,6 +130,7 @@ export default function App() {
   const { registry, wsDiag } = useRegistrySocket(apiBase)
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [docsModalOpen, setDocsModalOpen] = useState(false)
+  const [recordingModalOpen, setRecordingModalOpen] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
 
@@ -166,6 +168,13 @@ export default function App() {
             </button>
             <button
               className="config-button"
+              onClick={() => setRecordingModalOpen(true)}
+              title="Data Recording"
+            >
+              📊 Recording
+            </button>
+            <button
+              className="config-button"
               onClick={() => setDocsModalOpen(true)}
               title="View Documentation"
             >
@@ -189,6 +198,13 @@ export default function App() {
           onClose={() => setConfigModalOpen(false)}
           apiBase={apiBase}
           onConfigUpdated={handleConfigUpdated}
+        />
+
+        <RecordingModal
+          isOpen={recordingModalOpen}
+          onClose={() => setRecordingModalOpen(false)}
+          apiBase={apiBase}
+          instruments={instruments || []}
         />
 
         {docsModalOpen && (
