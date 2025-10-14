@@ -138,7 +138,7 @@ echo "   http://localhost:57666/ui/"
 echo "   Press Ctrl+Shift+R to hard refresh"
 ```
 
-Save as `verify_automation.sh`, make executable with `chmod +x`, then run `./verify_automation.sh`
+Save as `scripts/verify-automation.sh`, make executable with `chmod +x`, then run `./scripts/verify-automation.sh`
 
 ## Success Criteria
 

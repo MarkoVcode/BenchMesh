@@ -73,7 +73,7 @@ def test_real_device_connection():
 
 **Purpose**: Test complete user workflows
 
-**Location**: `test_automation_ui.sh`, `/RESTART_AND_TEST.sh`
+**Location**: `scripts/test-automation-ui.sh`, `scripts/restart-and-test.sh`
 
 **Characteristics**:
 - Tests full stack (backend + frontend)

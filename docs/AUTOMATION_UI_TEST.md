@@ -192,4 +192,4 @@ echo "   URL: http://localhost:57666/ui/"
 echo "   Open console (F12) to see logs"
 ```
 
-Save this to `test_automation_ui.sh` and run it to check the current state!
+Save this to `scripts/test-automation-ui.sh` and run it to check the current state!
