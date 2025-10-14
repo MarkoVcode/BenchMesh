@@ -289,6 +289,9 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - always MUST follow single responsibility principle
 - differentiate between unit tests and integration tests - integration tests should NOT run in GitHub Actions (reserve for local/staging testing only)
 - all new unit tests that are suitable for GitHub Actions execution must be automatically added to the CI workflow
+- when you add or remove dependency update THIRD-PARTY-NOTICES.md
+- when you create any temporary or tool scripts place them always in scripts folder
+- always verify CI tests localy
 
 
 # Claude's Working Philosophy and Memory System

@@ -41,6 +41,16 @@ BenchMesh includes or depends upon third-party software components that are dist
 - **Copyright**: Copyright © 2019, Encode OSS Ltd.
 - **URL**: https://github.com/encode/httpx
 
+### SQLAlchemy
+- **License**: MIT
+- **Copyright**: Copyright (c) 2005-2024 Michael Bayer and contributors
+- **URL**: https://github.com/sqlalchemy/sqlalchemy
+
+### websockets
+- **License**: BSD-3-Clause
+- **Copyright**: Copyright (c) 2013-2024 Aymeric Augustin and contributors
+- **URL**: https://github.com/python-websockets/websockets
+
 ---
 
 ## Node.js Dependencies
@@ -73,6 +83,21 @@ BenchMesh includes or depends upon third-party software components that are dist
 - **License**: Apache-2.0
 - **Copyright**: Copyright 2023 SmartBear Software
 - **URL**: https://github.com/swagger-api/swagger-ui
+
+### echarts
+- **License**: Apache-2.0
+- **Copyright**: Copyright (c) 2017-2024 The Apache Software Foundation
+- **URL**: https://github.com/apache/echarts
+
+### echarts-for-react
+- **License**: MIT
+- **Copyright**: Copyright (c) 2016 hustcc
+- **URL**: https://github.com/hustcc/echarts-for-react
+
+### axios
+- **License**: MIT
+- **Copyright**: Copyright (c) 2014-present Matt Zabriskie and contributors
+- **URL**: https://github.com/axios/axios
 
 ---
 
