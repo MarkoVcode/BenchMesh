@@ -118,7 +118,7 @@ tar -czf benchmesh-web-1.0.0.tar.gz \
   package.json \
   package-lock.json \
   README.md \
-  STARTUP.md
+  docs
 
 # Generate checksum
 sha256sum benchmesh-web-1.0.0.tar.gz > checksums.txt

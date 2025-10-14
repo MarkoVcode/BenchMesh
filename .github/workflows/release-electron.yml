@@ -453,8 +453,7 @@ jobs:
           cp package.json dist-web/benchmesh/
           cp package-lock.json dist-web/benchmesh/
           cp README.md dist-web/benchmesh/
-          cp STARTUP.md dist-web/benchmesh/
-          cp DISTRIBUTION.md dist-web/benchmesh/
+          cp -r docs dist-web/benchmesh/
 
           # Create installation script
           cat > dist-web/benchmesh/install.sh << 'EOF'

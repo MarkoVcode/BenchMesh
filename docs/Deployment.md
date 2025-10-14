@@ -18,9 +18,202 @@ This guide covers deploying BenchMesh for production use, including systemd serv
 BenchMesh can be deployed in several ways:
 
 1. **Local Service** - Run directly on the hardware with instruments
-2. **Systemd Service** - Auto-start on boot with systemd
-3. **Docker Container** - Containerized deployment
-4. **Remote Access** - Expose via reverse proxy with SSL
+2. **Electron Desktop App** - Standalone desktop application for Windows/Mac/Linux
+3. **Systemd Service** - Auto-start on boot with systemd
+4. **Docker Container** - Containerized deployment
+5. **Remote Access** - Expose via reverse proxy with SSL
+
+## Electron Desktop Application
+
+BenchMesh can be packaged as a standalone desktop application using Electron, providing a native app experience for Windows, macOS, and Linux.
+
+###Overview
+
+**Distribution modes**:
+- **Self-hosted** (web): Traditional web-based deployment using `./start.sh`
+- **Electron app**: Standalone desktop application with embedded services
+
+### Prerequisites
+
+**For development**:
+- Node.js 18+ and npm
+- Python 3.8+
+- All dependencies installed (see Getting Started guide)
+
+**For building**:
+```bash
+cd electron
+npm install
+```
+
+### Development Mode
+
+**Option 1: Self-Hosted (Web-based)**
+```bash
+./start.sh
+# Access at http://localhost:57666
+```
+
+**Option 2: Electron Development**
+```bash
+# Terminal 1: Start backend services
+./start.sh
+
+# Terminal 2: Start Electron in dev mode
+cd electron
+NODE_ENV=development npm start
+```
+
+### Building Electron App
+
+**Build for current platform**:
+```bash
+cd electron
+npm run build
+```
+
+**Build for specific platforms**:
+```bash
+# Linux (AppImage, .deb)
+npm run build:linux
+
+# Windows (installer, portable)
+npm run build:win
+
+# macOS (DMG, ZIP)
+npm run build:mac
+```
+
+Built applications will be in `dist/` directory.
+
+### Distribution Packages
+
+**Linux**:
+- **AppImage**: `dist/BenchMesh-1.0.0.AppImage` - Portable, no installation
+- **DEB Package**: `dist/BenchMesh_1.0.0_amd64.deb` - For Debian/Ubuntu
+
+**Windows**:
+- **Installer**: `dist/BenchMesh Setup 1.0.0.exe` - Standard installer
+- **Portable**: `dist/BenchMesh 1.0.0.exe` - Run directly, no installation
+
+**macOS**:
+- **DMG**: `dist/BenchMesh-1.0.0.dmg` - Drag-and-drop installation
+- **ZIP**: `dist/BenchMesh-1.0.0-mac.zip` - Extract and run
+
+### Architecture
+
+```
+┌─────────────────────────────────────┐
+│     Electron Main Process           │
+│  ┌────────────────────────────────┐ │
+│  │  • Manages app lifecycle       │ │
+│  │  • Spawns Python backend       │ │
+│  │  • Spawns Node-RED service     │ │
+│  │  • Creates browser window      │ │
+│  └────────────────────────────────┘ │
+└─────────────────────────────────────┘
+                 │
+    ┌────────────┴────────────┐
+    ▼                         ▼
+┌─────────────┐         ┌──────────────┐
+│   Python    │         │   Node-RED   │
+│   Backend   │◄────────┤   Service    │
+│  (FastAPI)  │         │  (Port 1880) │
+│(Port 57666) │         └──────────────┘
+└─────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│  Electron Renderer   │
+│  (React Frontend)    │
+└──────────────────────┘
+```
+
+### System Requirements
+
+**Runtime**:
+- Operating System: Linux, Windows 10+, or macOS 10.14+
+- Python 3.8+
+- Serial port access for instrument communication
+
+**Build** (development only):
+- All runtime requirements
+- Git
+- Node.js 18+
+- Platform-specific build tools:
+  - Linux: `build-essential`
+  - Windows: Visual Studio Build Tools
+  - macOS: Xcode Command Line Tools
+
+### Configuration
+
+**Backend port**: Default 57666 (configure in `electron/main.js`)
+
+**Node-RED port**: Default 1880 (configure in `electron/main.js`)
+
+**Development mode**: Set `NODE_ENV=development` to:
+- Connect to existing dev servers
+- Enable DevTools
+- Skip service spawning
+
+### Deployment Comparison
+
+| Feature | Self-Hosted | Electron App |
+|---------|-------------|--------------|
+| Installation | Manual setup | Single installer |
+| Updates | Git pull | Auto-update capable |
+| Access | Any browser | Dedicated window |
+| Multi-user | Yes (networked) | Single user |
+| Resources | Lighter | ~200MB app |
+| Platform | Any with browser | Windows/Mac/Linux |
+| Serial Access | Direct | Direct |
+
+### Distribution Checklist
+
+Before distributing:
+
+- [ ] Frontend built: `cd benchmesh-serial-service/frontend && npm run build`
+- [ ] Python dependencies listed in `requirements.txt`
+- [ ] Node-RED flows tested
+- [ ] All instrument drivers included
+- [ ] Documentation updated
+- [ ] Version number updated in `package.json`
+- [ ] Icons and branding added
+- [ ] Tested on target platforms
+- [ ] Code signed (production only)
+
+### Code Signing (Production)
+
+**macOS**:
+```bash
+# Requires Apple Developer certificate
+export CSC_LINK="path/to/certificate.p12"
+export CSC_KEY_PASSWORD="certificate-password"
+npm run build:mac
+```
+
+**Windows**:
+```bash
+# Requires code signing certificate
+npm run build:win
+```
+
+### Troubleshooting
+
+**Services not starting**:
+- Check Python is in PATH
+- Verify `requirements.txt` dependencies installed
+- Check ports 57666 and 1880 are available
+
+**Blank window**:
+- Wait 2-3 seconds for services to start
+- Check console for backend errors
+- Verify frontend built: `cd benchmesh-serial-service/frontend && npm run build`
+
+**Build fails**:
+- Ensure all dependencies installed
+- Check Node.js version (18+)
+- Verify Python backend can run standalone
 
 ## Systemd Service
 
