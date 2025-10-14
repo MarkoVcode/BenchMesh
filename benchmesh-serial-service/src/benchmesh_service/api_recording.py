@@ -24,8 +24,10 @@ from benchmesh_service.logger import logger
 class ChannelConfig(BaseModel):
     """Configuration for a single recording channel."""
     device_id: str
-    parameter: str
-    label: str
+    class_name: str
+    channel: int
+    method_name: str
+    label: Optional[str] = None
 
 
 class StartRecordingRequest(BaseModel):
@@ -65,7 +67,7 @@ def create_recording_router() -> APIRouter:
     Returns:
         APIRouter: Configured router
     """
-    router = APIRouter(prefix="/api/recordings", tags=["recordings"])
+    router = APIRouter(tags=["recordings"])
 
     @router.post("/start")
     async def start_recording(
