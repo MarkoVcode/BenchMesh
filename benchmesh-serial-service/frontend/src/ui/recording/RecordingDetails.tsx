@@ -72,7 +72,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
           top: 'center',
           textStyle: {
             fontSize: 16,
-            color: '#999'
+            color: 'var(--text-2)'
           }
         }
       } as any;
@@ -221,7 +221,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
         justifyContent: 'center',
         zIndex: 1000
       }}>
-        <div style={{ background: 'white', padding: '40px', borderRadius: '8px' }}>
+        <div style={{ background: 'var(--bg-1)', padding: '40px', borderRadius: '8px' }}>
           Loading recording details...
         </div>
       </div>
@@ -242,7 +242,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
         justifyContent: 'center',
         zIndex: 1000
       }}>
-        <div style={{ background: 'white', padding: '40px', borderRadius: '8px' }}>
+        <div style={{ background: 'var(--bg-1)', padding: '40px', borderRadius: '8px' }}>
           <h3 style={{ color: '#ff4d4f' }}>Error</h3>
           <p>{error}</p>
           <button onClick={onClose} style={{ padding: '8px 16px', cursor: 'pointer' }}>
@@ -276,7 +276,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
       padding: '20px'
     }}>
       <div style={{
-        background: 'white',
+        background: 'var(--bg-1)',
         borderRadius: '8px',
         maxWidth: '1200px',
         width: '100%',
@@ -295,7 +295,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
         }}>
           <div>
             <h2 style={{ margin: 0 }}>{series?.name}</h2>
-            <p style={{ margin: '5px 0 0', color: '#666', fontSize: '14px' }}>{series?.description}</p>
+            <p style={{ margin: '5px 0 0', color: 'var(--text-1)', fontSize: '14px' }}>{series?.description}</p>
           </div>
           <button
             onClick={onClose}
@@ -322,7 +322,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
             gap: '15px',
             marginBottom: '20px',
             padding: '15px',
-            background: '#f9f9f9',
+            background: 'var(--card)',
             borderRadius: '8px'
           }}>
             <div>
@@ -369,7 +369,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
           {showLiveChart && (
             <div style={{ marginBottom: '20px' }}>
               <h4>Live Data:</h4>
-              <div style={{ height: '400px', border: '1px solid #d9d9d9', borderRadius: '8px', padding: '10px' }}>
+              <div style={{ height: '400px', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}>
                 <LiveChart
                   seriesId={seriesId}
                   channels={series?.channels || []}
@@ -382,7 +382,7 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
 
           <div>
             <h4>Historical Data:</h4>
-            <div style={{ height: '400px', border: '1px solid #d9d9d9', borderRadius: '8px', padding: '10px' }}>
+            <div style={{ height: '400px', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}>
               <ReactECharts
                 option={chartOptions}
                 style={{ height: '100%', width: '100%' }}
@@ -417,8 +417,8 @@ export const RecordingDetails: React.FC<RecordingDetailsProps> = ({ seriesId, ap
             onClick={onClose}
             style={{
               padding: '10px 20px',
-              background: '#d9d9d9',
-              color: '#333',
+              background: 'var(--card-hover)',
+              color: 'var(--text-0)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',

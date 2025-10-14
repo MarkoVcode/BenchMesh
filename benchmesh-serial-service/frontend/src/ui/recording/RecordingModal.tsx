@@ -47,7 +47,7 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -58,14 +58,16 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
       >
         <div
           style={{
-            background: 'white',
-            borderRadius: '8px',
+            background: 'var(--bg-1)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
             maxWidth: '900px',
             width: '100%',
             maxHeight: '90vh',
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow)'
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -73,14 +75,14 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
           <div
             style={{
               padding: '20px',
-              borderBottom: '2px solid #d9d9d9',
+              borderBottom: '1px solid var(--border)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: '#fafafa'
+              background: 'var(--bg-2)'
             }}
           >
-            <h2 style={{ margin: 0 }}>📊 Data Recording</h2>
+            <h2 style={{ margin: 0, color: 'var(--text-0)' }}>📊 Data Recording</h2>
             <button
               onClick={onClose}
               style={{
@@ -91,7 +93,8 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
                 padding: '0',
                 width: '32px',
                 height: '32px',
-                lineHeight: '28px'
+                lineHeight: '28px',
+                color: 'var(--text-1)'
               }}
             >
               ×
@@ -103,7 +106,7 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
             style={{
               display: 'flex',
               borderBottom: '1px solid #d9d9d9',
-              background: '#fafafa'
+              background: 'var(--bg-2)'
             }}
           >
             <button
@@ -163,7 +166,7 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
             style={{
               padding: '15px 20px',
               borderTop: '1px solid #d9d9d9',
-              background: '#fafafa',
+              background: 'var(--bg-2)',
               textAlign: 'right'
             }}
           >
@@ -171,8 +174,8 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
               onClick={onClose}
               style={{
                 padding: '10px 24px',
-                background: '#d9d9d9',
-                color: '#333',
+                background: 'var(--card-hover)',
+                color: 'var(--text-0)',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',

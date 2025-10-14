@@ -174,15 +174,19 @@ def create_recording_router() -> APIRouter:
         ).all()
 
         return {
-            "series": [
+            "recordings": [
                 {
                     "id": s.id,
                     "name": s.name,
                     "description": s.description,
                     "start_time": s.start_time.isoformat(),
                     "end_time": s.end_time.isoformat() if s.end_time else None,
-                    "data_points_count": s.data_points_count,
-                    "status": "paused" if s.paused_at else ("completed" if s.end_time else "recording")
+                    "interval_seconds": s.interval_seconds,
+                    "channels": json.loads(s.channels),
+                    "total_duration_seconds": s.total_duration_seconds,
+                    "pause_duration_seconds": s.pause_duration_seconds,
+                    "paused_at": s.paused_at.isoformat() if s.paused_at else None,
+                    "status": "paused" if s.paused_at else ("stopped" if s.end_time else "recording")
                 }
                 for s in series_list
             ]

@@ -157,7 +157,7 @@ export const RecordingList: React.FC<RecordingListProps> = ({ apiBase, onViewDet
 
   if (recordings.length === 0) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+      <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-2)' }}>
         No recordings yet. Start a new recording above.
       </div>
     );
@@ -171,8 +171,8 @@ export const RecordingList: React.FC<RecordingListProps> = ({ apiBase, onViewDet
           key={recording.id}
           style={{
             padding: '15px',
-            background: 'white',
-            border: '1px solid #d9d9d9',
+            background: 'var(--bg-1)',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             marginBottom: '15px'
           }}
@@ -184,9 +184,9 @@ export const RecordingList: React.FC<RecordingListProps> = ({ apiBase, onViewDet
                 {getStatusBadge(recording.status)}
               </div>
               {recording.description && (
-                <p style={{ margin: '5px 0', color: '#666', fontSize: '14px' }}>{recording.description}</p>
+                <p style={{ margin: '5px 0', color: 'var(--text-1)', fontSize: '14px' }}>{recording.description}</p>
               )}
-              <div style={{ fontSize: '12px', color: '#999' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
                 <div>ID: {recording.id}</div>
                 <div>Started: {new Date(recording.start_time).toLocaleString()}</div>
                 {recording.end_time && <div>Ended: {new Date(recording.end_time).toLocaleString()}</div>}

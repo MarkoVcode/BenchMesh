@@ -12,6 +12,8 @@ from starlette.responses import RedirectResponse, JSONResponse
 from .serial_manager import SerialManager, _load_manifest
 from .config import load_config
 from .settings import settings
+from .api_recording import create_recording_router
+import benchmesh_service.services.recording_service as recording_service_module
 
 API_PORT = int(os.getenv('API_PORT', '57666'))
 UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
@@ -30,6 +32,9 @@ async def lifespan(app: FastAPI):
     _load_valid_classes()
     _mount_static_ui_if_built(app)
     _start_frontend_dev_if_available()
+
+    # Initialize recording service with serial manager
+    recording_service_module.recording_service = recording_service_module.RecordingService(serial_manager=_manager)
 
     yield
 
@@ -56,6 +61,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include recording API router
+app.include_router(create_recording_router(), prefix="/recordings", tags=["recordings"])
 
 
 def _make_manager() -> SerialManager:

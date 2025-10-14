@@ -105,7 +105,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ seriesId, channels, apiBas
           top: 'center',
           textStyle: {
             fontSize: 16,
-            color: '#999'
+            color: 'var(--text-2)'
           }
         }
       } as any;
@@ -265,7 +265,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({ seriesId, channels, apiBas
         textAlign: 'center',
         marginTop: '10px',
         fontSize: '12px',
-        color: '#666'
+        color: 'var(--text-1)'
       }}>
         Points: {dataPoints.length} | Showing last {maxPoints} points
       </div>

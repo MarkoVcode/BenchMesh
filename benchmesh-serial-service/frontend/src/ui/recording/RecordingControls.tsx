@@ -91,7 +91,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
   };
 
   return (
-    <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
+    <div style={{ padding: '20px', background: 'var(--card)', borderRadius: '8px' }}>
       <h3 style={{ marginTop: 0 }}>Start New Recording</h3>
 
       {error && (
@@ -119,7 +119,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
             width: '100%',
             padding: '8px',
             borderRadius: '4px',
-            border: '1px solid #d9d9d9',
+            border: '1px solid var(--border)',
             fontSize: '14px'
           }}
         />
@@ -138,7 +138,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
             width: '100%',
             padding: '8px',
             borderRadius: '4px',
-            border: '1px solid #d9d9d9',
+            border: '1px solid var(--border)',
             fontSize: '14px',
             resize: 'vertical'
           }}
@@ -159,7 +159,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
             width: '100%',
             padding: '8px',
             borderRadius: '4px',
-            border: '1px solid #d9d9d9',
+            border: '1px solid var(--border)',
             fontSize: '14px'
           }}
         />
@@ -189,8 +189,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
           <div style={{
             padding: '20px',
             textAlign: 'center',
-            color: '#999',
-            border: '2px dashed #d9d9d9',
+            color: 'var(--text-2)',
+            border: '1px dashed var(--border)',
             borderRadius: '4px'
           }}>
             No channels selected. Click "Add Channel" to start.
@@ -202,8 +202,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
             key={index}
             style={{
               padding: '10px',
-              background: 'white',
-              border: '1px solid #d9d9d9',
+              background: 'var(--bg-1)',
+              border: '1px solid var(--border)',
               borderRadius: '4px',
               marginBottom: '10px'
             }}
@@ -232,7 +232,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
                 <select
                   value={channel.device_id}
                   onChange={(e) => handleChannelChange(index, 'device_id', e.target.value)}
-                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
                 >
                   {instruments.map((inst) => (
                     <option key={inst.id} value={inst.id}>
@@ -248,7 +248,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
                   type="text"
                   value={channel.class_name}
                   onChange={(e) => handleChannelChange(index, 'class_name', e.target.value)}
-                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
                 />
               </div>
 
@@ -259,7 +259,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
                   value={channel.channel}
                   onChange={(e) => handleChannelChange(index, 'channel', parseInt(e.target.value))}
                   min={1}
-                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
                 />
               </div>
 
@@ -270,7 +270,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
                   value={channel.method_name}
                   onChange={(e) => handleChannelChange(index, 'method_name', e.target.value)}
                   placeholder="e.g., voltage"
-                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
                 />
               </div>
 
@@ -281,7 +281,7 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
                   value={channel.label || ''}
                   onChange={(e) => handleChannelChange(index, 'label', e.target.value)}
                   placeholder="e.g., PSU Output Voltage"
-                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
                 />
               </div>
             </div>

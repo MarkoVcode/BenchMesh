@@ -679,3 +679,19 @@ hr.sep{ border:0; border-top:1px solid var(--border); margin:10px 0; }
   padding:12px;
   margin:12px 0;
 }
+
+/* Recording Modal Dark Theme */
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  background: var(--card);
+  color: var(--text-0);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 1px solid var(--accent);
+  background: var(--bg-2);
+}
