@@ -18,13 +18,6 @@ pyyaml = "^6.0.3"
 fastapi = "^0.111.0"
 uvicorn = {version = "^0.30.0", extras=["standard"]}
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-markers = [
-    "asyncio: mark test as an asyncio test."
-]
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
