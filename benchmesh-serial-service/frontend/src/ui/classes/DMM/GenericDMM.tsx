@@ -128,7 +128,7 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     const k = klass || 'DMM'
     const did = deviceId || '{id}'
     const ch = channel || '1'
-    return `/instruments/${k}/${did}/${ch}/set_mode/{value}`
+    return `/instruments/${k}/${did}/${ch}/mode/{value}`
   }, [klass, deviceId, channel])
 
   const handleModeChange = async (newMode: string) => {
@@ -404,9 +404,9 @@ function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kin
               </label>
             </div>
             <span className="psu-api" title={
-              kind === 'U' ? `GET ${channelPath}/query_voltage` :
-              kind === 'I' ? `GET ${channelPath}/query_current` :
-              kind === 'P' ? `GET ${channelPath}/query_power` : ''
+              kind === 'U' ? `GET ${channelPath}/voltage` :
+              kind === 'I' ? `GET ${channelPath}/current` :
+              kind === 'P' ? `GET ${channelPath}/power` : ''
             }>API</span>
           </>
         )}

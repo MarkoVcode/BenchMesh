@@ -67,8 +67,8 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
       if (!channelPath) return
       try {
         const [rv, rc] = await Promise.all([
-          fetch(`${apiBase}${channelPath}/query_voltage`),
-          fetch(`${apiBase}${channelPath}/query_current`),
+          fetch(`${apiBase}${channelPath}/voltage`),
+          fetch(`${apiBase}${channelPath}/current`),
         ])
         if (!cancelled) {
           if (rv.ok) {
@@ -182,8 +182,8 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
       {withSet && channelPath && (
         <>
           <button className="psu-set" type="button" disabled={busy} title={
-            kind === 'U' ? `POST ${channelPath}/set_voltage/{value}` :
-            kind === 'I' ? `POST ${channelPath}/set_current/{value}` : ''
+            kind === 'U' ? `POST ${channelPath}/voltage/{value}` :
+            kind === 'I' ? `POST ${channelPath}/current/{value}` : ''
           } onClick={async (e) => {
             e.preventDefault(); e.stopPropagation();
             if (busy) return
@@ -192,16 +192,16 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
               const endp = (kind as string | undefined) || ((label as any)?.props?.symbol as string | undefined)
               const val = value || '0'
               let url: string | undefined
-              if (endp === 'U') url = `${apiBase}${channelPath}/set_voltage/${val}`
-              if (endp === 'I') url = `${apiBase}${channelPath}/set_current/${val}`
+              if (endp === 'U') url = `${apiBase}${channelPath}/voltage/${val}`
+              if (endp === 'I') url = `${apiBase}${channelPath}/current/${val}`
               if (url) await fetch(url, { method: 'POST' })
             } catch (err) {
               console.debug('SET failed', err)
             } finally { setBusy(false) }
           }}>{busy ? (<><span className="spinner"/>SET</>) : 'SET'}</button>
           <span className="psu-api" title={
-            kind === 'U' ? `GET ${channelPath}/query_voltage` :
-            kind === 'I' ? `GET ${channelPath}/query_current` : (channelPath || '')
+            kind === 'U' ? `GET ${channelPath}/voltage` :
+            kind === 'I' ? `GET ${channelPath}/current` : (channelPath || '')
           }>API</span>
         </>
       )}
@@ -266,9 +266,9 @@ function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kin
               </label>
             </div>
             <span className="psu-api" title={
-              kind === 'U' ? `GET ${channelPath}/query_output_voltage` :
-              kind === 'I' ? `GET ${channelPath}/query_output_current` :
-              kind === 'P' ? `GET ${channelPath}/query_output_power` : ''
+              kind === 'U' ? `GET ${channelPath}/output_voltage` :
+              kind === 'I' ? `GET ${channelPath}/output_current` :
+              kind === 'P' ? `GET ${channelPath}/output_power` : ''
             }>API</span>
           </>
         )}
