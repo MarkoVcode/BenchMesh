@@ -157,3 +157,5 @@ mcp_services/**/*.pyc
 mcp_services/**/venv/
 mcp_services/**/.pytest_cache/
 
+benchmesh-serial-service/:memory:/
+*.db
