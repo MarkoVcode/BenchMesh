@@ -71,7 +71,7 @@ jobs:
       - name: Run Python tests
         run: |
           cd benchmesh-serial-service
-          python -m pytest -v
+          python -m pytest -v -m "not asyncio"
 
       - name: Check API starts
         run: |

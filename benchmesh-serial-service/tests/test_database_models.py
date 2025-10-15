@@ -6,7 +6,7 @@ Following TDD principles - these tests are written before model implementation.
 
 import json
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.exc import IntegrityError
 
 from benchmesh_service.database import init_database, get_db_context, Base, get_engine
@@ -52,7 +52,7 @@ class TestRecordingSeries:
                 description="Test description",
                 interval_seconds=1.0,
                 channels=json.dumps(channels),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -83,7 +83,7 @@ class TestRecordingSeries:
                 name="Multi-Device Test",
                 interval_seconds=2.0,
                 channels=json.dumps(channels),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -102,7 +102,7 @@ class TestRecordingSeries:
                 name="Unique Name",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "psu-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series1)
             db.commit()
@@ -112,7 +112,7 @@ class TestRecordingSeries:
                 name="Unique Name",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "dmm-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series2)
 
@@ -126,7 +126,7 @@ class TestRecordingSeries:
                 name="Pause Test",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "psu-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -137,7 +137,7 @@ class TestRecordingSeries:
             assert series.pause_duration_seconds == 0
 
             # Simulate pause
-            pause_time = datetime.utcnow()
+            pause_time = datetime.now(timezone.utc).replace(tzinfo=None)
             series.paused_at = pause_time
             db.commit()
             db.refresh(series)
@@ -156,7 +156,7 @@ class TestRecordingSeries:
     def test_series_completion(self, test_db):
         """Test marking a series as completed."""
         with get_db_context() as db:
-            start = datetime.utcnow()
+            start = datetime.now(timezone.utc).replace(tzinfo=None)
             series = RecordingSeries(
                 name="Completion Test",
                 interval_seconds=1.0,
@@ -189,7 +189,7 @@ class TestDataPoint:
                 name="Data Point Test",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "psu-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -199,7 +199,7 @@ class TestDataPoint:
             measurements = {"psu-1.voltage": 12.05}
             point = DataPoint(
                 series_id=series.id,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
                 measurements=json.dumps(measurements)
             )
             db.add(point)
@@ -224,7 +224,7 @@ class TestDataPoint:
                 name="Multi-Device Measurements",
                 interval_seconds=1.0,
                 channels=json.dumps(channels),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -238,7 +238,7 @@ class TestDataPoint:
             }
             point = DataPoint(
                 series_id=series.id,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
                 measurements=json.dumps(measurements)
             )
             db.add(point)
@@ -263,7 +263,7 @@ class TestRelationships:
                 name="Relationship Test",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "psu-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -273,7 +273,7 @@ class TestRelationships:
             for i in range(5):
                 point = DataPoint(
                     series_id=series.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
                     measurements=json.dumps({"psu-1.voltage": 12.0 + i * 0.1})
                 )
                 db.add(point)
@@ -295,7 +295,7 @@ class TestRelationships:
                 name="Cascade Test",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "psu-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series)
             db.commit()
@@ -305,7 +305,7 @@ class TestRelationships:
             for i in range(3):
                 point = DataPoint(
                     series_id=series.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
                     measurements=json.dumps({"psu-1.voltage": 12.0 + i})
                 )
                 db.add(point)
@@ -333,13 +333,13 @@ class TestRelationships:
                 name="Series 1",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "psu-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             series2 = RecordingSeries(
                 name="Series 2",
                 interval_seconds=1.0,
                 channels=json.dumps([{"device_id": "dmm-1", "parameter": "voltage"}]),
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(series1)
             db.add(series2)
@@ -351,14 +351,14 @@ class TestRelationships:
             for i in range(3):
                 db.add(DataPoint(
                     series_id=series1.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
                     measurements=json.dumps({"psu-1.voltage": 12.0})
                 ))
 
             for i in range(5):
                 db.add(DataPoint(
                     series_id=series2.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
                     measurements=json.dumps({"dmm-1.voltage": 5.0})
                 ))
             db.commit()
