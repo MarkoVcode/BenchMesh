@@ -7,6 +7,16 @@
         "/home/marek/project/BenchMesh/mcp_services/testing/server.py"
       ],
       "env": {}
+    },
+    "serena": {
+            "command": "/home/marek/.local/bin/uv",
+            "args": ["run", "--directory", "/home/marek/project/serena", "serena", "start-mcp-server"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ]
     }
   }
 }

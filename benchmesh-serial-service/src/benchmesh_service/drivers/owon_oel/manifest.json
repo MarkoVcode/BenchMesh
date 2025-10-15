@@ -21,7 +21,7 @@
           "pooling": [
             {
               "method": "poll_status",
-              "interval": 0.6
+              "interval": 0.8
             }
           ],
           "ui_component": "OwonOELELL",

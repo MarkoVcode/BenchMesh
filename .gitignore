@@ -1,6 +1,3 @@
-# MCP configuration (may contain secrets)
-.mcp.json
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

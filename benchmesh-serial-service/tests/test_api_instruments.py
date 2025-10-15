@@ -35,6 +35,7 @@ class FakeManager:
         self.devices = [{"id": dev_id}]
         self.connections = {dev_id: FakeDriver()}
         self.dev_locks = {dev_id: threading.RLock()}
+        self.unified_polling_enabled = False  # Backward compatibility for tests
     def start(self):
         # No-op for tests
         return None

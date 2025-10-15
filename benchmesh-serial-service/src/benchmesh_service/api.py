@@ -509,28 +509,39 @@ def call_driver_get(klass: str, device_id: str, channel: str, method: str):
     # Resolve method name (e.g., "voltage" -> "query_voltage")
     resolved_method = _resolve_method_name(drv, method, "GET")
 
-    # Execute under device lock to avoid races with polling
-    lock = _manager.dev_locks.get(device_id) if _manager else None
-    import inspect
     ch = int(channel)
+
+    # Determine arguments based on method signature
+    import inspect
     func = getattr(drv, resolved_method)
+    sig = inspect.signature(func)
+    params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+
+    # Build args tuple
+    if len(params) >= 1:
+        args = (ch,)
+    else:
+        args = ()
+
+    # Execute via priority queue if unified polling enabled, otherwise use lock
     try:
-        if lock:
-            with lock:
-                sig = inspect.signature(func)
-                params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-                # Bound method: signature excludes self
+        if _manager and _manager.unified_polling_enabled:
+            # HIGH priority execution via queue
+            value = _manager.enqueue_api_request(device_id, resolved_method, args=args)
+        else:
+            # Legacy: execute under device lock
+            lock = _manager.dev_locks.get(device_id) if _manager else None
+            if lock:
+                with lock:
+                    if len(params) >= 1:
+                        value = func(ch)
+                    else:
+                        value = func()
+            else:
                 if len(params) >= 1:
                     value = func(ch)
                 else:
                     value = func()
-        else:
-            sig = inspect.signature(func)
-            params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-            if len(params) >= 1:
-                value = func(ch)
-            else:
-                value = func()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
     return {"path": f"/instruments/{klass}/{device_id}/{channel}/{method}", "value": value}
@@ -560,27 +571,41 @@ def call_driver_post(klass: str, device_id: str, channel: str, method: str, para
     ch = int(channel)
     func = getattr(drv, resolved_method)
 
-    lock = _manager.dev_locks.get(device_id) if _manager else None
+    # Determine arguments based on method signature
+    sig = inspect.signature(func)
+    params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+
+    # Build args tuple
+    if len(params) >= 2:
+        args = (ch, arg)
+    elif len(params) == 1:
+        args = (arg,)
+    else:
+        args = ()
+
+    # Execute via priority queue if unified polling enabled, otherwise use lock
     try:
-        if lock:
-            with lock:
-                sig = inspect.signature(func)
-                params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+        if _manager and _manager.unified_polling_enabled:
+            # HIGH priority execution via queue
+            _manager.enqueue_api_request(device_id, resolved_method, args=args)
+        else:
+            # Legacy: execute under device lock
+            lock = _manager.dev_locks.get(device_id) if _manager else None
+            if lock:
+                with lock:
+                    if len(params) >= 2:
+                        func(ch, arg)
+                    elif len(params) == 1:
+                        func(arg)
+                    else:
+                        func()
+            else:
                 if len(params) >= 2:
                     func(ch, arg)
                 elif len(params) == 1:
                     func(arg)
                 else:
                     func()
-        else:
-            sig = inspect.signature(func)
-            params = [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-            if len(params) >= 2:
-                func(ch, arg)
-            elif len(params) == 1:
-                func(arg)
-            else:
-                func()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
     return Response(status_code=204)

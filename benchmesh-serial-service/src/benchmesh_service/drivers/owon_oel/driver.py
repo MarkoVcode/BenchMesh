@@ -3,6 +3,10 @@ from ...transport import SerialTransport
 class OwonOEL:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
         self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
+        # Cache for INPUT and MODE to reduce queries during polling
+        # These values rarely change (only when user calls set_input/set_mode)
+        self._cached_input = None
+        self._cached_mode = None
 
     def query_identify(self):
         self.t.write_line('*IDN?')
@@ -36,8 +40,16 @@ class OwonOEL:
                         pass
                 result[key] = val
         result["REMOTE"] = "ON"
-        result["INPUT"] = self.query_input(1)
-        result["MODE"] = self.query_mode(1)
+
+        # Use cached values to avoid extra queries (3x speedup)
+        # Only query if cache is empty (first poll or after invalidation)
+        if self._cached_input is None:
+            self._cached_input = self.query_input(1)
+        if self._cached_mode is None:
+            self._cached_mode = self.query_mode(1)
+
+        result["INPUT"] = self._cached_input
+        result["MODE"] = self._cached_mode
         return result
     
 #SYST:SENS ON/off
@@ -51,7 +63,10 @@ class OwonOEL:
 
     def set_mode(self, channel: int, value):
         self.t.write_line('FUNC ' + str(value))
-        return self.t.read_until_reol(1024)
+        result = self.t.read_until_reol(1024)
+        # Invalidate cache so next poll will query the new value
+        self._cached_mode = None
+        return result
     
     def query_mode(self, channel: int):
         self.t.write_line('FUNC?')
@@ -91,7 +106,10 @@ class OwonOEL:
 
     def set_input(self, channel: int, value):
         self.t.write_line('INP ' + str(value))
-        return self.t.read_until_reol(1024)
+        result = self.t.read_until_reol(1024)
+        # Invalidate cache so next poll will query the new value
+        self._cached_input = None
+        return result
     
     def query_input(self, channel: int):
         self.t.write_line('INP?')

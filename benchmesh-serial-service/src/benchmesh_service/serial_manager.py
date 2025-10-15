@@ -14,7 +14,11 @@ from .connection import DeviceConnection
 from .poll_worker import DeviceWorker
 from .reconnect import ReconnectPolicy
 from .metrics import MetricsRecorder
+from .metrics_collector import MetricsCollector
 from .eol_detector import detect_eol_for_driver
+from .priority_queue import DeviceRequestQueue, Priority, ApiRequest
+from .unified_scheduler import UnifiedScheduler
+from .settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +64,7 @@ class SerialManager:
         self.driver_factory = driver_factory or DriverFactory()
         self.clock = clock or Clock()
         self.metrics = metrics or MetricsRecorder()
+        self.metrics_collector = MetricsCollector(window_duration_s=30.0)
         self.policy = policy or ReconnectPolicy()
         # External compatibility: connections map dev_id -> driver (or None)
         self.connections: Dict[str, object] = {}
@@ -76,6 +81,29 @@ class SerialManager:
         self.last_probe_class: Dict[str, Dict[str, float]] = {}
         self.detected_eol: Dict[str, Tuple[str, str]] = {}  # Cache for auto-detected EOL settings
         self.initial_connect_tested: set = set()  # Track which devices have been tested on first connection
+
+        # Unified polling and priority queue support
+        self.unified_polling_enabled = settings.unified_polling_enabled
+        self.device_queues: Dict[str, DeviceRequestQueue] = {}
+        self.unified_scheduler: Optional[UnifiedScheduler] = None
+
+        if self.unified_polling_enabled:
+            # Create priority queues for each device
+            for dev in self.devices:
+                dev_id = dev.get('id')
+                if dev_id:
+                    self.device_queues[dev_id] = DeviceRequestQueue(dev_id)
+
+            # Create unified scheduler
+            self.unified_scheduler = UnifiedScheduler(
+                interval_ms=settings.unified_poll_interval_ms,
+                max_queue_depth=settings.max_queue_depth_threshold
+            )
+            logger.info(
+                f"Unified polling enabled: default_interval={settings.unified_poll_interval_ms}ms, "
+                f"max_queue_depth={settings.max_queue_depth_threshold}, "
+                f"devices={len(self.device_queues)}"
+            )
 
         self.establish_connections()
 
@@ -251,7 +279,7 @@ class SerialManager:
         # Ensure a worker exists even if not identified yet; it will be IDN-gated
         if dev_id not in self.workers:
             probe_map = getattr(self, 'last_probe_class', {}).setdefault(dev_id, {})
-            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map)
+            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map, metrics_collector=self.metrics_collector)
         # Identify-only cadence
         if conn.is_open() and (not self.registry.get(dev_id, {}).get('IDN')) and conn.can_attempt_open(self.policy.identify_interval):
             conn.mark_attempt()
@@ -337,6 +365,143 @@ class SerialManager:
     # Removed legacy monitor and status helpers. Device threads handle cadence.
 
     def _device_worker(self, dev_id: str):
+        """
+        Device worker thread.
+
+        In unified polling mode: Processes requests from priority queue
+        In legacy mode: Self-schedules polling every 500ms
+        """
+        if self.unified_polling_enabled:
+            self._device_worker_queue_mode(dev_id)
+        else:
+            self._device_worker_legacy_mode(dev_id)
+
+    def _device_worker_queue_mode(self, dev_id: str):
+        """
+        Device worker in queue mode (unified polling enabled).
+
+        Processes requests from the device's priority queue.
+        HIGH priority: API requests
+        LOW priority: Polling requests (from unified scheduler)
+        """
+        queue = self.device_queues.get(dev_id)
+        if not queue:
+            logger.error(f"No queue for device {dev_id} in unified polling mode")
+            return
+
+        logger.info(f"Device worker {dev_id} starting in queue mode")
+
+        while self.keep_running:
+            # Get next request from priority queue (blocking with timeout)
+            priority_request = queue.dequeue(timeout=1.0)
+
+            if priority_request is None:
+                # Timeout - check if we should continue
+                continue
+
+            # Record queue depth for metrics
+            if self.metrics_collector:
+                current_depth = queue.qsize()
+                self.metrics_collector.record_queue_depth(dev_id, current_depth)
+
+            lock = self.dev_locks.get(dev_id)
+            if not lock:
+                logger.warning(f"No lock for device {dev_id}")
+                continue
+
+            with lock:
+                queue.set_current_request(priority_request)
+
+                try:
+                    dev = next((d for d in self.devices if d.get('id') == dev_id), None)
+                    if not dev:
+                        continue
+
+                    # Process the request (poll or API)
+                    request = priority_request.request
+
+                    if isinstance(request, ApiRequest):
+                        # API REQUEST: Fast path - skip connection maintenance
+                        # Connection check: fail fast if device not ready
+                        if self.connections.get(dev_id) is None:
+                            error = ConnectionError(f"Device {dev_id} not connected")
+                            logger.warning(f"API request for {dev_id}.{request.method} rejected: device not connected")
+                            if request.result_callback:
+                                request.result_callback(error)
+                            continue  # Skip to next request
+
+                        # Device is connected - execute immediately
+                        w = self.workers.get(dev_id)
+                        if w:
+                            # Inject test overrides if present
+                            w.interval_override = self.dev_class_poll_interval.get(dev_id) or None
+                            if dev_id in self.last_probe_class:
+                                w.last_probe_class = self.last_probe_class[dev_id]
+
+                            try:
+                                result = w.process_request(priority_request)
+                                if request.result_callback:
+                                    request.result_callback(result)
+                            except Exception as e:
+                                logger.error(f"API request {dev_id}.{request.method} failed: {e}")
+                                if request.result_callback:
+                                    request.result_callback(e)
+                    else:
+                        # POLLING REQUEST: Normal path with connection maintenance
+                        # Handle reconnection if needed
+                        if self.connections.get(dev_id) is None:
+                            last_attempt = self.last_open_attempt.get(dev_id, 0.0)
+                            now = time.time()
+                            if now - last_attempt >= 0.5:
+                                self.last_open_attempt[dev_id] = now
+                                try:
+                                    self.reconnect(dev_id)
+                                except Exception:
+                                    pass
+                        else:
+                            # Normal path: ensure device is open and identified
+                            self._open_or_identify(dev)
+
+                        # Process polling request
+                        w = self.workers.get(dev_id)
+                        if w:
+                            # Inject test overrides if present
+                            w.interval_override = self.dev_class_poll_interval.get(dev_id) or None
+                            if dev_id in self.last_probe_class:
+                                w.last_probe_class = self.last_probe_class[dev_id]
+
+                            try:
+                                w.process_request(priority_request)
+                            except RuntimeError as e:
+                                if str(e) == 'poll_empty':
+                                    # Drop connection
+                                    self.connections[dev_id] = None
+                                    if dev_id in self.dev_conns:
+                                        self.dev_conns[dev_id].driver = None
+
+                except Exception as e:
+                    logger.error(f"Error processing request for {dev_id}: {e}", exc_info=True)
+                finally:
+                    queue.set_current_request(None)
+
+            # Periodic registry logging
+            if time.time() - self._last_registry_log >= 5.0:
+                self._last_registry_log = time.time()
+                try:
+                    logger.debug("Registry snapshot: %s", json.dumps(self.registry, ensure_ascii=False))
+                except Exception:
+                    logger.debug("Registry snapshot (repr): %r", self.registry)
+
+        logger.info(f"Device worker {dev_id} exiting (queue mode)")
+
+    def _device_worker_legacy_mode(self, dev_id: str):
+        """
+        Device worker in legacy mode (unified polling disabled).
+
+        Self-schedules polling every 500ms.
+        """
+        logger.info(f"Device worker {dev_id} starting in legacy mode")
+
         while self.keep_running:
             lock = self.dev_locks.get(dev_id)
             if not lock:
@@ -384,6 +549,8 @@ class SerialManager:
                     logger.debug("Registry snapshot (repr): %r", self.registry)
             time.sleep(0.5)
 
+        logger.info(f"Device worker {dev_id} exiting (legacy mode)")
+
     def reconnect(self, device_or_id):
         if isinstance(device_or_id, dict):
             dev = device_or_id
@@ -392,6 +559,73 @@ class SerialManager:
         if not dev:
             return None
         return self._open_or_identify(dev)
+
+    def enqueue_api_request(self, device_id: str, method: str, args: tuple = (), kwargs: dict = None) -> Any:
+        """
+        Enqueue a HIGH priority API request for a device.
+
+        Used by the API layer to execute driver methods with priority over polling.
+
+        Args:
+            device_id: Device identifier
+            method: Driver method name to call
+            args: Positional arguments for method
+            kwargs: Keyword arguments for method
+
+        Returns:
+            Result from the driver method
+
+        Raises:
+            ValueError: If device not found or unified polling not enabled
+            TimeoutError: If request times out
+            Exception: Any exception from driver method
+        """
+        if not self.unified_polling_enabled:
+            raise ValueError("API request queueing requires unified polling to be enabled")
+
+        queue = self.device_queues.get(device_id)
+        if not queue:
+            raise ValueError(f"Device {device_id} not found or has no queue")
+
+        # Create a synchronization event for result
+        import threading
+        result_event = threading.Event()
+        result_container = {'value': None, 'exception': None}
+
+        def result_callback(result):
+            """Callback invoked by worker with result or exception"""
+            if isinstance(result, Exception):
+                result_container['exception'] = result
+            else:
+                result_container['value'] = result
+            result_event.set()
+
+        # Create API request
+        api_request = ApiRequest(
+            type="api",
+            device_id=device_id,
+            method=method,
+            args=args,
+            kwargs=kwargs or {},
+            result_callback=result_callback
+        )
+
+        # Enqueue with HIGH priority
+        queue.enqueue(api_request, Priority.HIGH)
+        logger.debug(f"Enqueued HIGH priority API request: {device_id}.{method}")
+
+        # Wait for result (with timeout)
+        timeout = settings.api_request_timeout_queue_s
+        if not result_event.wait(timeout=timeout):
+            raise TimeoutError(
+                f"API request to {device_id}.{method} timed out after {timeout}s"
+            )
+
+        # Return result or raise exception
+        if result_container['exception']:
+            raise result_container['exception']
+
+        return result_container['value']
 
     def start(self):
         self.establish_connections()
@@ -405,10 +639,65 @@ class SerialManager:
             t = threading.Thread(target=self._device_worker, args=(dev_id,), name=f"dev-worker-{dev_id}", daemon=True)
             self.dev_threads[dev_id] = t
             t.start()
+
+        # Start unified scheduler if enabled
+        if self.unified_polling_enabled and self.unified_scheduler:
+            # Register all device queues with scheduler (with device-specific intervals)
+            for dev_id, queue in self.device_queues.items():
+                # Find the device config
+                dev = next((d for d in self.devices if d.get('id') == dev_id), None)
+                if not dev:
+                    continue
+
+                # Get polling intervals from manifest
+                poll_intervals = self.resolver.get_poll_intervals(dev)
+
+                # Use the minimum interval if device has multiple classes
+                # Convert from seconds to milliseconds
+                interval_ms = None
+                if poll_intervals:
+                    min_interval_s = min(poll_intervals.values())
+                    interval_ms = min_interval_s * 1000.0
+
+                # Register device with scheduler
+                self.unified_scheduler.register_device(dev_id, queue, interval_ms=interval_ms)
+
+            # Start the scheduler
+            self.unified_scheduler.start()
+            logger.info("Unified polling scheduler started")
+
+        # Start metrics logging thread
+        metrics_thread = threading.Thread(
+            target=self._metrics_logger_loop,
+            name="metrics-logger",
+            daemon=True
+        )
+        metrics_thread.start()
+        logger.info("Metrics logging thread started")
         # Keep legacy monitor if needed for any global duties (optional). Can be disabled if redundant.
         # threading.Thread(target=self.monitor_connections, daemon=True).start()
 
+    def _metrics_logger_loop(self):
+        """Background thread that logs metrics periodically."""
+        while self.keep_running:
+            # Sleep for 30 seconds
+            for _ in range(30):
+                if not self.keep_running:
+                    break
+                time.sleep(1.0)
+            
+            if self.keep_running and self.metrics_collector:
+                # Log metrics summary
+                self.metrics_collector.log_summary()
+                # Reset metrics window for next period
+                self.metrics_collector.reset_window()
+
     def stop(self):
+        # Stop unified scheduler first
+        if self.unified_polling_enabled and self.unified_scheduler:
+            self.unified_scheduler.stop()
+            logger.info("Unified polling scheduler stopped")
+
         self.keep_running = False
         # Join worker threads
         for dev_id, t in list(self.dev_threads.items()):
