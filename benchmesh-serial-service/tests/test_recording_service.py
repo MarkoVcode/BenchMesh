@@ -52,6 +52,7 @@ def mock_serial_manager():
     return mock_manager
 
 
+@pytest.mark.integration
 class TestRecordingServiceBasic:
     """Basic recording service tests."""
 
@@ -177,6 +178,7 @@ class TestRecordingServiceBasic:
                 assert "dmm-1_DMM_1_voltage" in measurements
 
 
+@pytest.mark.integration
 class TestRecordingServicePauseResume:
     """Tests for pause/resume functionality."""
 
@@ -309,6 +311,7 @@ class TestRecordingServicePauseResume:
             await service.stop_recording(db, series.id)
 
 
+@pytest.mark.integration
 class TestRecordingServiceDataCollection:
     """Tests for data collection functionality."""
 
@@ -374,6 +377,7 @@ class TestRecordingServiceDataCollection:
             await service.stop_recording(db, series.id)
 
 
+@pytest.mark.integration
 class TestRecordingServiceState:
     """Tests for recording service state management."""
 

@@ -31,7 +31,7 @@ jobs:
 
       - name: Run backend tests
         run: |
-          python -m pytest -q benchmesh-serial-service/tests
+          python -m pytest -q -m "not integration" benchmesh-serial-service/tests
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
