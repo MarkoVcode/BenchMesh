@@ -212,17 +212,28 @@ def create_recording_router() -> APIRouter:
         if not series:
             raise HTTPException(status_code=404, detail="Recording not found")
 
+        # Calculate total duration (excluding pauses)
+        if series.end_time:
+            total_duration = (series.end_time - series.start_time).total_seconds() - series.pause_duration_seconds
+        else:
+            total_duration = (datetime.utcnow() - series.start_time).total_seconds() - series.pause_duration_seconds
+
         return {
-            "id": series.id,
-            "name": series.name,
-            "description": series.description,
-            "interval_seconds": series.interval_seconds,
-            "channels": json.loads(series.channels),
-            "start_time": series.start_time.isoformat(),
-            "end_time": series.end_time.isoformat() if series.end_time else None,
-            "paused_at": series.paused_at.isoformat() if series.paused_at else None,
-            "pause_duration_seconds": series.pause_duration_seconds,
-            "data_points_count": series.data_points_count
+            "series": {
+                "id": series.id,
+                "name": series.name,
+                "description": series.description,
+                "interval_seconds": series.interval_seconds,
+                "channels": json.loads(series.channels),
+                "start_time": series.start_time.isoformat(),
+                "end_time": series.end_time.isoformat() if series.end_time else None,
+                "paused_at": series.paused_at.isoformat() if series.paused_at else None,
+                "pause_duration_seconds": series.pause_duration_seconds,
+                "total_duration_seconds": max(0, total_duration),
+                "data_points_count": series.data_points_count,
+                "status": "paused" if series.paused_at else ("stopped" if series.end_time else "recording")
+            },
+            "total_points": series.data_points_count
         }
 
     @router.delete("/{series_id}")
@@ -275,10 +286,13 @@ def create_recording_router() -> APIRouter:
         ).offset(offset).limit(limit).all()
 
         # Format data
-        data = [
+        data_points = [
             {
+                "id": point.id,
+                "series_id": point.series_id,
                 "timestamp": point.timestamp.isoformat(),
-                **json.loads(point.measurements)
+                "elapsed_seconds": (point.timestamp - series.start_time).total_seconds(),
+                "measurements": json.loads(point.measurements)
             }
             for point in points
         ]
@@ -288,7 +302,7 @@ def create_recording_router() -> APIRouter:
             "total_points": total_points,
             "offset": offset,
             "limit": limit,
-            "data": data
+            "data_points": data_points
         }
 
     @router.get("/{series_id}/export")

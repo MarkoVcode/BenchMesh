@@ -292,7 +292,9 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - when you add or remove dependency update THIRD-PARTY-NOTICES.md
 - when you create any temporary or tool scripts place them always in scripts folder
 - always verify CI tests localy
-
+- when implementing new feature always try to test on the real working service particularly applies to serial service and API
+- do apply defensive programming principle - especially with API implementation the parameters must be validated and resources need to return meaningful response - catch and log 500 responses
+- feel free to kill and spinn up the services we are developing in this project but always MUST clean up - do not leave used ports, release all resources
 
 # Claude's Working Philosophy and Memory System
 

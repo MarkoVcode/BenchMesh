@@ -444,6 +444,36 @@ def get_manifest_features(klass: str, device_id: str):
     return features
 
 
+@app.get("/instruments/{klass}/{device_id}/methods", summary="List available query methods for device")
+def list_available_methods(klass: str, device_id: str):
+    """
+    List all available query methods for a device.
+    Returns method names WITHOUT the 'query_' prefix (as used in recording API).
+
+    Example response:
+    {
+        "device_id": "eol-1",
+        "class_name": "ELL",
+        "methods": ["volt", "curr", "pow", "status", ...]
+    }
+    """
+    # Get the driver
+    driver = _get_driver_or_error(device_id)
+
+    # Get all methods that start with 'query_'
+    query_methods = [
+        method[6:]  # Remove 'query_' prefix
+        for method in dir(driver)
+        if method.startswith('query_') and callable(getattr(driver, method))
+    ]
+
+    return {
+        "device_id": device_id,
+        "class_name": klass,
+        "methods": sorted(query_methods)
+    }
+
+
 @app.websocket("/ws/registry")
 async def ws_registry(websocket: WebSocket):
     await websocket.accept()

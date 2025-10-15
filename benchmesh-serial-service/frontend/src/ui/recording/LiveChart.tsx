@@ -86,7 +86,10 @@ export const LiveChart: React.FC<LiveChartProps> = ({ seriesId, channels, apiBas
 
     return () => {
       if (wsRef.current) {
-        wsRef.current.close();
+        // Only close if the WebSocket is open or connecting
+        if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+          wsRef.current.close();
+        }
         wsRef.current = null;
       }
       if (reconnectTimer) {
@@ -112,14 +115,20 @@ export const LiveChart: React.FC<LiveChartProps> = ({ seriesId, channels, apiBas
     }
 
     // Extract time series for each channel
-    const timeData = dataPoints.map(dp => dp.elapsed_seconds);
+    const timeData = dataPoints.map(dp => {
+      const seconds = typeof dp.elapsed_seconds === 'number' ? dp.elapsed_seconds : parseFloat(dp.elapsed_seconds);
+      return isNaN(seconds) ? 0 : seconds;
+    });
     const series: any[] = [];
 
     channels.forEach((channel, idx) => {
       const channelKey = `${channel.device_id}_${channel.class_name}_${channel.channel}_${channel.method_name}`;
       const valueData = dataPoints.map(dp => {
         const value = dp.measurements[channelKey];
-        return value !== undefined ? value : null;
+        if (value === undefined || value === null) return null;
+        // Convert string values to numbers
+        const numValue = typeof value === 'number' ? value : parseFloat(value);
+        return isNaN(numValue) ? null : numValue;
       });
 
       const label = channel.label || `${channel.device_id} ${channel.method_name}`;
@@ -157,10 +166,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({ seriesId, channels, apiBas
         formatter: (params: any) => {
           if (!params || params.length === 0) return '';
           const time = params[0].axisValue;
-          let tooltip = `<b>Time: ${time.toFixed(2)}s</b><br/>`;
+          const timeNum = typeof time === 'number' ? time : parseFloat(time);
+          const timeStr = !isNaN(timeNum) ? timeNum.toFixed(2) : time;
+          let tooltip = `<b>Time: ${timeStr}s</b><br/>`;
           params.forEach((param: any) => {
-            if (param.value !== null) {
-              tooltip += `${param.marker} ${param.seriesName}: ${param.value}<br/>`;
+            if (param.value !== null && param.value !== undefined) {
+              const val = typeof param.value === 'number' ? param.value : parseFloat(param.value);
+              const valStr = !isNaN(val) ? val.toFixed(3) : param.value;
+              tooltip += `${param.marker} ${param.seriesName}: ${valStr}<br/>`;
             }
           });
           return tooltip;
@@ -186,7 +199,10 @@ export const LiveChart: React.FC<LiveChartProps> = ({ seriesId, channels, apiBas
         nameLocation: 'middle',
         nameGap: 30,
         axisLabel: {
-          formatter: (value: number) => value.toFixed(1)
+          formatter: (value: any) => {
+            const num = typeof value === 'number' ? value : parseFloat(value);
+            return !isNaN(num) ? num.toFixed(1) : String(value);
+          }
         }
       },
       yAxis: {

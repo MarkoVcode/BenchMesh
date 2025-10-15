@@ -3,7 +3,7 @@ import os
 import time
 import threading
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Tuple
 import yaml
 from .logger import setup_logger
 from .registry import DeviceRegistry
@@ -14,6 +14,7 @@ from .connection import DeviceConnection
 from .poll_worker import DeviceWorker
 from .reconnect import ReconnectPolicy
 from .metrics import MetricsRecorder
+from .eol_detector import detect_eol_for_driver
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,8 @@ class SerialManager:
         self.dev_class_channels: Dict[str, Dict[str, int]] = {}
         self.dev_class_poll_interval: Dict[str, Dict[str, float]] = {}
         self.last_probe_class: Dict[str, Dict[str, float]] = {}
+        self.detected_eol: Dict[str, Tuple[str, str]] = {}  # Cache for auto-detected EOL settings
+        self.initial_connect_tested: set = set()  # Track which devices have been tested on first connection
 
         self.establish_connections()
 
@@ -103,10 +106,72 @@ class SerialManager:
                 self.logger.info(f"Failed to connect to {device.get('name', dev_id)} on {device.get('port')}: {e}")
 
 
-    def _make_driver(self, dev: dict):
+    def _get_eol_settings(self, dev: dict) -> Tuple[str, str]:
+        """
+        Get EOL settings for device, using cached detected settings if available.
+
+        Returns:
+            Tuple of (seol, reol)
+        """
+        dev_id = dev.get('id', 'unknown')
+
+        # Check cache first
+        if dev_id in self.detected_eol:
+            return self.detected_eol[dev_id]
+
+        # Otherwise use manifest settings
+        return self.resolver.get_connection_eol(dev)
+
+    def _try_detect_eol(self, dev: dict) -> bool:
+        """
+        Attempt to auto-detect correct EOL settings for a device.
+
+        Only runs once per device. Stores result in cache for future connections.
+
+        Returns:
+            True if detection succeeded and settings were cached, False otherwise
+        """
+        dev_id = dev.get('id', 'unknown')
+
+        # Skip if already detected
+        if dev_id in self.detected_eol:
+            return True
+
         driver_key = dev['driver']
         cls = self.driver_factory.load_driver_class(driver_key)
-        seol, reol = self.resolver.get_connection_eol(dev)
+        manifest_seol, manifest_reol = self.resolver.get_connection_eol(dev)
+
+        port = dev['port']
+        baudrate = dev.get('baud', 115200)
+        serial_mode = dev.get('serial', '8N1')
+
+        logger.info(f"[{dev_id}] Starting EOL auto-detection...")
+
+        detected = detect_eol_for_driver(
+            cls,
+            port,
+            baudrate,
+            serial_mode,
+            manifest_seol,
+            manifest_reol,
+            dev_id
+        )
+
+        if detected:
+            seol, reol = detected
+            self.detected_eol[dev_id] = (seol, reol)
+            logger.info(f"[{dev_id}] ✓ EOL auto-detection successful. Cached settings: seol={repr(seol)}, reol={repr(reol)}")
+            return True
+        else:
+            logger.warning(f"[{dev_id}] ✗ EOL auto-detection failed. Will use manifest settings.")
+            return False
+
+    def _make_driver(self, dev: dict):
+        """Create driver instance using EOL settings (from cache or manifest)."""
+        driver_key = dev['driver']
+        cls = self.driver_factory.load_driver_class(driver_key)
+        seol, reol = self._get_eol_settings(dev)
+
         return cls(
             dev['port'],
             dev.get('baud', 115200),
@@ -142,13 +207,43 @@ class SerialManager:
                             self.t.write_line('*IDN?')
                             return self.t.read_until_reol(1024)
                     drv = _Adapter(drv)
+
                 conn.driver = drv
                 self.connections[dev_id] = drv
                 # If we had a worker, update its driver reference
                 if dev_id in self.workers:
                     self.workers[dev_id].driver = drv
                 self.metrics.inc_reconnect_success(dev_id)
-            except Exception:
+            except Exception as e:
+                # If connection failed and we haven't tried EOL detection yet, try it once
+                if dev_id not in self.initial_connect_tested:
+                    self.initial_connect_tested.add(dev_id)
+                    logger.debug(f"[{dev_id}] Initial connection failed: {e}. Attempting EOL auto-detection...")
+                    if self._try_detect_eol(dev):
+                        # Detection succeeded, try connecting again with detected settings
+                        try:
+                            drv = self._make_driver(dev)
+                            from .transport import SerialTransport
+                            if isinstance(drv, SerialTransport):
+                                class _Adapter:
+                                    def __init__(self, t):
+                                        self.t = t
+                                    def close(self):
+                                        self.t.close()
+                                    def query_identify(self):
+                                        self.t.write_line('*IDN?')
+                                        return self.t.read_until_reol(1024)
+                                drv = _Adapter(drv)
+                            conn.driver = drv
+                            self.connections[dev_id] = drv
+                            if dev_id in self.workers:
+                                self.workers[dev_id].driver = drv
+                            self.metrics.inc_reconnect_success(dev_id)
+                            return conn.driver
+                        except Exception as e2:
+                            logger.error(f"[{dev_id}] Connection failed even after EOL detection: {e2}")
+
+                # Connection failed
                 conn.driver = None
                 # Ensure registry reflects disconnected state
                 self.registry_obj.clear_disconnected(dev_id)
@@ -167,9 +262,62 @@ class SerialManager:
                     self.metrics.inc_identify_success(dev_id)
                     conn.mark_ok()
                 else:
+                    # Empty identify response - EOL settings might be incorrect
                     self.metrics.inc_identify_fail(dev_id)
-            except Exception:
+                    # Try auto-detection on first identify failure
+                    if dev_id not in self.initial_connect_tested:
+                        self.initial_connect_tested.add(dev_id)
+                        logger.warning(f"[{dev_id}] Empty identify response - EOL settings may be incorrect. Attempting auto-detection...")
+                        if self._try_detect_eol(dev):
+                            # Close current driver and recreate with detected settings
+                            try:
+                                conn.driver.close()
+                            except:
+                                pass
+                            drv = self._make_driver(dev)
+                            from .transport import SerialTransport
+                            if isinstance(drv, SerialTransport):
+                                class _Adapter:
+                                    def __init__(self, t):
+                                        self.t = t
+                                    def close(self):
+                                        self.t.close()
+                                    def query_identify(self):
+                                        self.t.write_line('*IDN?')
+                                        return self.t.read_until_reol(1024)
+                                drv = _Adapter(drv)
+                            conn.driver = drv
+                            self.connections[dev_id] = drv
+                            if dev_id in self.workers:
+                                self.workers[dev_id].driver = drv
+            except Exception as e:
                 self.metrics.inc_identify_fail(dev_id)
+                # Communication exception during identify - try auto-detection
+                if dev_id not in self.initial_connect_tested:
+                    self.initial_connect_tested.add(dev_id)
+                    logger.debug(f"[{dev_id}] Identify exception: {e}. Attempting auto-detection...")
+                    if self._try_detect_eol(dev):
+                        # Close current driver and recreate with detected settings
+                        try:
+                            conn.driver.close()
+                        except:
+                            pass
+                        drv = self._make_driver(dev)
+                        from .transport import SerialTransport
+                        if isinstance(drv, SerialTransport):
+                            class _Adapter:
+                                def __init__(self, t):
+                                    self.t = t
+                                def close(self):
+                                    self.t.close()
+                                def query_identify(self):
+                                    self.t.write_line('*IDN?')
+                                    return self.t.read_until_reol(1024)
+                            drv = _Adapter(drv)
+                        conn.driver = drv
+                        self.connections[dev_id] = drv
+                        if dev_id in self.workers:
+                            self.workers[dev_id].driver = drv
         return conn.driver
 
 

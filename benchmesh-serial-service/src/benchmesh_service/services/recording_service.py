@@ -281,6 +281,9 @@ class RecordingService:
             channels: List of channel definitions
             interval_seconds: Collection interval in seconds
         """
+        logger.info(f"Recording loop started for series {series_id} with {len(channels)} channels, interval={interval_seconds}s")
+        logger.info(f"Channels: {channels}")
+
         try:
             while True:
                 # Check if paused
@@ -291,6 +294,8 @@ class RecordingService:
 
                 # Collect measurements from all channels
                 measurements = {}
+
+                logger.debug(f"[Series {series_id}] Starting data collection cycle...")
 
                 for channel in channels:
                     device_id = channel["device_id"]
@@ -303,21 +308,35 @@ class RecordingService:
 
                     try:
                         # Get driver and query method
-                        if self.serial_manager:
-                            driver = self.serial_manager.get_driver(device_id)
-                            if driver:
-                                query_method = f"query_{method_name}"
-                                if hasattr(driver, query_method):
-                                    # Call the method with channel number as parameter
-                                    value = getattr(driver, query_method)(channel_num)
-                                    measurements[key] = value
+                        if not self.serial_manager:
+                            logger.error(f"[Series {series_id}] No serial_manager available!")
+                            continue
+
+                        driver = self.serial_manager.connections.get(device_id)
+                        if not driver:
+                            logger.warning(f"[Series {series_id}] Device {device_id} not connected")
+                            continue
+
+                        query_method = f"query_{method_name}"
+                        if not hasattr(driver, query_method):
+                            logger.error(f"[Series {series_id}] Device {device_id} does not have method '{query_method}'. Available methods: {[m for m in dir(driver) if m.startswith('query_')]}")
+                            continue
+
+                        # Call the method with channel number as parameter
+                        logger.debug(f"[Series {series_id}] Calling {device_id}.{query_method}({channel_num})")
+                        value = getattr(driver, query_method)(channel_num)
+                        measurements[key] = value
+                        logger.info(f"[Series {series_id}] ✓ {device_id}.{query_method}({channel_num}) = {value}")
+
                     except Exception as e:
-                        logger.warning(
-                            f"Error reading {method_name} from {device_id} channel {channel_num}: {e}"
+                        logger.error(
+                            f"[Series {series_id}] Error reading {method_name} from {device_id} channel {channel_num}: {e}",
+                            exc_info=True
                         )
 
                 # Store data point if we got any measurements
                 if measurements:
+                    logger.info(f"[Series {series_id}] Collected {len(measurements)} measurements: {measurements}")
                     timestamp = datetime.utcnow()
 
                     with get_db_context() as db:

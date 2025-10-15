@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RecordingApi, StartRecordingRequest, ChannelConfig } from '../../api/recordingApi';
 import { Instrument } from '../InstrumentPod';
 
@@ -19,8 +19,18 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
   const [selectedChannels, setSelectedChannels] = useState<ChannelConfig[]>([]);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableMethods, setAvailableMethods] = useState<{ [key: string]: string[] }>({});
 
   const api = new RecordingApi(apiBase);
+
+  // Fetch available methods for all channels
+  useEffect(() => {
+    selectedChannels.forEach(channel => {
+      if (channel.device_id && channel.class_name) {
+        fetchAvailableMethods(channel.device_id, channel.class_name);
+      }
+    });
+  }, [selectedChannels.length]); // Re-fetch when channels are added/removed
 
   const handleAddChannel = () => {
     if (instruments.length > 0) {
@@ -49,6 +59,30 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
     const updated = [...selectedChannels];
     updated[index] = { ...updated[index], [field]: value };
     setSelectedChannels(updated);
+
+    // If device_id or class_name changed, fetch available methods
+    if (field === 'device_id' || field === 'class_name') {
+      const channel = updated[index];
+      if (channel.device_id && channel.class_name) {
+        fetchAvailableMethods(channel.device_id, channel.class_name);
+      }
+    }
+  };
+
+  const fetchAvailableMethods = async (deviceId: string, className: string) => {
+    const key = `${deviceId}_${className}`;
+    // Skip if already fetched
+    if (availableMethods[key]) return;
+
+    try {
+      const response = await fetch(`${apiBase}/instruments/${className}/${deviceId}/methods`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableMethods(prev => ({ ...prev, [key]: data.methods || [] }));
+      }
+    } catch (err) {
+      console.error('[RecordingControls] Failed to fetch available methods:', err);
+    }
   };
 
   const handleStartRecording = async () => {
@@ -264,14 +298,52 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px' }}>Method</label>
-                <input
-                  type="text"
-                  value={channel.method_name}
-                  onChange={(e) => handleChannelChange(index, 'method_name', e.target.value)}
-                  placeholder="e.g., voltage"
-                  style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
-                />
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '3px' }}>
+                  Method
+                  {(() => {
+                    const key = `${channel.device_id}_${channel.class_name}`;
+                    const methods = availableMethods[key];
+                    if (methods && methods.length > 0) {
+                      return (
+                        <span style={{ marginLeft: '4px', color: 'var(--text-2)', fontSize: '10px' }}>
+                          ({methods.length} available)
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </label>
+                {(() => {
+                  const key = `${channel.device_id}_${channel.class_name}`;
+                  const methods = availableMethods[key];
+
+                  if (methods && methods.length > 0) {
+                    // Show dropdown with available methods
+                    return (
+                      <select
+                        value={channel.method_name}
+                        onChange={(e) => handleChannelChange(index, 'method_name', e.target.value)}
+                        style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
+                      >
+                        <option value="">Select method...</option>
+                        {methods.map(method => (
+                          <option key={method} value={method}>{method}</option>
+                        ))}
+                      </select>
+                    );
+                  }
+
+                  // Fallback to text input if methods haven't loaded
+                  return (
+                    <input
+                      type="text"
+                      value={channel.method_name}
+                      onChange={(e) => handleChannelChange(index, 'method_name', e.target.value)}
+                      placeholder="e.g., voltage"
+                      style={{ width: '100%', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)' }}
+                    />
+                  );
+                })()}
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>

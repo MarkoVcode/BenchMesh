@@ -114,13 +114,13 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
               style={{
                 flex: 1,
                 padding: '12px',
-                background: activeTab === 'new' ? 'white' : 'transparent',
+                background: activeTab === 'new' ? 'var(--bg-1)' : 'transparent',
                 border: 'none',
                 borderBottom: activeTab === 'new' ? '2px solid #1890ff' : '2px solid transparent',
                 cursor: 'pointer',
                 fontSize: '15px',
                 fontWeight: activeTab === 'new' ? 'bold' : 'normal',
-                color: activeTab === 'new' ? '#1890ff' : '#666'
+                color: activeTab === 'new' ? '#1890ff' : 'var(--text-2)'
               }}
             >
               🔴 New Recording
@@ -130,13 +130,13 @@ export const RecordingModal: React.FC<RecordingModalProps> = ({
               style={{
                 flex: 1,
                 padding: '12px',
-                background: activeTab === 'list' ? 'white' : 'transparent',
+                background: activeTab === 'list' ? 'var(--bg-1)' : 'transparent',
                 border: 'none',
                 borderBottom: activeTab === 'list' ? '2px solid #1890ff' : '2px solid transparent',
                 cursor: 'pointer',
                 fontSize: '15px',
                 fontWeight: activeTab === 'list' ? 'bold' : 'normal',
-                color: activeTab === 'list' ? '#1890ff' : '#666'
+                color: activeTab === 'list' ? '#1890ff' : 'var(--text-2)'
               }}
             >
               📋 All Recordings

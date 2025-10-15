@@ -124,9 +124,9 @@ export const RecordingList: React.FC<RecordingListProps> = ({ apiBase, onViewDet
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      recording: '#52c41a',
+      recording: '#ff4d4f',
       paused: '#faad14',
-      stopped: '#d9d9d9'
+      stopped: '#52c41a'
     };
     return (
       <span style={{
