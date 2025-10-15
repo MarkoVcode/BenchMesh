@@ -63,7 +63,7 @@ def client(test_db, mock_serial_manager):
     # Create test app
     app = FastAPI()
     router = create_recording_router()
-    app.include_router(router)
+    app.include_router(router, prefix="/api/recordings")
 
     return TestClient(app)
 
@@ -77,7 +77,13 @@ class TestStartRecording:
             "name": "Test Recording",
             "description": "Test description",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -93,8 +99,20 @@ class TestStartRecording:
         response = client.post("/api/recordings/start", json={
             "name": "Multi-Device Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"},
-                {"device_id": "dmm-1", "parameter": "voltage", "label": "DMM Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                },
+                {
+                    "device_id": "dmm-1",
+                    "class_name": "DMM",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "DMM Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -109,7 +127,13 @@ class TestStartRecording:
         response1 = client.post("/api/recordings/start", json={
             "name": "Duplicate Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -119,7 +143,13 @@ class TestStartRecording:
         response2 = client.post("/api/recordings/start", json={
             "name": "Duplicate Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -144,7 +174,13 @@ class TestPauseResumeRecording:
         start_response = client.post("/api/recordings/start", json={
             "name": "Pause Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -163,7 +199,13 @@ class TestPauseResumeRecording:
         start_response = client.post("/api/recordings/start", json={
             "name": "Resume Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -194,7 +236,13 @@ class TestStopRecording:
         start_response = client.post("/api/recordings/start", json={
             "name": "Stop Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -221,8 +269,8 @@ class TestListRecordings:
         response = client.get("/api/recordings")
         assert response.status_code == 200
         data = response.json()
-        assert "series" in data
-        assert len(data["series"]) == 0
+        assert "recordings" in data
+        assert len(data["recordings"]) == 0
 
     def test_list_recordings_with_data(self, client):
         """Test listing multiple recordings."""
@@ -231,7 +279,13 @@ class TestListRecordings:
             client.post("/api/recordings/start", json={
                 "name": f"Recording {i}",
                 "channels": [
-                    {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                    {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
                 ],
                 "interval_seconds": 1.0
             })
@@ -240,7 +294,7 @@ class TestListRecordings:
         response = client.get("/api/recordings")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["series"]) == 3
+        assert len(data["recordings"]) == 3
 
 
 class TestGetRecordingDetails:
@@ -253,7 +307,13 @@ class TestGetRecordingDetails:
             "name": "Details Test",
             "description": "Test description",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 2.0
         })
@@ -263,10 +323,10 @@ class TestGetRecordingDetails:
         response = client.get(f"/api/recordings/{series_id}")
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == series_id
-        assert data["name"] == "Details Test"
-        assert data["description"] == "Test description"
-        assert data["interval_seconds"] == 2.0
+        assert data["series"]["id"] == series_id
+        assert data["series"]["name"] == "Details Test"
+        assert data["series"]["description"] == "Test description"
+        assert data["series"]["interval_seconds"] == 2.0
 
     def test_get_nonexistent_recording(self, client):
         """Test getting a nonexistent recording returns 404."""
@@ -283,7 +343,13 @@ class TestDeleteRecording:
         start_response = client.post("/api/recordings/start", json={
             "name": "Delete Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -316,7 +382,13 @@ class TestGetRecordingData:
         start_response = client.post("/api/recordings/start", json={
             "name": "Data Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -328,7 +400,7 @@ class TestGetRecordingData:
         data = response.json()
         assert data["series_id"] == series_id
         assert data["total_points"] >= 0  # May have started collecting
-        assert "data" in data
+        assert "data_points" in data
 
     def test_get_recording_data_with_pagination(self, client):
         """Test data pagination."""
@@ -336,7 +408,13 @@ class TestGetRecordingData:
         start_response = client.post("/api/recordings/start", json={
             "name": "Pagination Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })
@@ -359,7 +437,13 @@ class TestExportRecording:
         start_response = client.post("/api/recordings/start", json={
             "name": "Export Test",
             "channels": [
-                {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+                {
+                    "device_id": "psu-1",
+                    "class_name": "PSU",
+                    "channel": 1,
+                    "method_name": "voltage",
+                    "label": "PSU Voltage"
+                }
             ],
             "interval_seconds": 1.0
         })

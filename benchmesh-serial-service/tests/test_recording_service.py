@@ -40,12 +40,14 @@ def test_db():
 def mock_serial_manager():
     """Mock serial manager with device driver."""
     mock_driver = Mock()
-    mock_driver.query_voltage = Mock(return_value=12.05)
-    mock_driver.query_current = Mock(return_value=2.34)
+    # Use lambdas to accept channel argument and return real values
+    mock_driver.query_voltage = lambda ch: 12.05
+    mock_driver.query_current = lambda ch: 2.34
 
     mock_manager = Mock()
     mock_manager.get_device = Mock(return_value={"status": "connected"})
-    mock_manager.get_driver = Mock(return_value=mock_driver)
+    # Recording service uses connections dict, not get_driver
+    mock_manager.connections = {"psu-1": mock_driver}
 
     return mock_manager
 
@@ -59,7 +61,7 @@ class TestRecordingServiceBasic:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -92,7 +94,7 @@ class TestRecordingServiceBasic:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -119,30 +121,29 @@ class TestRecordingServiceBasic:
     @pytest.mark.asyncio
     async def test_multi_device_recording(self, test_db):
         """Test recording from multiple devices."""
-        # Mock multiple devices
+        # Mock multiple devices with methods that accept channel argument
         mock_psu = Mock()
-        mock_psu.query_voltage = Mock(return_value=12.05)
-        mock_psu.query_current = Mock(return_value=2.34)
+        mock_psu.query_voltage = lambda ch: 12.05
+        mock_psu.query_current = lambda ch: 2.34
 
         mock_dmm = Mock()
-        mock_dmm.query_voltage = Mock(return_value=11.98)
+        mock_dmm.query_voltage = lambda ch: 11.98
+
+        # Mock the connections dict that recording service uses
+        mock_connections = {
+            "psu-1": mock_psu,
+            "dmm-1": mock_dmm
+        }
 
         mock_manager = Mock()
-        def get_driver(device_id):
-            if device_id == "psu-1":
-                return mock_psu
-            elif device_id == "dmm-1":
-                return mock_dmm
-            return None
-
-        mock_manager.get_driver = get_driver
+        mock_manager.connections = mock_connections
 
         service = RecordingService(serial_manager=mock_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"},
-            {"device_id": "psu-1", "parameter": "current", "label": "PSU Current"},
-            {"device_id": "dmm-1", "parameter": "voltage", "label": "DMM Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"},
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "current", "label": "PSU Current"},
+            {"device_id": "dmm-1", "class_name": "DMM", "channel": 1, "method_name": "voltage", "label": "DMM Voltage"}
         ]
 
         with get_db_context() as db:
@@ -170,9 +171,10 @@ class TestRecordingServiceBasic:
 
             if point:
                 measurements = json.loads(point.measurements)
-                assert "psu-1.voltage" in measurements
-                assert "psu-1.current" in measurements
-                assert "dmm-1.voltage" in measurements
+                # Key format: device_id_class_name_channel_method_name
+                assert "psu-1_PSU_1_voltage" in measurements
+                assert "psu-1_PSU_1_current" in measurements
+                assert "dmm-1_DMM_1_voltage" in measurements
 
 
 class TestRecordingServicePauseResume:
@@ -184,7 +186,7 @@ class TestRecordingServicePauseResume:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -224,7 +226,7 @@ class TestRecordingServicePauseResume:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -270,7 +272,7 @@ class TestRecordingServicePauseResume:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -316,7 +318,7 @@ class TestRecordingServiceDataCollection:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -351,7 +353,7 @@ class TestRecordingServiceDataCollection:
         service = RecordingService(serial_manager=mock_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
@@ -381,7 +383,7 @@ class TestRecordingServiceState:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         # Start first recording
@@ -414,7 +416,7 @@ class TestRecordingServiceState:
         service = RecordingService(serial_manager=mock_serial_manager)
 
         channels = [
-            {"device_id": "psu-1", "parameter": "voltage", "label": "PSU Voltage"}
+            {"device_id": "psu-1", "class_name": "PSU", "channel": 1, "method_name": "voltage", "label": "PSU Voltage"}
         ]
 
         with get_db_context() as db:
