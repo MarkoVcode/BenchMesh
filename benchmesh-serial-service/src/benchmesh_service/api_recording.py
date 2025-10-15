@@ -8,7 +8,7 @@ import json
 import csv
 import io
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
@@ -184,7 +184,7 @@ def create_recording_router() -> APIRouter:
                 total_duration = (s.end_time - s.start_time).total_seconds() - s.pause_duration_seconds
             else:
                 # Recording active: use current time
-                total_duration = (datetime.utcnow() - s.start_time).total_seconds() - s.pause_duration_seconds
+                total_duration = (datetime.now(timezone.utc).replace(tzinfo=None) - s.start_time).total_seconds() - s.pause_duration_seconds
 
             recordings.append({
                 "id": s.id,
@@ -216,7 +216,7 @@ def create_recording_router() -> APIRouter:
         if series.end_time:
             total_duration = (series.end_time - series.start_time).total_seconds() - series.pause_duration_seconds
         else:
-            total_duration = (datetime.utcnow() - series.start_time).total_seconds() - series.pause_duration_seconds
+            total_duration = (datetime.now(timezone.utc).replace(tzinfo=None) - series.start_time).total_seconds() - series.pause_duration_seconds
 
         return {
             "series": {

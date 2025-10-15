@@ -7,7 +7,7 @@ specified intervals and stores them in the database.
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Set
 from sqlalchemy.orm import Session
 from fastapi import WebSocket
@@ -66,7 +66,7 @@ class RecordingService:
             description=description,
             interval_seconds=interval_seconds,
             channels=json.dumps(channels),
-            start_time=datetime.utcnow()
+            start_time=datetime.now(timezone.utc).replace(tzinfo=None)
         )
         db.add(series)
         db.commit()
@@ -111,7 +111,7 @@ class RecordingService:
         ).first()
 
         if series:
-            series.paused_at = datetime.utcnow()
+            series.paused_at = datetime.now(timezone.utc).replace(tzinfo=None)
             db.commit()
             db.refresh(series)
             logger.info(f"Paused recording: {series.name} (ID: {series_id})")
@@ -138,7 +138,7 @@ class RecordingService:
         ).first()
 
         if series and series.paused_at:
-            pause_duration = (datetime.utcnow() - series.paused_at).total_seconds()
+            pause_duration = (datetime.now(timezone.utc).replace(tzinfo=None) - series.paused_at).total_seconds()
             series.pause_duration_seconds += pause_duration
             series.paused_at = None
             db.commit()
@@ -182,10 +182,10 @@ class RecordingService:
         ).first()
 
         if series:
-            series.end_time = datetime.utcnow()
+            series.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
             # If still paused, add final pause duration
             if series.paused_at:
-                pause_duration = (datetime.utcnow() - series.paused_at).total_seconds()
+                pause_duration = (datetime.now(timezone.utc).replace(tzinfo=None) - series.paused_at).total_seconds()
                 series.pause_duration_seconds += pause_duration
                 series.paused_at = None
             db.commit()
@@ -337,7 +337,7 @@ class RecordingService:
                 # Store data point if we got any measurements
                 if measurements:
                     logger.info(f"[Series {series_id}] Collected {len(measurements)} measurements: {measurements}")
-                    timestamp = datetime.utcnow()
+                    timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
 
                     with get_db_context() as db:
                         try:

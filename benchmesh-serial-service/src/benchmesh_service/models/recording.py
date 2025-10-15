@@ -4,7 +4,7 @@ Database models for data recording.
 These models support multi-device recording with pause/resume functionality.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
@@ -30,8 +30,8 @@ class RecordingSeries(Base):
     paused_at = Column(DateTime)  # NULL if not paused
     pause_duration_seconds = Column(Float, default=0)  # Total time spent paused
     data_points_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationship to data points
     data_points = relationship(
