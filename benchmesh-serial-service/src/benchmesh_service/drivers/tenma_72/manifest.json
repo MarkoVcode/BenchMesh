@@ -21,7 +21,7 @@
           "pooling": [
             {
               "method": "poll_status",
-              "interval": 3
+              "interval": 5
             }
           ],
           "ui_component": "GenericPSU",

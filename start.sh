@@ -2,6 +2,9 @@
 
 # BenchMesh Startup Script
 # Starts FastAPI backend, Frontend, and Node-RED
+export BM_UNIFIED_POLL_INTERVAL=50
+export BM_UNIFIED_POLLING=true
+export BM_MAX_QUEUE_DEPTH=10
 
 set -e
 
