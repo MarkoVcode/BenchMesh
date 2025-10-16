@@ -43,11 +43,12 @@ BenchMesh is a unified control platform for laboratory instruments. It provides 
 
 ### The Problem
 
-Modern laboratories have instruments from various manufacturers, each with their own software, protocols, and interfaces. This creates:
+Modern tinkerers have instruments from various manufacturers, each with their own software, protocols, and interfaces. Although most of the are using SCPI, they suffer from following issues:
 - **Fragmentation** - Multiple software tools to learn and maintain
 - **No correlation** - Difficult to coordinate measurements across devices
 - **Limited automation** - Vendor software rarely supports scripting
 - **No remote access** - Desktop applications require physical presence
+- **No Linux support** - Vendor software usually supports only one platform
 
 ### The Solution
 
@@ -58,19 +59,19 @@ BenchMesh provides:
 - **Automation ready** - Node-RED visual programming
 - **Modular drivers** - Easy to add new devices
 - **Remote capable** - Browser-based, access from anywhere
+- **True cross platform** - Run on every OS
 
 ## Features
 
 - **Multi-Device Control** - Connect and control multiple instruments simultaneously
 - **Browser-Based UI** - No desktop software installation required, access from any device
-- **Real-Time Updates** - Live data streaming with WebSocket
+- **Fast Updates** - Live data streaming with WebSocket
 - **RESTful API** - Full programmatic control via HTTP endpoints
 - **Modular Architecture** - Clean separation between transport, drivers, and API
 - **Auto-Reconnection** - Automatic device reconnection on failure
 - **Node-RED Integration** - Visual programming for complex workflows
 - **Driver Development** - Easy-to-follow guide for adding new devices
 - **Secure API** - Method resolution prevents arbitrary code execution
-- **MCP Testing Service** - Automated testing through Claude Code
 - **Comprehensive Documentation** - Wiki with guides, examples, and troubleshooting
 
 ## Supported Devices
@@ -351,10 +352,7 @@ See [Contributing Guide](CONTRIBUTING.md) for details.
 - [ ] Scripting API for automated test sequences
 
 ### Driver Expansion
-- [ ] Rigol power supplies
-- [ ] Keysight multimeters
-- [ ] Siglent oscilloscopes
-- [ ] BK Precision instruments
+To many other popular instruments
 
 Want to contribute? Check our [Contributing Guide](CONTRIBUTING.md)!
 
@@ -408,6 +406,6 @@ BenchMesh uses several open-source libraries. See [THIRD-PARTY-NOTICES.md](THIRD
 
 **[⬆ back to top](#table-of-contents)**
 
-Made with ❤️ for the lab automation community
+Supporting a passion for electronics
 
 </div>
