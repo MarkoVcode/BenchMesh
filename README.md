@@ -11,7 +11,7 @@ Connect, control, log, correlate, and automate multiple serial devices from one 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org/)
-[![CI](https://github.com/MarkoVcode/BenchMesh/workflows/Tests/badge.svg)](https://github.com/MarkoVcode/BenchMesh/actions)
+[![CI](https://github.com/MarkoVcode/BenchMesh/actions/workflows/ci.yaml/badge.svg)](https://github.com/MarkoVcode/BenchMesh/actions)
 [![GitHub issues](https://img.shields.io/github/issues/MarkoVcode/BenchMesh)](https://github.com/MarkoVcode/BenchMesh/issues)
 [![GitHub stars](https://img.shields.io/github/stars/MarkoVcode/BenchMesh)](https://github.com/MarkoVcode/BenchMesh/stargazers)
 
@@ -145,6 +145,9 @@ For detailed installation instructions, see [Getting Started](docs/Getting-Start
 ### Web Interface
 
 ![Dashboard Screenshot](docs/static/dashboard-screenshot.png)
+
+Node-RED Automation
+![Node-RED Automation](docs/static/nodered-automation.png)
 
 The dashboard provides:
 - Real-time device status
