@@ -489,6 +489,26 @@ async def ws_registry(websocket: WebSocket):
         pass
 
 
+@app.websocket("/ws/metrics")
+async def ws_metrics(websocket: WebSocket):
+    """WebSocket endpoint for broadcasting serial port utilization metrics."""
+    await websocket.accept()
+    try:
+        while True:
+            # Get metrics from manager's metrics collector
+            metrics_summary = {}
+            if _manager and hasattr(_manager, 'metrics_collector'):
+                metrics_summary = _manager.metrics_collector.get_utilization_summary()
+
+            await websocket.send_text(json.dumps(metrics_summary))
+            await asyncio.sleep(30.0)  # Broadcast every 30 seconds
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        # ignore other errors to avoid crashing the app
+        pass
+
+
 
 @app.get("/instruments/{klass}/{device_id}/{channel}/{method}", summary="Call driver method (read-only)")
 def call_driver_get(klass: str, device_id: str, channel: str, method: str):

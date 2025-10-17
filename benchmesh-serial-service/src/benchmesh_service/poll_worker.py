@@ -33,8 +33,87 @@ class DeviceWorker:
         # IDN gating
         if not (self.registry.data.get(dev_id) or {}).get('IDN'):
             return
+        
+        # Check if device uses unified multi-class polling
+        if self.resolver.has_multi_class_polling(self.dev):
+            self._run_multi_class_poll(now)
+        else:
+            self._run_per_class_poll(now)
+    
+    def _run_multi_class_poll(self, now: float):
+        """
+        Unified polling for multi-class devices.
+        
+        Calls a single poll method that returns data for all classes,
+        avoiding multiple serial operations on a single port.
+        """
+        dev_id = self.dev.get('id')
+        
+        # Get device-level polling config
+        poll_config = self.resolver.get_multi_class_poll_config(self.dev)
+        if not poll_config:
+            logger.warning(f"Device {dev_id} marked as multi-class but no poll config found")
+            return
+        
+        meth_name = poll_config['method']
+        poll_interval = poll_config['interval']
+        
+        # Check if it's time to poll (use 'unified' as the class key for timing)
+        last_poll = self.last_probe_class.get('unified', 0.0)
+        if now - last_poll < poll_interval:
+            return
+        
+        # Get the poll method
+        meth = getattr(self.driver, meth_name, None)
+        if not callable(meth):
+            logger.warning(f"Multi-class poll method {meth_name} not found on driver {type(self.driver).__name__}")
+            return
+        
+        # Execute poll - should return dict keyed by class name
+        class_channels = self.channels_override or self.resolver.get_classes_and_channels(self.dev)
+        
+        try:
+            if self.metrics:
+                self.metrics.inc_poll_total(dev_id, 'unified')
+            
+            # Poll channel 1 (multi-class devices typically have 1 channel)
+            result = meth(1)
+            
+            if not result:
+                if self.metrics:
+                    self.metrics.inc_poll_failed(dev_id, 'unified')
+                self.registry.clear_disconnected(dev_id)
+                raise RuntimeError('poll_empty')
+            
+            # Distribute results by class
+            for klass in class_channels.keys():
+                class_data = result.get(klass)
+                if class_data:
+                    key = f"status_ch1"
+                    self.registry.update(dev_id, key, class_data, klass=klass)
+            
+            # Update last poll time
+            self.last_probe_class['unified'] = now
+            
+        except RuntimeError as e:
+            if str(e) == 'poll_empty':
+                raise
+            logger.error(f"Multi-class polling for {dev_id} failed: {e}")
+        except Exception as e:
+            logger.warning(f"Multi-class polling for {dev_id} failed: {e}")
+            if self.metrics:
+                self.metrics.inc_poll_failed(dev_id, 'unified')
+    
+    def _run_per_class_poll(self, now: float):
+        """
+        Legacy per-class polling for devices with separate class polling.
+        
+        Each class is polled independently with its own interval.
+        """
+        dev_id = self.dev.get('id')
         class_channels = self.channels_override or self.resolver.get_classes_and_channels(self.dev)
         poll_intervals = self.interval_override or self.resolver.get_poll_intervals(self.dev)
+        
         for klass, ch_count in (class_channels or {}).items():
             poll_iv = poll_intervals.get(klass, 2.0)
             last_poll = self.last_probe_class.get(klass, 0.0)

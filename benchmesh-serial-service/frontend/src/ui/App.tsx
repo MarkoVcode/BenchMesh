@@ -4,6 +4,7 @@ import { MeasurementProvider } from './MeasurementContext'
 import { MeasurementStatusBar } from './MeasurementStatusBar'
 import { ConfigModal } from './ConfigModal'
 import { DocsViewer } from './DocsViewer'
+import { MetricsViewer } from './MetricsViewer'
 import { RecordingModal } from './recording/RecordingModal'
 
 function useApiBase() {
@@ -130,6 +131,7 @@ export default function App() {
   const { registry, wsDiag } = useRegistrySocket(apiBase)
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [docsModalOpen, setDocsModalOpen] = useState(false)
+  const [metricsModalOpen, setMetricsModalOpen] = useState(false)
   const [recordingModalOpen, setRecordingModalOpen] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
@@ -180,6 +182,13 @@ export default function App() {
             >
               📚 Documentation
             </button>
+            <button
+              className="config-button"
+              onClick={() => setMetricsModalOpen(true)}
+              title="View Performance Metrics"
+            >
+              📈 Metrics
+            </button>
           </div>
           <div className="statusbar">
             <div className="statuspill" title="WebSocket data flow">
@@ -210,6 +219,13 @@ export default function App() {
         {docsModalOpen && (
           <DocsViewer
             onClose={() => setDocsModalOpen(false)}
+            apiBase={apiBase}
+          />
+        )}
+
+        {metricsModalOpen && (
+          <MetricsViewer
+            onClose={() => setMetricsModalOpen(false)}
             apiBase={apiBase}
           />
         )}

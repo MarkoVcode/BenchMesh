@@ -129,6 +129,61 @@ class ManifestResolver:
                 return name
         return None
 
+    def has_multi_class_polling(self, dev: dict) -> bool:
+        """
+        Check if device uses unified multi-class polling.
+        
+        Multi-class polling means one poll method returns data for all classes,
+        avoiding multiple serial operations on a single port.
+        
+        Returns True if device manifest has device-level polling with multi_class flag.
+        """
+        driver_key = dev.get('driver')
+        if not driver_key:
+            return False
+        
+        try:
+            manifest = self._load_manifest(driver_key)
+            model_cfg = self._get_model_cfg(manifest, dev)
+            
+            # Check for device-level polling (outside instrument_class)
+            polling = model_cfg.get('pooling') or model_cfg.get('polling') or []
+            for entry in polling:
+                if entry.get('multi_class'):
+                    return True
+            
+            return False
+        except Exception:
+            return False
+    
+    def get_multi_class_poll_config(self, dev: dict) -> Optional[Dict[str, Any]]:
+        """
+        Get device-level polling configuration for multi-class devices.
+        
+        Returns dict with 'method' and 'interval' if multi-class polling is configured,
+        None otherwise.
+        """
+        driver_key = dev.get('driver')
+        if not driver_key:
+            return None
+        
+        try:
+            manifest = self._load_manifest(driver_key)
+            model_cfg = self._get_model_cfg(manifest, dev)
+            
+            # Check for device-level polling (outside instrument_class)
+            polling = model_cfg.get('pooling') or model_cfg.get('polling') or []
+            for entry in polling:
+                if entry.get('multi_class'):
+                    return {
+                        'method': entry.get('method', 'poll_status'),
+                        'interval': float(entry.get('interval', 2.0))
+                    }
+            
+            return None
+        except Exception:
+            return None
+
     def get_connection_eol(self, dev: dict) -> tuple[str, str]:
         driver_key = dev.get('driver')
         if not driver_key:

@@ -21,13 +21,13 @@
           "pooling": [
             {
               "method": "poll_status",
-              "interval": 5
+              "interval": 6
             }
           ],
           "ui_component": "GenericPSU",
           "features": {
             "lock": true,
-            "channels": 2,
+            "channels": 1,
             "memory_banks": 5,
             "memory_storage": [
               "V",

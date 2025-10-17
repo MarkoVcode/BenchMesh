@@ -1,6 +1,9 @@
+import logging
 from ...transport import SerialTransport
 from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
+
+logger = logging.getLogger(__name__)
 
 class OWONSPM:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
@@ -69,6 +72,42 @@ class OWONSPM:
             return None
         print(num_str)
         return {"measurement1_si": parts[1], "measurement1_num": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
+
+    def poll_status(self, channel: int):
+        """
+        Unified polling method for multi-class device.
+        
+        Polls both PSU and DMM data in a single operation to avoid
+        double serial port access for devices with multiple classes
+        on a single serial port.
+        
+        Returns dict with class-keyed data:
+        {
+            "PSU": {psu status data},
+            "DMM": {dmm status data}
+        }
+        """
+        result = {}
+        
+        # Get PSU data
+        try:
+            psu_data = self.poll_status_psu(channel)
+            if psu_data:
+                result["PSU"] = psu_data
+        except Exception as e:
+            logger.warning(f"Failed to poll PSU status: {e}")
+            result["PSU"] = {"VOUT": None, "IOUT": None, "POUT": None}
+        
+        # Get DMM data  
+        try:
+            dmm_data = self.poll_status_dmm(channel)
+            if dmm_data:
+                result["DMM"] = dmm_data
+        except Exception as e:
+            logger.warning(f"Failed to poll DMM status: {e}")
+            result["DMM"] = None
+        
+        return result
 
 
     def set_output(self, channel: int, value):  # ON / OFF

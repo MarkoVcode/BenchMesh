@@ -649,15 +649,18 @@ class SerialManager:
                 if not dev:
                     continue
 
-                # Get polling intervals from manifest
-                poll_intervals = self.resolver.get_poll_intervals(dev)
-
-                # Use the minimum interval if device has multiple classes
-                # Convert from seconds to milliseconds
+                # Check for device-level multi-class polling first
                 interval_ms = None
-                if poll_intervals:
-                    min_interval_s = min(poll_intervals.values())
-                    interval_ms = min_interval_s * 1000.0
+                multi_class_config = self.resolver.get_multi_class_poll_config(dev)
+                if multi_class_config:
+                    # Multi-class device: use device-level interval
+                    interval_ms = multi_class_config['interval'] * 1000.0
+                else:
+                    # Single-class device: use class-level intervals
+                    poll_intervals = self.resolver.get_poll_intervals(dev)
+                    if poll_intervals:
+                        min_interval_s = min(poll_intervals.values())
+                        interval_ms = min_interval_s * 1000.0
 
                 # Register device with scheduler
                 self.unified_scheduler.register_device(dev_id, queue, interval_ms=interval_ms)
