@@ -149,6 +149,9 @@ For detailed installation instructions, see [Getting Started](docs/Getting-Start
 Node-RED Automation
 ![Node-RED Automation](docs/static/nodered-automation.png)
 
+Statistical sampling for all readings
+![Statistical Sampling](docs/static/dashboard-statistical-sampling.png)
+
 The dashboard provides:
 - Real-time device status
 - Device controls (voltage, current, output)

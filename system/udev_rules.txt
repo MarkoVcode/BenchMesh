@@ -17,3 +17,8 @@ SUBSYSTEM=="tty", KERNEL=="ttyUSB*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86",
 # CH34x on firmware 0x8134  ->  /dev/ttyDev2
 SUBSYSTEM=="tty", KERNEL=="ttyUSB*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{bcdDevice}=="8134", SYMLINK+="ttySPM3103", MODE="0660", GROUP="dialout"
 
+# OWON DGE2070 Function Generator - Map to /dev/tmcDGE2070
+SUBSYSTEM=="usbmisc", ATTRS{idVendor}=="5345", ATTRS{idProduct}=="1235", ATTRS{serial}=="25130086", SYMLINK+="tmcDGE2070", MODE="0666", GROUP="plugdev"
+
+# Rigol DHO804 Oscilloscope - Map to /dev/tmcDHO804
+SUBSYSTEM=="usbmisc", ATTRS{idVendor}=="1ab1", ATTRS{idProduct}=="044d", ATTRS{serial}=="DHO8A272907001", SYMLINK+="tmcDHO804", MODE="0666", GROUP="plugdev"
