@@ -14,17 +14,18 @@ def test_classes_channels_and_intervals_nested_blocks():
     r = ManifestResolver()
     classes = r.get_classes_and_channels(SAMPLE_DEV)
     assert isinstance(classes, dict) and 'PSU' in classes
-    # DMM is nested under PSU in manifest; resolver should detect it
+    # DMM is also a class for SPM3103
     assert 'DMM' in classes
 
-    intervals = r.get_poll_intervals(SAMPLE_DEV)
-    assert 'PSU' in intervals
-    assert 'DMM' in intervals
+    # SPM3103 uses unified multi-class polling, so it has device-level polling
+    # instead of per-class intervals
+    assert r.has_multi_class_polling(SAMPLE_DEV) is True
 
-    meth_psu = r.get_poll_method(SAMPLE_DEV, 'PSU')
-    meth_dmm = r.get_poll_method(SAMPLE_DEV, 'DMM')
-    assert meth_psu is not None
-    assert meth_dmm is not None
+    # Get the unified poll config
+    poll_config = r.get_multi_class_poll_config(SAMPLE_DEV)
+    assert poll_config is not None
+    assert poll_config['method'] == 'poll_status'
+    assert poll_config['interval'] == 2
 
 
 def test_connection_eol_defaults():

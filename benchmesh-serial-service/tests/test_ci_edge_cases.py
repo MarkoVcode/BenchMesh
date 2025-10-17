@@ -73,13 +73,14 @@ def test_identify_empty_and_partial_responses_do_not_set_idn(manual_clock):
 class FakeDrv:
     def __init__(self):
         self.calls = []
-    def poll_status_psu(self, ch):
-        self.calls.append(('PSU', ch))
-        return {'ok': True, 'ch': ch}
-    def poll_status_dmm(self, ch):
-        self.calls.append(('DMM', ch))
-        # Malformed: return non-dict truthy value to simulate bad driver
-        return "oops"
+    def poll_status(self, ch):
+        """Unified multi-class polling - returns data for all classes"""
+        self.calls.append(('unified', ch))
+        # Return valid PSU data, but malformed DMM data for testing
+        return {
+            'PSU': {'ok': True, 'ch': ch},
+            'DMM': "oops"  # Malformed: non-dict truthy value
+        }
 
 
 def test_poll_worker_handles_malformed_driver_return_and_updates_metrics(manual_clock):
@@ -92,25 +93,22 @@ def test_poll_worker_handles_malformed_driver_return_and_updates_metrics(manual_
     metrics = MetricsRecorder()
     drv = FakeDrv()
     w = DeviceWorker(dev, drv, registry, resolver, metrics=metrics)
-    # Set intervals to 0 so both classes eligible immediately
-    w.interval_override = {'PSU': 0.0, 'DMM': 0.0}
-    w.last_probe_class = {'PSU': -1e9, 'DMM': -1e9}
+    # For unified polling, set 'unified' key instead of per-class
+    w.last_probe_class = {'unified': -1e9}
 
     now = manual_clock.now()
-    # The DMM class will return a malformed value; DeviceWorker treats non-empty truthy as status.
-    # For robustness of metrics, we still count total polls and not failed unless status is empty.
+    # Unified polling executes once and returns data for all classes
+    # The DMM class data will be malformed but PSU data is valid
     w.run_once(now)
 
-    # Metrics: two polls executed
-    # Metrics API is counters; verify increments via public dicts
-    assert metrics.polls_total.get(('dev-1','PSU')) == 1
-    # DMM may be nested/absent depending on manifest; accept >=0
-    assert metrics.polls_total.get(('dev-1','DMM')) in (None, 1)
+    # Metrics: one unified poll executed
+    # With unified polling, we track 'unified' instead of per-class
+    assert metrics.polls_total.get(('dev-1','unified')) == 1
 
-    # No failed increments, because returns were truthy (even though malformed)
-    assert metrics.polls_failed.get(('dev-1','PSU')) in (None, 0)
-    assert metrics.polls_failed.get(('dev-1','DMM')) in (None, 0)
+    # No failed increments, because the overall result was truthy
+    assert metrics.polls_failed.get(('dev-1','unified')) in (None, 0)
 
-    # Registry should have captured PSU status; DMM may or may not appear depending on manifest
+    # Registry should have captured PSU status (valid data)
+    # DMM may not appear if its data was malformed (non-dict)
     dev_reg = registry.data['dev-1']
     assert 'PSU' in dev_reg and 'status_ch1' in dev_reg['PSU']

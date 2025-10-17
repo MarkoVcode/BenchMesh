@@ -7,12 +7,13 @@ from benchmesh_service.manifest_resolver import ManifestResolver
 class FakeDrv:
     def __init__(self):
         self.calls = []
-    def poll_status_psu(self, ch):
-        self.calls.append(('PSU', ch))
-        return {'ok': True, 'ch': ch}
-    def poll_status_dmm(self, ch):
-        self.calls.append(('DMM', ch))
-        return {'ok': True, 'ch': ch}
+    def poll_status(self, ch):
+        """Unified multi-class polling - returns data for all classes"""
+        self.calls.append(('unified', ch))
+        return {
+            'PSU': {'ok': True, 'ch': ch},
+            'DMM': {'ok': True, 'ch': ch}
+        }
 
 def test_device_worker_run_once_updates_registry(monkeypatch):
     dev = {
