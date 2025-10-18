@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Dict, Any, Optional
+from copy import deepcopy
 
 MANIFEST_ALIASES = {
     'tenma_psu': 'tenma_72',
@@ -15,6 +16,11 @@ class ManifestResolver:
     - get_poll_intervals(dev)
     - get_poll_method(dev, klass)
     - get_connection_eol(dev) -> (seol, reol)
+
+    Supports cascading model configuration:
+    - Models can inherit from a "DEFAULT" model
+    - Specific model configs override DEFAULT values
+    - Deep merge strategy for nested structures
     """
 
     def __init__(self, repo_root: Optional[str] = None, package_dir: Optional[str] = None):
@@ -31,14 +37,69 @@ class ManifestResolver:
         with open(legacy, 'r') as f:
             return json.load(f)
 
+    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Deep merge two dictionaries, with override values taking precedence.
+
+        Args:
+            base: Base dictionary (e.g., DEFAULT model config)
+            override: Override dictionary (e.g., specific model config)
+
+        Returns:
+            Merged dictionary with override values taking precedence
+        """
+        result = deepcopy(base)
+
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Recursively merge nested dictionaries
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                # Override primitive values, lists, or new keys
+                result[key] = deepcopy(value)
+
+        return result
+
     def _get_model_cfg(self, manifest: Dict[str, Any], dev: dict) -> Dict[str, Any]:
+        """
+        Get model configuration with cascading DEFAULT inheritance.
+
+        If a DEFAULT model exists in the manifest:
+        1. Start with DEFAULT as base
+        2. Deep merge specific model config on top
+
+        If no DEFAULT model exists:
+        - Use legacy behavior (return specific model or first model)
+        """
         models = manifest.get('models') or {}
         model_key = dev.get('model')
+
+        # Get DEFAULT model if it exists
+        default_cfg = models.get('DEFAULT', {})
+
+        # Get specific model config
         if model_key and isinstance(models.get(model_key), dict):
-            return models.get(model_key) or {}
-        if isinstance(models, dict) and models:
-            return next(iter(models.values())) or {}
-        return {}
+            specific_cfg = models.get(model_key) or {}
+        elif isinstance(models, dict) and models:
+            # Fall back to first non-DEFAULT model, or first model if no DEFAULT
+            non_default_models = {k: v for k, v in models.items() if k != 'DEFAULT'}
+            if non_default_models:
+                specific_cfg = next(iter(non_default_models.values())) or {}
+            else:
+                specific_cfg = next(iter(models.values())) or {}
+        else:
+            specific_cfg = {}
+
+        # If DEFAULT exists and specific config exists, merge them
+        if default_cfg and specific_cfg:
+            return self._deep_merge(default_cfg, specific_cfg)
+
+        # If only DEFAULT exists, return it
+        if default_cfg:
+            return default_cfg
+
+        # If only specific config exists (no DEFAULT), return it
+        return specific_cfg
 
     def get_classes_and_channels(self, dev: dict) -> Dict[str, int]:
         out: Dict[str, int] = {}

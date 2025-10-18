@@ -4,10 +4,7 @@
   "family": "OEL",
   "version": "1.0.0",
   "models": {
-    "OEL1515": {
-      "id_patterns": [
-        "OWON,OEL1515"
-      ],
+    "DEFAULT": {
       "classes": [
         "ELL"
       ],
@@ -101,6 +98,11 @@
           }
         }
       }
+    },
+    "OEL1515": {
+      "id_patterns": [
+        "OWON,OEL1515"
+      ]
     }
   }
 }

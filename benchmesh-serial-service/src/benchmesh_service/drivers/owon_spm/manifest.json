@@ -4,10 +4,7 @@
   "family": "SPM",
   "version": "1.0.0",
   "models": {
-    "SPM3103": {
-      "id_patterns": [
-        "OWON,SPM3103"
-      ],
+    "DEFAULT": {
       "classes": [
         "PSU",
         "DMM"
@@ -110,197 +107,70 @@
             "delta": true,
             "RANGe": {
               "CAP": [
-                {
-                  "value": "AUTO",
-                  "display": "AUTO"
-                },
-                {
-                  "value": "2E-9",
-                  "display": "2nF"
-                },
-                {
-                  "value": "20E-9",
-                  "display": "20nF"
-                },
-                {
-                  "value": "200E-9",
-                  "display": "200nF"
-                },
-                {
-                  "value": "2E-6",
-                  "display": "2µF"
-                },
-                {
-                  "value": "20E-6",
-                  "display": "20µF"
-                },
-                {
-                  "value": "200E-6",
-                  "display": "200µF"
-                },
-                {
-                  "value": "10E-3",
-                  "display": "10mF"
-                }
+                {"value": "AUTO", "display": "AUTO"},
+                {"value": "2E-9", "display": "2nF"},
+                {"value": "20E-9", "display": "20nF"},
+                {"value": "200E-9", "display": "200nF"},
+                {"value": "2E-6", "display": "2µF"},
+                {"value": "20E-6", "display": "20µF"},
+                {"value": "200E-6", "display": "200µF"},
+                {"value": "10E-3", "display": "10mF"}
               ],
               "RES": [
-                {
-                  "value": "AUTO",
-                  "display": "AUTO"
-                },
-                {
-                  "value": "MIN",
-                  "display": "MINimum"
-                },
-                {
-                  "value": "MAX",
-                  "display": "MAXimum"
-                },
-                {
-                  "value": "200",
-                  "display": "200Ω"
-                },
-                {
-                  "value": "2E3",
-                  "display": "2KΩ"
-                },
-                {
-                  "value": "20E3",
-                  "display": "20KΩ"
-                },
-                {
-                  "value": "200E3",
-                  "display": "200KΩ"
-                },
-                {
-                  "value": "2E6",
-                  "display": "2MΩ"
-                },
-                {
-                  "value": "20E6",
-                  "display": "20MΩ"
-                },
-                {
-                  "value": "100E6",
-                  "display": "100MΩ"
-                }
+                {"value": "AUTO", "display": "AUTO"},
+                {"value": "MIN", "display": "MINimum"},
+                {"value": "MAX", "display": "MAXimum"},
+                {"value": "200", "display": "200Ω"},
+                {"value": "2E3", "display": "2KΩ"},
+                {"value": "20E3", "display": "20KΩ"},
+                {"value": "200E3", "display": "200KΩ"},
+                {"value": "2E6", "display": "2MΩ"},
+                {"value": "20E6", "display": "20MΩ"},
+                {"value": "100E6", "display": "100MΩ"}
               ],
               "CURR_AC": [
-                {
-                  "value": "AUTO",
-                  "display": "AUTO"
-                },
-                {
-                  "value": "MIN",
-                  "display": "MINimum"
-                },
-                {
-                  "value": "MAX",
-                  "display": "MAXimum"
-                },
-                {
-                  "value": "200E-3",
-                  "display": "200mA"
-                },
-                {
-                  "value": "10",
-                  "display": "10A"
-                }
+                {"value": "AUTO", "display": "AUTO"},
+                {"value": "MIN", "display": "MINimum"},
+                {"value": "MAX", "display": "MAXimum"},
+                {"value": "200E-3", "display": "200mA"},
+                {"value": "10", "display": "10A"}
               ],
               "CURR_DC": [
-                {
-                  "value": "AUTO",
-                  "display": "AUTO"
-                },
-                {
-                  "value": "MIN",
-                  "display": "MINimum"
-                },
-                {
-                  "value": "MAX",
-                  "display": "MAXimum"
-                },
-                {
-                  "value": "200E-3",
-                  "display": "200mA"
-                },
-                {
-                  "value": "10",
-                  "display": "10A"
-                }
+                {"value": "AUTO", "display": "AUTO"},
+                {"value": "MIN", "display": "MINimum"},
+                {"value": "MAX", "display": "MAXimum"},
+                {"value": "200E-3", "display": "200mA"},
+                {"value": "10", "display": "10A"}
               ],
               "VOLT_AC": [
-                {
-                  "value": "AUTO",
-                  "display": "AUTO"
-                },
-                {
-                  "value": "MIN",
-                  "display": "MINimum"
-                },
-                {
-                  "value": "MAX",
-                  "display": "MAXimum"
-                },
-                {
-                  "value": "200E-3",
-                  "display": "200mV"
-                },
-                {
-                  "value": "2",
-                  "display": "2V"
-                },
-                {
-                  "value": "20",
-                  "display": "20V"
-                },
-                {
-                  "value": "200",
-                  "display": "200V"
-                },
-                {
-                  "value": "750",
-                  "display": "750V"
-                }
+                {"value": "AUTO", "display": "AUTO"},
+                {"value": "MIN", "display": "MINimum"},
+                {"value": "MAX", "display": "MAXimum"},
+                {"value": "200E-3", "display": "200mV"},
+                {"value": "2", "display": "2V"},
+                {"value": "20", "display": "20V"},
+                {"value": "200", "display": "200V"},
+                {"value": "750", "display": "750V"}
               ],
               "VOLT_DC": [
-                {
-                  "value": "AUTO",
-                  "display": "AUTO"
-                },
-                {
-                  "value": "MIN",
-                  "display": "MINimum"
-                },
-                {
-                  "value": "MAX",
-                  "display": "MAXimum"
-                },
-                {
-                  "value": "200E-3",
-                  "display": "200mV"
-                },
-                {
-                  "value": "2",
-                  "display": "2V"
-                },
-                {
-                  "value": "20",
-                  "display": "20V"
-                },
-                {
-                  "value": "200",
-                  "display": "200V"
-                },
-                {
-                  "value": "1000",
-                  "display": "1000V"
-                }
+                {"value": "AUTO", "display": "AUTO"},
+                {"value": "MIN", "display": "MINimum"},
+                {"value": "MAX", "display": "MAXimum"},
+                {"value": "200E-3", "display": "200mV"},
+                {"value": "2", "display": "2V"},
+                {"value": "20", "display": "20V"},
+                {"value": "200", "display": "200V"},
+                {"value": "1000", "display": "1000V"}
               ]
             }
           }
         }
       }
+    },
+    "SPM3103": {
+      "id_patterns": [
+        "OWON,SPM3103"
+      ]
     }
   }
 }

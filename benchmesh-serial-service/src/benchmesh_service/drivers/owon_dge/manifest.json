@@ -4,10 +4,7 @@
   "family": "DGE",
   "version": "1.0.0",
   "models": {
-    "DGE2070": {
-      "id_patterns": [
-        "OWON,DGE2070"
-      ],
+    "DEFAULT": {
       "classes": [
         "AWG"
       ],
@@ -31,6 +28,11 @@
           }
         }
       }
+    },
+    "DGE2070": {
+      "id_patterns": [
+        "OWON,DGE2070"
+      ]
     }
   }
 }

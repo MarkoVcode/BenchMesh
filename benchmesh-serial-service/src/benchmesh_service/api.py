@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse, JSONResponse
 from .serial_manager import SerialManager, _load_manifest
+from .manifest_resolver import ManifestResolver
 from .config import load_config
 from .settings import settings
 from .api_recording import create_recording_router
@@ -21,14 +22,16 @@ UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
 _manager: SerialManager | None = None
 _valid_classes: set[str] | None = None
 _frontend_proc: subprocess.Popen | None = None
+_manifest_resolver: ManifestResolver | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    global _manager
+    global _manager, _manifest_resolver
     _manager = _make_manager()
     _manager.start()
+    _manifest_resolver = ManifestResolver()
     _load_valid_classes()
     _mount_static_ui_if_built(app)
     _start_frontend_dev_if_available()
@@ -336,45 +339,40 @@ def list_instruments(request: Request):
             entry['IDN'] = reg_data['IDN']
 
         # Attempt to populate classes/channels from manifest based on device driver and model
-        try:
-            driver_key = dev.get('driver')
-            manifest = _load_manifest(driver_key) if driver_key else None
-        except Exception:
-            manifest = None
         classes_list: List[Dict[str, Any]] = []
-        if isinstance(manifest, dict):
-            models = manifest.get('models') or {}
-            model_key = dev.get('model')
-            model_cfg = None
-            if model_key and isinstance(models.get(model_key), dict):
-                model_cfg = models.get(model_key)
-            elif isinstance(models, dict) and models:
-                # fallback to first model entry
-                model_cfg = next(iter(models.values()))
-            if isinstance(model_cfg, dict):
-                inst_class_block = model_cfg.get('instrument_class') or {}
-                declared_classes = model_cfg.get('classes') or []
-                # Union of keys present in instrument_class and declared classes list
-                klass_keys = set(inst_class_block.keys()) | {c for c in declared_classes if isinstance(c, str)}
-                valid = _load_valid_classes()
-                for klass in sorted(klass_keys):
-                    # Only include known 3-letter classes
-                    if klass not in valid:
-                        continue
-                    klass_cfg = inst_class_block.get(klass) or {}
-                    features = klass_cfg.get('features') or {}
-                    try:
-                        channels = int(features.get('channels', 1) or 1)
-                    except Exception:
-                        channels = 1
-                    channels = max(1, channels)
-                    # Build channel paths
-                    ch_paths = [f"/instruments/{klass}/{dev_id}/{i+1}" for i in range(channels)]
-                    classes_list.append({
-                        "class": klass,
-                        "channels": ch_paths,
-                        "ui_component": klass_cfg.get('ui_component')
-                    })
+        if _manifest_resolver:
+            try:
+                driver_key = dev.get('driver')
+                manifest = _load_manifest(driver_key) if driver_key else None
+                if isinstance(manifest, dict):
+                    # Use ManifestResolver to get merged model config (handles DEFAULT cascading)
+                    model_cfg = _manifest_resolver._get_model_cfg(manifest, dev)
+                    if isinstance(model_cfg, dict):
+                        inst_class_block = model_cfg.get('instrument_class') or {}
+                        declared_classes = model_cfg.get('classes') or []
+                        # Union of keys present in instrument_class and declared classes list
+                        klass_keys = set(inst_class_block.keys()) | {c for c in declared_classes if isinstance(c, str)}
+                        valid = _load_valid_classes()
+                        for klass in sorted(klass_keys):
+                            # Only include known 3-letter classes
+                            if klass not in valid:
+                                continue
+                            klass_cfg = inst_class_block.get(klass) or {}
+                            features = klass_cfg.get('features') or {}
+                            try:
+                                channels = int(features.get('channels', 1) or 1)
+                            except Exception:
+                                channels = 1
+                            channels = max(1, channels)
+                            # Build channel paths
+                            ch_paths = [f"/instruments/{klass}/{dev_id}/{i+1}" for i in range(channels)]
+                            classes_list.append({
+                                "class": klass,
+                                "channels": ch_paths,
+                                "ui_component": klass_cfg.get('ui_component')
+                            })
+            except Exception:
+                pass  # Fail gracefully, continue without classes
         if classes_list:
             entry['classes'] = classes_list
 
@@ -409,6 +407,9 @@ def get_manifest_features(klass: str, device_id: str):
         raise HTTPException(status_code=404, detail="Unknown device id")
 
     # Load manifest for this device's driver and model
+    if not _manifest_resolver:
+        raise HTTPException(status_code=500, detail="Manifest resolver not initialized")
+
     try:
         driver_key = dev.get('driver')
         manifest = _load_manifest(driver_key) if driver_key else None
@@ -417,13 +418,8 @@ def get_manifest_features(klass: str, device_id: str):
     if not isinstance(manifest, dict):
         raise HTTPException(status_code=404, detail="Manifest not found for device")
 
-    models = manifest.get('models') or {}
-    model_key = dev.get('model')
-    model_cfg = None
-    if model_key and isinstance(models.get(model_key), dict):
-        model_cfg = models.get(model_key)
-    elif isinstance(models, dict) and models:
-        model_cfg = next(iter(models.values()))
+    # Use ManifestResolver to get merged model config (handles DEFAULT cascading)
+    model_cfg = _manifest_resolver._get_model_cfg(manifest, dev)
     if not isinstance(model_cfg, dict):
         raise HTTPException(status_code=404, detail="Model configuration not found")
 

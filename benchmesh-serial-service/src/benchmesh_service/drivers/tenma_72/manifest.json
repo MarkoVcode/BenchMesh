@@ -4,10 +4,7 @@
   "family": "72",
   "version": "1.0.0",
   "models": {
-    "72-2540": {
-      "id_patterns": [
-        "TENMA 72-2540"
-      ],
+    "DEFAULT": {
       "classes": [
         "PSU"
       ],
@@ -80,6 +77,11 @@
           }
         }
       }
+    },
+    "72-2540": {
+      "id_patterns": [
+        "TENMA 72-2540"
+      ]
     }
   }
 }
