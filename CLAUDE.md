@@ -428,6 +428,24 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - `API_PORT`: FastAPI port (default: `57666`)
 - `UI_PORT`: Frontend dev server port (default: `52893`)
 
+## Node.js Version Requirements
+
+**IMPORTANT**: BenchMesh requires **Node.js v18** for Electron packaging to ensure compatibility with electron-builder and Electron v28.
+
+### For Local Development
+
+The repository includes `.nvmrc` files that specify Node.js v18. If you use `nvm`, run:
+
+```bash
+nvm use
+```
+
+This will automatically switch to the correct Node.js version.
+
+### For CI/CD
+
+The GitHub Actions workflow (`.github/workflows/release-electron.yml`) is configured to use Node.js v18 for all Electron builds across Linux, Windows, and macOS platforms.
+
 ## Notes
 
 - Repository root contains example RS232 test scripts in `system/` directory
