@@ -17,7 +17,7 @@
         "reol": "\r",
         "def_conn_ver_command": "*IDN?"
       },
-      "pooling": [
+      "polling": [
         {
           "method": "poll_status",
           "interval": 2,

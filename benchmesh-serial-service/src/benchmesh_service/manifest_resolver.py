@@ -77,16 +77,21 @@ class ManifestResolver:
             return out
         manifest = self._load_manifest(driver_key)
         model_cfg = self._get_model_cfg(manifest, dev)
+
+        # Check model-level polling first (new unified approach)
+        model_interval = self._first_poll_interval(model_cfg)
+
         inst = model_cfg.get('instrument_class') or {}
         for klass, cfg in (inst or {}).items():
-            iv = self._first_poll_interval(cfg)
+            # Use model-level interval if available, otherwise class-level
+            iv = model_interval if model_interval is not None else self._first_poll_interval(cfg)
             if iv is not None:
                 out[str(klass)] = iv
             # nested
             for subk, subcfg in (cfg or {}).items():
                 if not isinstance(subcfg, dict) or subk in ('features','modes','pooling','polling'):
                     continue
-                siv = self._first_poll_interval(subcfg)
+                siv = model_interval if model_interval is not None else self._first_poll_interval(subcfg)
                 if siv is not None:
                     out[str(subk)] = siv
         return out
@@ -108,6 +113,13 @@ class ManifestResolver:
             return None
         manifest = self._load_manifest(driver_key)
         model_cfg = self._get_model_cfg(manifest, dev)
+
+        # Check model-level polling first (new unified approach)
+        model_method = self._first_poll_method(model_cfg)
+        if model_method:
+            return model_method
+
+        # Fall back to class-level polling (backward compatibility)
         iclasses = (model_cfg or {}).get('instrument_class', {}) or {}
         # top-level
         meth = self._first_poll_method(iclasses.get(klass, {}) or {})

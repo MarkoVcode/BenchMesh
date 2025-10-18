@@ -16,14 +16,14 @@
         "reol": "\r",
         "def_conn_ver_command": "*IDN?"
       },
+      "polling": [
+        {
+          "method": "poll_status",
+          "interval": 0.6
+        }
+      ],
       "instrument_class": {
         "AWG": {
-          "pooling": [
-            {
-              "method": "poll_status",
-              "interval": 0.6
-            }
-          ],
           "ui_component": "GenericAWG",
           "features": {
             "lock": true,

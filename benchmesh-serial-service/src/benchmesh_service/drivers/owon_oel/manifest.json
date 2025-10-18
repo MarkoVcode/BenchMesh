@@ -16,14 +16,14 @@
         "reol": "\r",
         "def_conn_ver_command": "*IDN?"
       },
+      "polling": [
+        {
+          "method": "poll_status",
+          "interval": 1.1
+        }
+      ],
       "instrument_class": {
         "ELL": {
-          "pooling": [
-            {
-              "method": "poll_status",
-              "interval": 1.1
-            }
-          ],
           "ui_component": "OwonOELELL",
           "features": {
             "channels": 1,
