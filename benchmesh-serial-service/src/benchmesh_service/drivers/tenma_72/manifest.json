@@ -23,7 +23,7 @@
         "PSU": {
           "ui_component": "GenericPSU",
           "features": {
-            "lock": true,
+            "lock": false,
             "compulsory_lock": false,
             "channels": 1,
             "memory_banks": 5,

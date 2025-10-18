@@ -1,6 +1,7 @@
 import React from 'react'
 import { getClassDescription } from './instrumentClasses'
 import { GenericPSU } from './classes/PSU/GenericPSU'
+import { GenericOWONPSU } from './classes/PSU/GenericOWONPSU'
 import { GenericDMM } from './classes/DMM/GenericDMM'
 import { GenericELL } from './classes/ELL/GenericELL'
 import { OwonOELELL } from './classes/ELL/OwonOELELL'
@@ -18,6 +19,7 @@ export function ChannelPod({ path, klass, uiComponent, registry }: { path: strin
       {/* Prefer explicit ui_component from API if provided, otherwise fallback by klass */}
       <div className="channel-extra">
         {uiComponent === 'GenericPSU' || (uiComponent == null && upper === 'PSU') ? <GenericPSU channelPath={path} registry={registry} /> : null}
+        {uiComponent === 'GenericOWONPSU' ? <GenericOWONPSU channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericDMM' || (uiComponent == null && upper === 'DMM') ? <GenericDMM channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericELL' || (uiComponent == null && upper === 'ELL') ? <GenericELL channelPath={path} registry={registry} /> : null}
         {uiComponent === 'OwonOELELL' ? <OwonOELELL channelPath={path} registry={registry} /> : null}
@@ -25,7 +27,7 @@ export function ChannelPod({ path, klass, uiComponent, registry }: { path: strin
         {uiComponent === 'GenericOSC' || (uiComponent == null && upper === 'OSC') ? <GenericOSC channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericLCR' || (uiComponent == null && upper === 'LCR') ? <GenericLCR channelPath={path} registry={registry} /> : null}
         {uiComponent === 'GenericSAL' || (uiComponent == null && upper === 'SAL') ? <GenericSAL channelPath={path} registry={registry} /> : null}
-        {(uiComponent && !['GenericPSU','GenericDMM','GenericELL','OwonOELELL','GenericAWG','GenericOSC','GenericLCR','GenericSAL'].includes(uiComponent)) ? <UnknownInstrument uiComponent={uiComponent} channelPath={path} /> : null}
+        {(uiComponent && !['GenericPSU','GenericOWONPSU','GenericDMM','GenericELL','OwonOELELL','GenericAWG','GenericOSC','GenericLCR','GenericSAL'].includes(uiComponent)) ? <UnknownInstrument uiComponent={uiComponent} channelPath={path} /> : null}
       </div>
     </div>
   )

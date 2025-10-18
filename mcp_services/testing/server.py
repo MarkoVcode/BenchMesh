@@ -134,6 +134,34 @@ class TestRunner:
             "returncode": result["returncode"]
         }
 
+    async def run_e2e_tests(
+        self,
+        headed: bool = False,
+        ui_mode: bool = False,
+        test_pattern: Optional[str] = None
+    ) -> dict[str, Any]:
+        """Run Playwright E2E tests"""
+
+        cmd = ["npx", "playwright", "test"]
+
+        if headed:
+            cmd.append("--headed")
+        
+        if ui_mode:
+            cmd.append("--ui")
+        
+        if test_pattern:
+            cmd.append(test_pattern)
+
+        result = await self._run_command(cmd, cwd=self.frontend_root)
+
+        return {
+            "success": result["returncode"] == 0,
+            "output": result["output"],
+            "error": result["error"],
+            "returncode": result["returncode"]
+        }
+
     async def discover_tests(self) -> dict[str, Any]:
         """Discover all available tests"""
 
@@ -298,6 +326,29 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="run_e2e_tests",
+            description="Run Playwright E2E tests for the frontend UI",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "headed": {
+                        "type": "boolean",
+                        "description": "Run tests in headed mode (visible browser)",
+                        "default": False
+                    },
+                    "ui_mode": {
+                        "type": "boolean",
+                        "description": "Run tests in interactive UI mode",
+                        "default": False
+                    },
+                    "test_pattern": {
+                        "type": "string",
+                        "description": "Test file pattern to run (e.g., 'app-navigation.spec.ts')"
+                    }
+                }
+            }
+        ),
+        Tool(
             name="run_all_tests",
             description="Run all tests (backend + frontend)",
             inputSchema={
@@ -362,6 +413,13 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent]:
 
         elif name == "run_electron_tests":
             result = await test_runner.run_electron_tests()
+
+        elif name == "run_e2e_tests":
+            result = await test_runner.run_e2e_tests(
+                headed=arguments.get("headed", False),
+                ui_mode=arguments.get("ui_mode", False),
+                test_pattern=arguments.get("test_pattern")
+            )
 
         elif name == "run_all_tests":
             verbose = arguments.get("verbose", False)

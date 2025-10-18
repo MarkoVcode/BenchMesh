@@ -7,12 +7,14 @@ import { RemoteLockWarning } from '../../components/RemoteLockWarning'
 // PSU face with two columns: Settings (editable V/A) and Readings (readonly V/A/P)
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
 // - Readings: mirrors V and A and derives P = V*A, all readonly but styled identically
-export function GenericPSU({ channelPath, registry }: { channelPath?: string, registry?: any }) {
+export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
 
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
+  const [voltageLimit, setVoltageLimit] = useState('0')
+  const [currentLimit, setCurrentLimit] = useState('0')
   const [outputEnabled, setOutputEnabled] = useState(false)
   const [busyOutput, setBusyOutput] = useState(false)
   const [remoteMode, setRemoteMode] = useState(false)
@@ -57,6 +59,8 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
 
   const onChangeVoltage = (v: string) => setVoltage(limitDigits(sanitizeNumber(v), 5))
   const onChangeCurrent = (v: string) => setCurrent(limitDigits(sanitizeNumber(v), 5))
+  const onChangeVoltageLimit = (v: string) => setVoltageLimit(limitDigits(sanitizeNumber(v), 5))
+  const onChangeCurrentLimit = (v: string) => setCurrentLimit(limitDigits(sanitizeNumber(v), 5))
 
   const vNum = useMemo(() => parseFloat(voltage || '0') || 0, [voltage])
   const aNum = useMemo(() => parseFloat(current || '0') || 0, [current])
@@ -64,17 +68,21 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
 
   const vDisp = voltage
   const aDisp = current
+  const vLimitDisp = voltageLimit
+  const aLimitDisp = currentLimit
   const pDisp = numberToDisplay(pNum)
 
-  // Load initial voltage/current values
+  // Load initial voltage/current/limit values
   useEffect(() => {
     let cancelled = false
     async function loadInitial() {
       if (!channelPath) return
       try {
-        const [rv, rc] = await Promise.all([
+        const [rv, rc, rvl, rcl] = await Promise.all([
           fetch(`${apiBase}${channelPath}/voltage`),
           fetch(`${apiBase}${channelPath}/current`),
+          fetch(`${apiBase}${channelPath}/voltage_limit`),
+          fetch(`${apiBase}${channelPath}/current_limit`),
         ])
         if (!cancelled) {
           if (rv.ok) {
@@ -86,6 +94,16 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
             const ja = await rc.json().catch(() => null as any)
             const a = (ja && ja.value != null) ? String(ja.value).trim() : '0'
             setCurrent(limitDigits(sanitizeNumber(a), 5) || '0')
+          }
+          if (rvl.ok) {
+            const jvl = await rvl.json().catch(() => null as any)
+            const vl = (jvl && jvl.value != null) ? String(jvl.value).trim() : '0'
+            setVoltageLimit(limitDigits(sanitizeNumber(vl), 5) || '0')
+          }
+          if (rcl.ok) {
+            const jcl = await rcl.json().catch(() => null as any)
+            const cl = (jcl && jcl.value != null) ? String(jcl.value).trim() : '0'
+            setCurrentLimit(limitDigits(sanitizeNumber(cl), 5) || '0')
           }
         }
       } catch {}
@@ -186,6 +204,9 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
             <>
               <EditableBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet channelPath={channelPath} apiBase={apiBase} />
               <EditableBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet channelPath={channelPath} apiBase={apiBase} />
+              <div className="psu-section-title" style={{ marginTop: '16px' }}>Limits</div>
+              <EditableBigNumber kind="UL" label={<Label symbol="U Limit" unit="V"/>} value={vLimitDisp} onChange={onChangeVoltageLimit} withSet channelPath={channelPath} apiBase={apiBase} />
+              <EditableBigNumber kind="IL" label={<Label symbol="I Limit" unit="A"/>} value={aLimitDisp} onChange={onChangeCurrentLimit} withSet channelPath={channelPath} apiBase={apiBase} />
             </>
           )}
 
@@ -262,7 +283,7 @@ function numberToDisplay(n: number): string {
   return frac.length ? `${i}.${frac}` : i
 }
 
-function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath, apiBase }: { kind?: 'U' | 'I', label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string, apiBase?: string }) {
+function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath, apiBase }: { kind?: 'U' | 'I' | 'UL' | 'IL', label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string, apiBase?: string }) {
   const [busy, setBusy] = useState(false)
   return (
     <div className="psu-block">
@@ -279,7 +300,9 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
         <>
           <button className="psu-set" type="button" disabled={busy} title={
             kind === 'U' ? `POST ${channelPath}/voltage/{value}` :
-            kind === 'I' ? `POST ${channelPath}/current/{value}` : ''
+            kind === 'I' ? `POST ${channelPath}/current/{value}` :
+            kind === 'UL' ? `POST ${channelPath}/voltage_limit/{value}` :
+            kind === 'IL' ? `POST ${channelPath}/current_limit/{value}` : ''
           } onClick={async (e) => {
             e.preventDefault(); e.stopPropagation();
             if (busy) return
@@ -290,6 +313,8 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
               let url: string | undefined
               if (endp === 'U') url = `${apiBase}${channelPath}/voltage/${val}`
               if (endp === 'I') url = `${apiBase}${channelPath}/current/${val}`
+              if (endp === 'UL') url = `${apiBase}${channelPath}/voltage_limit/${val}`
+              if (endp === 'IL') url = `${apiBase}${channelPath}/current_limit/${val}`
               if (url) await fetch(url, { method: 'POST' })
             } catch (err) {
               console.debug('SET failed', err)
@@ -297,7 +322,9 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
           }}>{busy ? (<><span className="spinner"/>SET</>) : 'SET'}</button>
           <span className="psu-api" title={
             kind === 'U' ? `GET ${channelPath}/voltage` :
-            kind === 'I' ? `GET ${channelPath}/current` : (channelPath || '')
+            kind === 'I' ? `GET ${channelPath}/current` :
+            kind === 'UL' ? `GET ${channelPath}/voltage_limit` :
+            kind === 'IL' ? `GET ${channelPath}/current_limit` : (channelPath || '')
           }>API</span>
         </>
       )}
@@ -383,4 +410,4 @@ function Label({ symbol, unit }: { symbol: string, unit: string }) {
 }
 
 
-export default GenericPSU
+export default GenericOWONPSU

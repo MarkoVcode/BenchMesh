@@ -23,8 +23,10 @@
       ],
       "instrument_class": {
         "PSU": {
-          "ui_component": "GenericPSU",
+          "ui_component": "GenericOWONPSU",
           "features": {
+            "lock": false,
+            "compulsory_lock": false,
             "channels": 1,
             "memory_banks": 4,
             "memory_storage": [

@@ -187,11 +187,16 @@ Both systems coexist without interference and provide complementary insights.
 # From repository root - starts everything (API, Frontend, Node-RED)
 ./start.sh
 
+# Start with frontend UI build (use when frontend code has changed)
+./start.sh --uibuild
+
 # Services will be available at:
-# - Frontend: http://localhost:57666
+# - Frontend: http://localhost:57666/ui
 # - API Docs: http://localhost:57666/docs
 # - Node-RED: http://localhost:1880
 ```
+
+**Note**: The `--uibuild` flag triggers a full frontend build before starting services. This runs `npm ci` and `npm run build` in the frontend directory. Use this flag when you've made changes to the frontend code. Without the flag, the script uses the existing build in `dist/`.
 
 ### Backend Development
 
@@ -249,12 +254,33 @@ npm run build
 # Preview production build
 npm run preview
 
-# Run tests
+# Run unit tests (vitest)
 npm test
 
-# Run tests once (CI mode)
+# Run unit tests once (CI mode)
 npm run test:run
+
+# Run E2E tests (Playwright)
+npm run test:e2e
+
+# Run E2E tests with UI mode
+npm run test:e2e:ui
+
+# Run E2E tests in headed mode (visible browser)
+npm run test:e2e:headed
+
+# Run E2E tests in debug mode
+npm run test:e2e:debug
 ```
+
+**E2E Testing**: The frontend includes comprehensive Playwright tests that verify UI functionality with mocked API and WebSocket connections. Tests cover:
+- App navigation and modals (Configuration, Documentation, Metrics, Recording)
+- Instrument display and status indicators
+- Device interaction and real-time updates
+- API integration, error handling, and retry logic
+- WebSocket connection and data streaming
+
+See `benchmesh-serial-service/frontend/e2e/README.md` for detailed E2E testing documentation.
 
 ### Driver CLI Tool
 
@@ -306,11 +332,28 @@ python3 mcp_services/testing/client_helper.py
 
 The MCP service provides:
 - **Backend Tests**: Run pytest tests with filtering (46 tests discovered)
-- **Frontend Tests**: Run vitest tests (21 tests discovered)
+- **Frontend Unit Tests**: Run vitest tests (21 tests discovered)
+- **E2E Tests**: Run Playwright tests for UI integration testing (31 tests)
 - **Integration Tests**: Run integration tests separately
 - **Smart Testing**: Automatically run tests for changed files
 - **Test Discovery**: Find all available tests
 - **JSON Reports**: Structured test results with detailed metrics
+
+### E2E Testing Modes
+
+**Mocked Tests (default)**: Fast, isolated tests with mocked API/WebSocket
+```bash
+npm run test:e2e
+```
+
+**Real Service Tests**: Full integration tests against running backend
+```bash
+# 1. Start backend service
+cd benchmesh-serial-service && PYTHONPATH=src uvicorn benchmesh_service.api:app --port 57666 &
+
+# 2. Run E2E tests with real service
+npm run test:e2e:service
+```
 
 ### Usage Examples
 

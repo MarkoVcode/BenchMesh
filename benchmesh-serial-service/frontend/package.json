@@ -9,7 +9,13 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 5173 --strictPort",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:service": "playwright test --config=playwright.config.with-service.ts with-service/",
+    "test:e2e:service:headed": "playwright test --config=playwright.config.with-service.ts --headed with-service/"
   },
   "dependencies": {
     "axios": "^1.7.0",
@@ -22,6 +28,7 @@
     "swagger-ui-react": "^5.29.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@testing-library/jest-dom": "^6.4.8",
     "@testing-library/react": "^14.2.1",
     "@testing-library/user-event": "^14.6.1",

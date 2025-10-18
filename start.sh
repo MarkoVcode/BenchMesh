@@ -2,6 +2,8 @@
 
 # BenchMesh Startup Script
 # Starts FastAPI backend, Frontend, and Node-RED
+# Usage: ./start.sh [--uibuild]
+#   --uibuild: Build the frontend UI before starting
 export BM_UNIFIED_POLL_INTERVAL=50
 export BM_UNIFIED_POLLING=true
 export BM_MAX_QUEUE_DEPTH=10
@@ -11,7 +13,30 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Parse command line arguments
+BUILD_UI=false
+for arg in "$@"; do
+  case $arg in
+    --uibuild)
+      BUILD_UI=true
+      shift
+      ;;
+  esac
+done
+
 echo "🚀 Starting BenchMesh System..."
+
+# Build frontend if --uibuild flag is provided
+if [ "$BUILD_UI" = true ]; then
+  echo "🔨 Building frontend UI..."
+  cd benchmesh-serial-service/frontend
+  npm ci --quiet
+  npm run build
+  cd "$SCRIPT_DIR"
+  echo "✅ Frontend build complete"
+else
+  echo "⏭️  Skipping UI build (use --uibuild to rebuild)"
+fi
 
 # Create node-red data directory if it doesn't exist
 mkdir -p .node-red

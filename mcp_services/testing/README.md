@@ -82,6 +82,24 @@ Run Electron app tests.
 
 **Parameters:** None
 
+### run_e2e_tests
+Run Playwright E2E tests for the frontend UI.
+
+**Parameters:**
+- `headed` (optional): Run tests in headed mode (visible browser) (default: false)
+- `ui_mode` (optional): Run tests in interactive UI mode (default: false)
+- `test_pattern` (optional): Test file pattern to run (e.g., "app-navigation.spec.ts")
+
+**Example:**
+```json
+{
+  "headed": true,
+  "test_pattern": "app-navigation.spec.ts"
+}
+```
+
+**Note**: By default, E2E tests run with mocked API/WebSocket. For testing with real backend service, use the `with-service/` test directory which requires the service to be running on port 57666
+
 ### run_all_tests
 Run all tests (backend + frontend).
 

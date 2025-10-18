@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
+import { RemoteLockWarning } from '../../components/RemoteLockWarning'
 
 // OWON OEL Electronic Load component
 // - Settings: Mode dropdown (like DMM) populated from /instruments/ELL/{device_id}
@@ -23,6 +24,8 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
   const [voltage, setVoltage] = useState<number | null>(null)
   const [current, setCurrent] = useState<number | null>(null)
   const [power, setPower] = useState<number | null>(null)
+  const [lockEnabled, setLockEnabled] = useState(false)
+  const [compulsoryLock, setCompulsoryLock] = useState(false)
 
   // Function to fetch current setpoint value for a given mode
   const fetchSetpointValue = async (modeKey: string) => {
@@ -127,14 +130,14 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     })
   }, [channelPath, deviceId, channel, registerSource])
 
-  // Fetch modes from API
+  // Fetch modes and lock settings from API
   useEffect(() => {
     let cancelled = false
     async function loadFeatures() {
       if (!deviceId || !klass) return
       const url = `${apiBase}/instruments/${klass}/${deviceId}`
       try {
-        const r = await fetch(url)
+        const r = await fetch(url, { cache: 'no-store' })
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
@@ -145,6 +148,13 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
             if (!mode && Object.keys(j.modes).length > 0) {
               setMode(Object.keys(j.modes)[0])
             }
+          }
+          // Load lock settings from manifest
+          if (typeof j?.lock === 'boolean') {
+            setLockEnabled(j.lock)
+          }
+          if (typeof j?.compulsory_lock === 'boolean') {
+            setCompulsoryLock(j.compulsory_lock)
           }
         }
       } catch {}
@@ -241,46 +251,52 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     }
   }
 
+  // Determine if controls should be shown based on lock settings
+  const shouldShowControls = !lockEnabled || !compulsoryLock || remoteMode
+  const shouldShowWarning = lockEnabled && compulsoryLock && !remoteMode
+
   return (
     <div className="psu-face">
       <div className="psu-main">
         <div className="psu-section" style={{ width: '100%' }}>
           <div className="psu-section-title">Settings</div>
 
-          {/* Remote Mode Toggle - Always visible */}
-          <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr', width: '100%', marginBottom: '12px' }}>
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: busyRemote ? 'wait' : 'pointer',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: remoteMode ? 'var(--good)' : 'var(--text-2)',
-                gap: '8px',
-                opacity: busyRemote ? 0.5 : 1
-              }}
-              title={`POST ${apiBase}/instruments/${klass || 'ELL'}/${deviceId || '{id}'}/${channel || '1'}/set_remote/${remoteMode ? 'OFF' : 'ON'}`}
-            >
-              <input
-                type="checkbox"
-                checked={remoteMode}
-                onChange={handleRemoteToggle}
-                disabled={busyRemote}
+          {/* Remote Mode Toggle - visible only when lock is enabled */}
+          {lockEnabled && (
+            <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr', width: '100%', marginBottom: '12px' }}>
+              <label
                 style={{
-                  width: '16px',
-                  height: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
                   cursor: busyRemote ? 'wait' : 'pointer',
-                  accentColor: 'var(--good)'
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: remoteMode ? 'var(--good)' : 'var(--text-2)',
+                  gap: '8px',
+                  opacity: busyRemote ? 0.5 : 1
                 }}
-              />
-              <span>Enable Remote Mode</span>
-              {busyRemote && <span className="spinner" style={{ marginLeft: '4px' }} />}
-            </label>
-          </div>
+                title={`POST ${apiBase}/instruments/${klass || 'ELL'}/${deviceId || '{id}'}/${channel || '1'}/set_remote/${remoteMode ? 'OFF' : 'ON'}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={remoteMode}
+                  onChange={handleRemoteToggle}
+                  disabled={busyRemote}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    cursor: busyRemote ? 'wait' : 'pointer',
+                    accentColor: 'var(--good)'
+                  }}
+                />
+                <span>Enable Remote Mode</span>
+                {busyRemote && <span className="spinner" style={{ marginLeft: '4px' }} />}
+              </label>
+            </div>
+          )}
 
-          {/* Mode and Input controls - Only visible when remote mode is ON */}
-          {remoteMode && (
+          {/* Mode and Input controls - visibility depends on lock settings */}
+          {shouldShowControls && (
             <>
               <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto auto', width: '100%' }}>
                 <div className="psu-label">
@@ -381,20 +397,8 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
             </>
           )}
 
-          {/* Warning when in local mode */}
-          {!remoteMode && (
-            <div style={{
-              padding: '12px',
-              background: 'rgba(255, 165, 0, 0.1)',
-              border: '1px solid rgba(255, 165, 0, 0.3)',
-              borderRadius: '6px',
-              color: 'rgba(255, 165, 0, 0.9)',
-              fontSize: '12px',
-              textAlign: 'center'
-            }}>
-              ⚠️ Instrument is in LOCAL mode. Enable remote mode to control settings.
-            </div>
-          )}
+          {/* Warning when compulsory lock is enabled and in local mode */}
+          {shouldShowWarning && <RemoteLockWarning />}
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
