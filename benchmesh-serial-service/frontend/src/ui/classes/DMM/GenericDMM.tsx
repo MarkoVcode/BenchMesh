@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
 import { GenericRange } from './GenericRange'
 import { GenericTemp } from './GenericTemp'
-import { SamplingStats } from '../../SamplingStats'
+import { CompactReading } from '../../components/CompactReading'
 
 // Generic DMM component styled similarly to GenericPSU
 // - Before rendering, fetch GET /instruments/DMM/{device_id} to obtain features (modes list)
@@ -199,9 +199,9 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber
-            kind={currentSymbol as 'U' | 'I' | 'P'}
-            label={<Label symbol={currentSymbol} unit={`${unitPrefix}${currentUnit}`} note={currentNote} />}
+          <CompactReading
+            symbol={currentSymbol}
+            unit={`${unitPrefix}${currentUnit}`}
             value={measurementValue}
             channelPath={channelPath}
             parameter="voltage"
@@ -347,85 +347,6 @@ function parsePath(channelPath?: string): { klass?: string, deviceId?: string, c
   return { klass: parts[1], deviceId: parts[2], channel: parts[3] }
 }
 
-function ReadonlyBigNumber({ kind, label, value, channelPath, parameter }: { kind?: 'U' | 'I' | 'P', label: React.ReactNode, value: string, channelPath?: string, parameter?: string }) {
-  const { selectedForRecord, selectedForGraph, toggleRecord, toggleGraph } = useMeasurement()
-  const valueRef = useRef<string>(value)
-
-  // Keep ref updated with latest value
-  useEffect(() => {
-    valueRef.current = value
-  }, [value])
-
-  const sourceId = useMemo(() => {
-    if (!channelPath || !parameter) return ''
-    const deviceId = channelPath.split('/')[3] || 'unknown'
-    const channel = channelPath.split('/')[4] || '1'
-    return `${deviceId}-${channel}-${kind}`
-  }, [channelPath, parameter, kind])
-
-  const getCurrentValue = () => {
-    const numericValue = parseFloat(valueRef.current)
-    return isNaN(numericValue) ? null : numericValue
-  }
-
-  return (
-    <>
-      <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto auto auto' }}>
-        <div className="psu-label">{label}</div>
-        <span className="psu-number readonly" aria-hidden>
-          <span>{value || '0'}</span>
-        </span>
-        {channelPath && (
-          <>
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <label
-                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
-                title="Record in table"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedForRecord.has(sourceId)}
-                  onChange={() => toggleRecord(sourceId)}
-                  style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--accent)' }}
-                />
-                <span style={{ marginLeft: '2px' }}>📊</span>
-              </label>
-              <label
-                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '10px', color: 'var(--text-2)' }}
-                title="Show in graph"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedForGraph.has(sourceId)}
-                  onChange={() => toggleGraph(sourceId)}
-                  style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--good)' }}
-                />
-                <span style={{ marginLeft: '2px' }}>📈</span>
-              </label>
-            </div>
-            <span className="psu-api" title={
-              kind === 'U' ? `GET ${channelPath}/voltage` :
-              kind === 'I' ? `GET ${channelPath}/current` :
-              kind === 'P' ? `GET ${channelPath}/power` : ''
-            }>API</span>
-          </>
-        )}
-      </div>
-      <SamplingStats getCurrentValue={getCurrentValue} label="Statistical Sampling" />
-    </>
-  )
-}
-
-function Label({ symbol, unit, note }: { symbol: string, unit: string, note?: string }) {
-  return (
-    <>
-      <span className="psu-symbol" style={{ fontSize: '24px' }}>{symbol}</span>
-      <span className="psu-unit" style={{ fontSize: '20px' }}>
-        [{unit}]
-        {note && <span style={{ fontSize: '14px', marginLeft: '4px', color: 'var(--text-2)' }}>{note}</span>}
-      </span>
-    </>
-  )
-}
+// Old ReadonlyBigNumber and Label functions removed - now using CompactReading component
 
 export default GenericDMM

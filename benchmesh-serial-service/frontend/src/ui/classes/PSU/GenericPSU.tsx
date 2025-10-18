@@ -221,7 +221,13 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
           {busyOutput ? (<><span className="spinner"/>{outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT'}</>) : (outputEnabled ? 'DISABLE OUTPUT' : 'ENABLE OUTPUT')}
         </button>
       </div>
-      <TimeSeriesGraph channelPath={channelPath} maxDataPoints={100} updateInterval={1000} />
+      <TimeSeriesGraph
+        channelPath={channelPath}
+        getValue={() => vNum}
+        label="Voltage"
+        unit="V"
+        color="#ff4444"
+      />
     </div>
   )
 }
