@@ -60,7 +60,7 @@ class OWONSPM:
                     except Exception:
                         pass
                 result[key] = val
-        print("POLL STATUS EXECUTED")
+       # print("POLL STATUS EXECUTED")
         return result
 
     def poll_status_dmm(self, channel: int):
@@ -70,7 +70,7 @@ class OWONSPM:
         function = parts[0]
         if not raw:
             return None
-        print(num_str)
+      #  print(num_str)
         return {"measurement1_si": parts[1], "measurement1_num": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
 
     def poll_status(self, channel: int):

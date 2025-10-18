@@ -147,6 +147,16 @@
       "id_patterns": [
         "OWON,XDM1241"
       ]
+    },
+    "XDM1041": {
+      "id_patterns": [
+        "OWON,XDM1041"
+      ]
+    },
+    "XDM1141": {
+      "id_patterns": [
+        "OWON,XDM1141"
+      ]
     }
   }
 }

@@ -33,6 +33,31 @@
       "id_patterns": [
         "OWON,DGE2070"
       ]
+    },
+    "DGE2035": {
+      "id_patterns": [
+        "OWON,DGE2035"
+      ]
+    },
+    "DGE3032": {
+      "id_patterns": [
+        "OWON,DGE3032"
+      ]
+    },
+    "DGE3062": {
+      "id_patterns": [
+        "OWON,DGE3062"
+      ]
+    },
+    "DGE3031": {
+      "id_patterns": [
+        "OWON,DGE3031"
+      ]
+    },
+    "DGE3061": {
+      "id_patterns": [
+        "OWON,DGE3061"
+      ]
     }
   }
 }

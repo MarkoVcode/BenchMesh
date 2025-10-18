@@ -23,6 +23,8 @@
         "ELL": {
           "ui_component": "OwonOELELL",
           "features": {
+            "lock": true,
+            "compulsory_lock": true,
             "channels": 1,
             "parallel": false,
             "dynamic_list": true,
@@ -103,6 +105,438 @@
       "id_patterns": [
         "OWON,OEL1515"
       ]
+    },
+    "OEL1520": {
+      "id_patterns": [
+        "OWON,OEL1520"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 20.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 300.0
+              }
+            },
+            "modes": {
+              "CURR": {
+                "setpoint": {
+                  "max": 20.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL1530": {
+      "id_patterns": [
+        "OWON,OEL1530"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 30.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 300.0
+              }
+            },
+            "modes": {
+              "CURR": {
+                "setpoint": {
+                  "max": 30.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL3015": {
+      "id_patterns": [
+        "OWON,OEL3015"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 300.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL3020": {
+      "id_patterns": [
+        "OWON,OEL3020"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 300.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 20.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              },
+              "CURR": {
+                "setpoint": {
+                  "max": 20.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL3030": {
+      "id_patterns": [
+        "OWON,OEL3030"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 300.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 30.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 300.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              },
+              "CURR": {
+                "setpoint": {
+                  "max": 30.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8511": {
+      "id_patterns": [
+        "OWON,OEL8511"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 20.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 200.0
+              }
+            },
+            "modes": {
+              "CURR": {
+                "setpoint": {
+                  "max": 20.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 200.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8511B": {
+      "id_patterns": [
+        "OWON,OEL8511B"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 300.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 20.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 200.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              },
+              "CURR": {
+                "setpoint": {
+                  "max": 20.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 200.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8511C": {
+      "id_patterns": [
+        "OWON,OEL8511C"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 600.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 20.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 200.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 600.0
+                }
+              },
+              "CURR": {
+                "setpoint": {
+                  "max": 20.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 200.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8512": {
+      "id_patterns": [
+        "OWON,OEL8512"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 40.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 400.0
+              }
+            },
+            "modes": {
+              "CURR": {
+                "setpoint": {
+                  "max": 40.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 400.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8512B": {
+      "id_patterns": [
+        "OWON,OEL8512B"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 300.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 40.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 400.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 300.0
+                }
+              },
+              "CURR": {
+                "setpoint": {
+                  "max": 40.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 400.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8512C": {
+      "id_patterns": [
+        "OWON,OEL8512C"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 600.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 40.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 400.0
+              }
+            },
+            "modes": {
+              "VOLT": {
+                "setpoint": {
+                  "max": 600.0
+                }
+              },
+              "CURR": {
+                "setpoint": {
+                  "max": 40.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 400.0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OEL8513": {
+      "id_patterns": [
+        "OWON,OEL8513"
+      ],
+      "instrument_class": {
+        "ELL": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 40.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 500.0
+              }
+            },
+            "modes": {
+              "CURR": {
+                "setpoint": {
+                  "max": 40.0
+                }
+              },
+              "POW": {
+                "setpoint": {
+                  "max": 500.0
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
