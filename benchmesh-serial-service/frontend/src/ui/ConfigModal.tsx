@@ -306,11 +306,13 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                           onChange={(e) => updateDevice(index, 'model', e.target.value)}
                         >
                           <option value="">Select model...</option>
-                          {driverModels[device.driver].map((model) => (
-                            <option key={model} value={model}>
-                              {model}
-                            </option>
-                          ))}
+                          {driverModels[device.driver]
+                            .filter((model) => model !== 'DEFAULT')
+                            .map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
                         </select>
                       ) : (
                         <input

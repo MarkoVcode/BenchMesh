@@ -44,7 +44,6 @@
                 "max": 150.0
               }
             },
-            "modes": {},
             "protection": {
               "OCP": {
                 "type": "boolean"
@@ -57,10 +56,239 @@
         }
       }
     },
+    "72-2535": {
+      "id_patterns": [
+        "TENMA 72-2535"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 3.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 90.0
+              }
+            }
+          }
+        }
+      }
+    },
     "72-2540": {
       "id_patterns": [
         "TENMA 72-2540"
+      ],
+      "polling": [
+        {
+          "method": "poll_status",
+          "interval": 3
+        }
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "channels": 1
+          }
+        }
+      }
+    },
+    "72-2545": {
+      "id_patterns": [
+        "TENMA 72-2545"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 60.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 2.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 120.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-2550": {
+      "id_patterns": [
+        "TENMA 72-2550"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 60.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 3.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 180.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-2705": {
+      "id_patterns": [
+        "TENMA 72-2705"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 3.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 90.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-2710": {
+      "id_patterns": [
+        "TENMA 72-2710"
       ]
+    },
+    "72-2930": {
+      "id_patterns": [
+        "TENMA 72-2930"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 10.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 300.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-2940": {
+      "id_patterns": [
+        "TENMA 72-2940"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 60.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 300.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-13320": {
+      "id_patterns": [
+        "TENMA 72-13320"
+      ],
+      "polling": [
+        {
+          "method": "poll_status",
+          "interval": 9
+        }
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "channels": 3,
+            "absolute_limits": {
+              "current": {
+                "unit": "A",
+                "max": 3.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 195.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-13330": {
+      "id_patterns": [
+        "TENMA 72-13330"
+      ],
+      "polling": [
+        {
+          "method": "poll_status",
+          "interval": 9
+        }
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "channels": 3,
+            "absolute_limits": {
+              "power": {
+                "unit": "W",
+                "max": 315.0
+              }
+            }
+          }
+        }
+      }
+    },
+    "72-13360": {
+      "id_patterns": [
+        "TENMA 72-13360"
+      ],
+      "instrument_class": {
+        "PSU": {
+          "features": {
+            "absolute_limits": {
+              "voltage": {
+                "unit": "V",
+                "max": 60.0
+              },
+              "current": {
+                "unit": "A",
+                "max": 15.0
+              },
+              "power": {
+                "unit": "W",
+                "max": 300.0
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

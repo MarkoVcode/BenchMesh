@@ -279,7 +279,8 @@ def list_driver_models(driver_id: str):
             models = manifest.get('models', {})
             if not isinstance(models, dict):
                 return []
-            return list(models.keys())
+            # Filter out DEFAULT - it's an internal template, not a selectable model
+            return [k for k in models.keys() if k != 'DEFAULT']
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read manifest: {str(e)}")
 
