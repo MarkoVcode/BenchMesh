@@ -25,12 +25,12 @@ class OwonOEL:
         raw = self.query_status(channel) or ""
         if raw is None or raw == "":
             # Return a minimal but truthy structure to avoid dropping the connection
-            return {"VOUT": si_to_value(0), "IOUT": si_to_value(0), "POUT": si_to_value(0), "OVP": "OFF", "OCP": "OFF", "OTP": "OFF", "REMOTE": "OFF", "INPUT": "OFF", "MODE": "CURR"}
+            return {"VIN": si_to_value(0), "IIN": si_to_value(0), "PIN": si_to_value(0), "OVP": "OFF", "OCP": "OFF", "OTP": "OFF", "REMOTE": "OFF", "INPUT": "OFF", "MODE": "CURR"}
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
         result = {}
-        keys = ["VOUT", "IOUT", "POUT", "OVP", "OCP", "OTP"]
+        keys = ["VIN", "IIN", "PIN", "OVP", "OCP", "OTP"]
         for idx, key in enumerate(keys):
             if idx < len(parts):
                 val = parts[idx]

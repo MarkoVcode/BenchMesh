@@ -24,6 +24,9 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
   const [voltage, setVoltage] = useState<number | null>(null)
   const [current, setCurrent] = useState<number | null>(null)
   const [power, setPower] = useState<number | null>(null)
+  const [voltageSymbol, setVoltageSymbol] = useState<string>('')
+  const [currentSymbol, setCurrentSymbol] = useState<string>('')
+  const [powerSymbol, setPowerSymbol] = useState<string>('')
   const [lockEnabled, setLockEnabled] = useState(false)
   const [compulsoryLock, setCompulsoryLock] = useState(false)
 
@@ -84,16 +87,45 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       }
 
       // Update readings from registry
-      if (typeof status.VOUT === 'number') {
+      // New format: VIN, IIN, PIN with nested structure {si: {number, symbol?}, sci}
+      // Old format: VOUT, IOUT, POUT as direct numbers
+      if (status.VIN) {
+        const vinData = status.VIN
+        if (vinData.si?.number) {
+          const num = parseFloat(vinData.si.number)
+          if (!isNaN(num)) setVoltage(num)
+          setVoltageSymbol(vinData.si.symbol || '')
+        }
+      } else if (typeof status.VOUT === 'number') {
+        // Fallback to old format
         setVoltage(status.VOUT)
+        setVoltageSymbol('')
       }
 
-      if (typeof status.IOUT === 'number') {
+      if (status.IIN) {
+        const iinData = status.IIN
+        if (iinData.si?.number) {
+          const num = parseFloat(iinData.si.number)
+          if (!isNaN(num)) setCurrent(num)
+          setCurrentSymbol(iinData.si.symbol || '')
+        }
+      } else if (typeof status.IOUT === 'number') {
+        // Fallback to old format
         setCurrent(status.IOUT)
+        setCurrentSymbol('')
       }
 
-      if (typeof status.POUT === 'number') {
+      if (status.PIN) {
+        const pinData = status.PIN
+        if (pinData.si?.number) {
+          const num = parseFloat(pinData.si.number)
+          if (!isNaN(num)) setPower(num)
+          setPowerSymbol(pinData.si.symbol || '')
+        }
+      } else if (typeof status.POUT === 'number') {
+        // Fallback to old format
         setPower(status.POUT)
+        setPowerSymbol('')
       }
     }
   }, [registry, deviceId, channel, mode, modes, setpointValue])
@@ -402,9 +434,9 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={voltage !== null ? voltage.toFixed(4) : "—"} channelPath={channelPath} parameter="voltage" />
-          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={current !== null ? current.toFixed(4) : "—"} channelPath={channelPath} parameter="current" />
-          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={power !== null ? power.toFixed(4) : "—"} channelPath={channelPath} parameter="power" />
+          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit={`${voltageSymbol}V`}/>} value={voltage !== null ? voltage.toFixed(4) : "—"} channelPath={channelPath} parameter="voltage" />
+          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit={`${currentSymbol}A`}/>} value={current !== null ? current.toFixed(4) : "—"} channelPath={channelPath} parameter="current" />
+          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit={`${powerSymbol}W`}/>} value={power !== null ? power.toFixed(4) : "—"} channelPath={channelPath} parameter="power" />
         </div>
         <hr className="sep"/>
       </div>
