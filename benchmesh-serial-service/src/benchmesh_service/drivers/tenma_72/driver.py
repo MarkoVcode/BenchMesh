@@ -131,22 +131,20 @@ class TenmaPSU:
             result.update(s)
         return result   
     
-    def set_ocp(self, channel: int):
-        self.t.write_line('OCP1')
+    def set_ocp(self, channel: int, value):
+        if value is "ON":
+            self.t.write_line('OCP1')
+        elif value is "OFF":
+            self.t.write_line('OCP0')
         return self.t.read_until_reol(1024)
     
-    def unset_ocp(self, channel: int):
-        self.t.write_line('OCP0')
+    def set_ovp(self, channel: int, value):
+        if value is "ON":
+            self.t.write_line('OVP1')
+        elif value is "OFF":
+            self.t.write_line('OVP0')
         return self.t.read_until_reol(1024)
-
-    def set_ovp(self, channel: int):
-        self.t.write_line('OVP1')
-        return self.t.read_until_reol(1024)
-    
-    def unset_ovp(self, channel: int):
-        self.t.write_line('OVP0')
-        return self.t.read_until_reol(1024)
-   
+      
     def set_output(self, channel: int, value):
         if value == 'ON':
             self.t.write_line('OUT1')
@@ -154,19 +152,18 @@ class TenmaPSU:
             self.t.write_line('OUT0')
         return self.t.read_until_reol(1024)
     
-    def set_beep(self, channel: int):           #doesnt work
-        self.t.write_line('BEEP1')
+    def set_beep(self, channel: int, value):         #doesnt work
+        if value == "ON":
+            self.t.write_line('BEEP1')
+        elif value == "OFF":
+            self.t.write_line('BEEP0')
         return self.t.read_until_reol(1024)
 
-    def unset_beep(self, channel: int):         #doesnt work
-        self.t.write_line('BEEP0')
-        return self.t.read_until_reol(1024)
-
-    def save_memory(self, channel: int, bank):  #bank 1-5 - doesnt work
+    def set_memory_save(self, channel: int, bank):  #bank 1-5 - doesnt work
         self.t.write_line('SAV' + str(bank))
         return self.t.read_until_reol(1024)
 
-    def recall_memory(self, channel: int, bank):  #bank 1-5
+    def set_memory_read(self, channel: int, bank):  #bank 1-5
         self.t.write_line('RCL' + str(bank))
         self.t.read_until_reol(1024)
         return
