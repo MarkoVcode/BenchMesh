@@ -22,6 +22,14 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
   const [lockEnabled, setLockEnabled] = useState(false)
   const [compulsoryLock, setCompulsoryLock] = useState(false)
 
+  // Reading values from registry
+  const [readVoltage, setReadVoltage] = useState<number | null>(null)
+  const [readCurrent, setReadCurrent] = useState<number | null>(null)
+  const [readPower, setReadPower] = useState<number | null>(null)
+  const [voltageSymbol, setVoltageSymbol] = useState<string>('')
+  const [currentSymbol, setCurrentSymbol] = useState<string>('')
+  const [powerSymbol, setPowerSymbol] = useState<string>('')
+
   // Register measurement sources
   useEffect(() => {
     if (!channelPath) return
@@ -140,6 +148,74 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
     return () => { cancelled = true }
   }, [apiBase, channelPath])
 
+  // Monitor WebSocket registry for readings (VOUT, IOUT, POUT)
+  useEffect(() => {
+    if (!registry || !channelPath) return
+
+    const parts = channelPath.split('/').filter(Boolean)
+    if (parts.length < 4) return
+
+    const deviceId = parts[2]
+    const channel = parts[3]
+    const klass = parts[1]
+
+    const deviceData = registry[deviceId]
+    if (!deviceData) return
+
+    const statusKey = `status_ch${channel}`
+    const status = deviceData[klass]?.[statusKey]
+    if (!status) return
+
+    // Update readings from registry
+    // New format: VOUT, IOUT, POUT with nested structure {si: {number, symbol?}, sci}
+    // Old format: VOUT, IOUT, POUT as direct numbers
+    if (status.VOUT) {
+      if (status.VOUT.si?.number) {
+        const num = parseFloat(status.VOUT.si.number)
+        if (!isNaN(num)) setReadVoltage(num)
+        setVoltageSymbol(status.VOUT.si.symbol || '')
+      } else if (typeof status.VOUT === 'number') {
+        // Fallback to old format
+        setReadVoltage(status.VOUT)
+        setVoltageSymbol('')
+      }
+    }
+
+    if (status.IOUT) {
+      if (status.IOUT.si?.number) {
+        const num = parseFloat(status.IOUT.si.number)
+        if (!isNaN(num)) setReadCurrent(num)
+        setCurrentSymbol(status.IOUT.si.symbol || '')
+      } else if (typeof status.IOUT === 'number') {
+        // Fallback to old format
+        setReadCurrent(status.IOUT)
+        setCurrentSymbol('')
+      }
+    }
+
+    if (status.POUT) {
+      if (status.POUT.si?.number) {
+        const num = parseFloat(status.POUT.si.number)
+        if (!isNaN(num)) setReadPower(num)
+        setPowerSymbol(status.POUT.si.symbol || '')
+      } else if (typeof status.POUT === 'number') {
+        // Fallback to old format
+        setReadPower(status.POUT)
+        setPowerSymbol('')
+      }
+    }
+
+    // Update output enabled status
+    if (typeof status.OUTPUT === 'string') {
+      setOutputEnabled(status.OUTPUT === 'ON')
+    }
+
+    // Update remote mode status
+    if (typeof status.REMOTE === 'string') {
+      setRemoteMode(status.REMOTE === 'ON')
+    }
+  }, [registry, channelPath])
+
   const handleRemoteToggle = async () => {
     if (!channelPath || busyRemote) return
     setBusyRemote(true)
@@ -215,9 +291,9 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
         </div>
         <div className="psu-section">
           <div className="psu-section-title">Readings</div>
-          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={"00000"} channelPath={channelPath} parameter="voltage" />
-          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={"00000"} channelPath={channelPath} parameter="current" />
-          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit="W"/>} value={"00000"} channelPath={channelPath} parameter="power" />
+          <ReadonlyBigNumber kind="U" label={<Label symbol="U" unit={`${voltageSymbol}V`}/>} value={readVoltage !== null ? readVoltage.toFixed(4) : "—"} channelPath={channelPath} parameter="voltage" />
+          <ReadonlyBigNumber kind="I" label={<Label symbol="I" unit={`${currentSymbol}A`}/>} value={readCurrent !== null ? readCurrent.toFixed(4) : "—"} channelPath={channelPath} parameter="current" />
+          <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit={`${powerSymbol}W`}/>} value={readPower !== null ? readPower.toFixed(4) : "—"} channelPath={channelPath} parameter="power" />
         </div>
       <hr className="sep"/>
       </div>
