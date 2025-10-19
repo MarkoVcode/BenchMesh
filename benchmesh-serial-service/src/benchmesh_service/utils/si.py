@@ -167,6 +167,128 @@ def trim_digits_to(s: str, n: int = 5) -> str:
     return f"{sign}{mantissa}{exponent}"
 
 
+def si_to_scientific(s: str, sig_figs: int = None) -> str:
+    """Convert an SI-scaled numeric string into scientific notation.
+
+    Examples:
+        si_to_scientific('1.166 m') -> '1.166E-03'
+        si_to_scientific('1.166mA') -> '1.166E-03'
+        si_to_scientific('49.948') -> '4.9948E+01'
+    """
+    import re
+
+    if not isinstance(s, str):
+        s = str(s)
+    st = s.strip()
+    if st == '':
+        return st
+
+    # build symbol -> power map
+    symbol_map = {sym: p for p, sym, name in SI_PREFIXES if sym}
+    # accept 'u' as micro as well
+    symbol_map.setdefault('u', -6)
+    symbol_map.setdefault('\u00b5', -6)
+
+    # split number and trailing suffix
+    m = re.match(r'^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)(.*)$', st)
+    if not m:
+        return st
+    num_part = m.group(1)
+    suffix = m.group(2).strip()
+
+    # detect symbol at start of suffix (e.g., 'mA' or 'µ')
+    symbol = ''
+    if suffix:
+        first = suffix[0]
+        if first in symbol_map:
+            symbol = first
+        else:
+            # maybe suffix is like 'm' separated by space
+            # try to find any symbol char in the suffix
+            for ch in suffix:
+                if ch in symbol_map:
+                    symbol = ch
+                    break
+
+    try:
+        base_val = float(num_part)
+    except Exception:
+        return st
+
+    power = symbol_map.get(symbol, 0)
+    value = base_val * (10 ** power)
+
+    if value == 0:
+        return '0'
+
+    # determine significant digits if not provided
+    digits = sig_figs
+    if digits is None:
+        m2 = re.match(r'^[+-]?(\d+)(?:\.(\d*))?(?:[eE][+-]?\d+)?$', num_part)
+        if m2:
+            intp = m2.group(1) or ''
+            frac = m2.group(2) or ''
+            sig = (intp + frac).lstrip('0')
+            digits = len(sig) if sig else 1
+        else:
+            digits = 6
+
+    fmt = f'{{:.{digits}E}}'
+    return fmt.format(value)
+
+
+def si_to_value(s: str, sig_figs: int = 5) -> dict:
+        """Convert an SI-style string to a structured value.
+
+        Returns a dict with keys:
+            - 'si': {'number': <numeric string>, 'symbol': <SI symbol>, 'prefix': <full name>}
+            - 'sci': <scientific notation string>
+
+        Example:
+            si_to_value('1.166 m') -> {'si': {'number':'1.166', 'symbol':'m', 'prefix':'milli'}, 'sci':'1.16600E-03'}
+        """
+        sci = si_to_scientific(s, sig_figs=sig_figs)
+        # format back to SI components using our formatter
+        num_str, sym, fullname = format_scientific_to_si(sci, sig_figs=sig_figs)
+        si_obj = {'number': num_str}
+        if sym:
+            si_obj['symbol'] = sym
+        if fullname:
+            si_obj['prefix'] = fullname
+        return {
+            'si': si_obj,
+            'sci': sci,
+        }
+
+
+def sci_to_value(sci: str, sig_figs: int = 5) -> dict:
+        """Convert a scientific-notation string to structured SI and scientific forms.
+
+        Returns same structure as si_to_value.
+        Example:
+            sci_to_value('1.166309E-03') -> {'si': {'number':'1.1663','symbol':'m','prefix':'milli'}, 'sci':'1.16631E-03'}
+        """
+        # normalize scientific string to requested sig_figs
+        try:
+                val = _parse_float(sci)
+        except Exception:
+                # if not parseable, return raw
+                return {'si': {'number': '', 'symbol': '', 'prefix': ''}, 'sci': sci}
+
+        fmt = f'{{:.{sig_figs}E}}'
+        sci_norm = fmt.format(val)
+        num_str, sym, fullname = format_scientific_to_si(sci_norm, sig_figs=sig_figs)
+        si_obj = {'number': num_str}
+        if sym:
+            si_obj['symbol'] = sym
+        if fullname:
+            si_obj['prefix'] = fullname
+        return {
+            'si': si_obj,
+            'sci': sci_norm,
+        }
+
+
 # quick examples when executed directly "measurement1_num": "1.63""measurement1_num": "1.61"  "+1.6003E+00", "measurement1_num": "1.6","4.994804E+01", "measurement1_num": "49.9",
 if __name__ == '__main__':
     tests = [
@@ -189,3 +311,42 @@ if __name__ == '__main__':
     print('\nTrim examples:')
     for t in trim_tests:
         print(t, '->', trim_digits_to(t, 5))
+
+    # si_to_scientific tests
+    print('\nSI -> scientific tests:')
+    si_tests = ['1.166 m', '1.166mA', '49.948', '4.994804E+01', '1.1663 µ']
+    for t in si_tests:
+        print(t, '->', si_to_scientific(t, sig_figs=5))
+
+    # Simple assertions / tests
+    print('\nRunning quick assertions...')
+    import math
+
+    # format_scientific_to_si preserves digits for scientific input
+    assert format_scientific_to_si('4.990767E+01', sig_figs=5)[0] == '49.90767'
+
+    # trim_digits_to behavior
+    assert trim_digits_to('-1.571223', 5) == '-1.5712'
+    assert trim_digits_to('1.571223', 5) == '1.5712'
+
+    # si_to_scientific
+    s = si_to_scientific('1.166 m', sig_figs=5)
+    assert s == '1.16600E-03'
+
+    # si_to_value returns SI symbol and scientific string; numeric part close to expected
+    v = si_to_value('1.166 m', sig_figs=5)
+    assert v['si']['symbol'] == 'm'
+    assert math.isclose(float(v['si']['number']), 1.166, rel_tol=1e-6)
+    assert v['sci'] == '1.16600E-03'
+
+    # sci_to_value normalizes scientific string and returns SI parts
+    sv = sci_to_value('1.166309E-03', sig_figs=5)
+    assert sv['sci'] == '1.16631E-03'
+    assert sv['si']['symbol'] == 'm'
+    assert math.isclose(float(sv['si']['number']), 1.16631, rel_tol=1e-6)
+    
+    v = si_to_value('1.166 m', sig_figs=5)
+    print(v)
+    sv = sci_to_value('1.166309E-03', sig_figs=5)
+    print(sv)
+    print('All quick tests passed.')

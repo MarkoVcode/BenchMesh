@@ -1,4 +1,5 @@
 from ...transport import SerialTransport
+from ...utils.si import si_to_value
 
 class OwonOEL:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
@@ -24,7 +25,7 @@ class OwonOEL:
         raw = self.query_status(channel) or ""
         if raw is None or raw == "":
             # Return a minimal but truthy structure to avoid dropping the connection
-            return {"VOUT": 0, "IOUT": 0, "POUT": 0, "OVP": "OFF", "OCP": "OFF", "OTP": "OFF", "REMOTE": "OFF", "INPUT": "OFF", "MODE": "CURR"}
+            return {"VOUT": si_to_value(0), "IOUT": si_to_value(0), "POUT": si_to_value(0), "OVP": "OFF", "OCP": "OFF", "OTP": "OFF", "REMOTE": "OFF", "INPUT": "OFF", "MODE": "CURR"}
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
         parts = raw.strip().split(',')
@@ -35,7 +36,7 @@ class OwonOEL:
                 val = parts[idx]
                 if idx < 3:
                     try:
-                        val = float(val)
+                        val = si_to_value(val)
                     except Exception:
                         pass
                 result[key] = val

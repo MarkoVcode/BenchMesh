@@ -2,6 +2,7 @@ import logging
 from ...transport import SerialTransport
 from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
+from ...utils.si import si_to_value
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +57,35 @@ class OWONSPM:
                 val = parts[idx]
                 if idx < 3:
                     try:
-                        val = float(val)
+                        val = si_to_value(val)
                     except Exception:
                         pass
                 result[key] = val
-       # print("POLL STATUS EXECUTED")
+        if parts[6] == '1':
+            result["CV"] = True
+            result["CC"] = False
+            result["FAIL"] = False
+            result["SBY"] = False
+            result["OUTPUT"] = "ON"
+        elif parts[6] == '0':
+            result["CV"] = False
+            result["CC"] = False
+            result["FAIL"] = False
+            result["SBY"] = True
+            result["OUTPUT"] = "OFF"
+        elif parts[6] == '2':
+            result["CV"] = False
+            result["CC"] = True
+            result["FAIL"] = False
+            result["SBY"] = False
+            result["OUTPUT"] = "ON"
+        elif parts[6] == '3':
+            result["CV"] = False
+            result["CC"] = False
+            result["FAIL"] = True
+            result["SBY"] = False
+            result["OUTPUT"] = "ON"
+        result["REMOTE"]= "OFF"
         return result
 
     def poll_status_dmm(self, channel: int):
@@ -71,7 +96,7 @@ class OWONSPM:
         if not raw:
             return None
       #  print(num_str)
-        return {"measurement1_si": parts[1], "measurement1_num": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
+        return {"measurement1_sci": parts[1], "measurement1_si": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
 
     def poll_status(self, channel: int):
         """

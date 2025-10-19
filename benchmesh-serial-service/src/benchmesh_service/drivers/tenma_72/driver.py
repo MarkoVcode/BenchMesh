@@ -1,5 +1,6 @@
 import re
 from ...transport import SerialTransport
+from ...utils.si import si_to_value
 
 class TenmaPSU:
     def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='', reol=''):
@@ -84,6 +85,16 @@ class TenmaPSU:
             tracking = "Tracking Parallel"
         else:
             tracking = "Unknown"
+# Compute SBY (standby) first — if standby is True, CV and CC must both be False
+        sby = not out
+        if sby:
+            cv = False
+            cc = False
+        else:
+            # Preserve previous semantics when not in standby:
+            # CV true if output enabled and channel in CV mode; CC is inverted
+            cv = bool(out and ch1mode)
+            cc = not cv
 
         return {
             "ch1Mode": "C.V" if ch1mode else "C.C",
@@ -92,11 +103,21 @@ class TenmaPSU:
             "BeepEnabled": beep,
             "lockEnabled": lock,
             "outEnabled": out,
+            "CV": cv,
+            "CC": cc,
+            "SBY": sby,
+            "OUTPUT": "ON" if out else "OFF",
+            "REMOTE": "ON"
         }
+
+            #"CV": True if (ch1mode) else False,
+            #"CC": False if (ch1mode) else True,
+            #"SBY": False if out else True,
+            #"OUTPUT": "ON" if out else "OFF",
 
     def poll_status(self, channel: int):
        # print ("Polling status for channel", channel)
-        p = None
+       # p = None
         v = self.query_output_voltage(channel)
         i = self.query_output_current(channel)
         fv = self._parse_numeric(v)
@@ -105,7 +126,7 @@ class TenmaPSU:
             p = None
         p = fv * fi
         s = self.query_status(channel)
-        result = {"VOUT1": v, "IOUT1": i, "POUT1": p}
+        result = {"VOUT": si_to_value(v), "IOUT": si_to_value(i), "POUT": si_to_value(p)}
         if isinstance(s, dict):
             result.update(s)
         return result   

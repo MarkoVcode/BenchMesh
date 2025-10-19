@@ -68,7 +68,7 @@ a{ color:var(--accent); text-decoration:none; }
 .channel-extra{ margin-top:6px; }
 
 /* PSU generic face */
-.psu-face{ border:1px solid var(--border); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.15)); border-radius:8px; padding:8px; }
+.psu-face{ border:1px solid var(--border); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.15)); border-radius:8px; padding:8px; width:357px; }
 .psu-main{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
 .psu-section{ display:flex; flex-direction:column; gap:8px; min-width:180px; }
 .psu-section-title{ font-size:10px; color:var(--text-2); text-transform:uppercase; letter-spacing:.6px; }
