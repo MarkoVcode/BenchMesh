@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, TYPE_CHECKING
 import logging
 import time
 from .manifest_resolver import ManifestResolver
@@ -8,6 +8,9 @@ from .metrics import MetricsRecorder
 from .metrics_collector import MetricsCollector
 from .priority_queue import PriorityRequest, PollRequest, ApiRequest
 
+if TYPE_CHECKING:
+    from .connection import DeviceConnection
+
 logger = logging.getLogger(__name__)
 
 class DeviceWorker:
@@ -15,13 +18,14 @@ class DeviceWorker:
 
     Designed to be called periodically (or loop in a thread). For tests, run_once can be used.
     """
-    def __init__(self, dev: dict, driver, registry: DeviceRegistry, resolver: ManifestResolver, metrics: MetricsRecorder | None = None, probe_map: Optional[Dict[str, float]] = None, interval_override: Optional[Dict[str, float]] = None, channels_override: Optional[Dict[str, int]] = None, metrics_collector: Optional[MetricsCollector] = None):
+    def __init__(self, dev: dict, driver, registry: DeviceRegistry, resolver: ManifestResolver, metrics: MetricsRecorder | None = None, probe_map: Optional[Dict[str, float]] = None, interval_override: Optional[Dict[str, float]] = None, channels_override: Optional[Dict[str, int]] = None, metrics_collector: Optional[MetricsCollector] = None, connection: Optional['DeviceConnection'] = None):
         self.dev = dev
         self.driver = driver
         self.registry = registry
         self.resolver = resolver
         self.metrics = metrics
         self.metrics_collector = metrics_collector
+        self.connection = connection
         self.last_probe_class: Dict[str, float] = probe_map if probe_map is not None else {}
         self.interval_override = interval_override
         self.channels_override = channels_override
@@ -75,34 +79,47 @@ class DeviceWorker:
         try:
             if self.metrics:
                 self.metrics.inc_poll_total(dev_id, 'unified')
-            
+
             # Poll channel 1 (multi-class devices typically have 1 channel)
             result = meth(1)
-            
+
             if not result:
                 if self.metrics:
                     self.metrics.inc_poll_failed(dev_id, 'unified')
                 self.registry.clear_disconnected(dev_id)
+                # Health: empty poll response = failure
+                if self.connection:
+                    self.connection.record_failure()
                 raise RuntimeError('poll_empty')
-            
+
             # Distribute results by class
             for klass in class_channels.keys():
                 class_data = result.get(klass)
                 if class_data:
                     key = f"status_ch1"
                     self.registry.update(dev_id, key, class_data, klass=klass)
-            
+
+            # Health: successful poll
+            if self.connection:
+                self.connection.record_success()
+
             # Update last poll time
             self.last_probe_class['unified'] = now
-            
+
         except RuntimeError as e:
             if str(e) == 'poll_empty':
                 raise
             logger.error(f"Multi-class polling for {dev_id} failed: {e}")
+            # Health: poll exception = failure
+            if self.connection:
+                self.connection.record_failure()
         except Exception as e:
             logger.warning(f"Multi-class polling for {dev_id} failed: {e}")
             if self.metrics:
                 self.metrics.inc_poll_failed(dev_id, 'unified')
+            # Health: poll exception = failure
+            if self.connection:
+                self.connection.record_failure()
     
     def _run_per_class_poll(self, now: float):
         """
@@ -133,12 +150,18 @@ class DeviceWorker:
                 except Exception as e:
                     logger.warning("Polling %s[%s] failed: %s", dev_id, klass, e)
                     st = {}
+                    # Health: poll exception = failure
+                    if self.connection:
+                        self.connection.record_failure()
                 if not st:
                     if self.metrics:
                         self.metrics.inc_poll_failed(dev_id, klass)
                     # On empty/error poll, clear IDN and per-class status and drop connection by caller
                     self.registry.clear_disconnected(dev_id)
                     polled_any = False
+                    # Health: empty poll response = failure
+                    if self.connection:
+                        self.connection.record_failure()
                     # signal caller to drop connection by raising a sentinel exception
                     raise RuntimeError('poll_empty')
                 key = f"status_ch{ch}"
@@ -146,6 +169,9 @@ class DeviceWorker:
                 polled_any = True
             if polled_any:
                 self.last_probe_class[klass] = now
+                # Health: successful poll
+                if self.connection:
+                    self.connection.record_success()
 
     def process_request(self, priority_request: PriorityRequest) -> Any:
         """

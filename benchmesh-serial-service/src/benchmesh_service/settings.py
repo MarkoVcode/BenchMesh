@@ -18,4 +18,8 @@ class Settings:
   api_request_timeout_queue_s: float = float(os.getenv('BM_API_QUEUE_TIMEOUT', '10.0'))
   max_queue_depth_threshold: int = int(os.getenv('BM_MAX_QUEUE_DEPTH', '10'))
 
+  # Health monitoring configuration
+  health_failure_threshold: int = int(os.getenv('BM_HEALTH_FAILURE_THRESHOLD', '3'))
+  health_degraded_threshold: int = int(os.getenv('BM_HEALTH_DEGRADED_THRESHOLD', '1'))
+
 settings = Settings()

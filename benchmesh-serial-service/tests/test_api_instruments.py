@@ -35,6 +35,7 @@ class FakeManager:
         self.devices = [{"id": dev_id}]
         self.connections = {dev_id: FakeDriver()}
         self.dev_locks = {dev_id: threading.RLock()}
+        self.dev_conns = {}  # Device connections for health tracking
         self.unified_polling_enabled = False  # Backward compatibility for tests
     def start(self):
         # No-op for tests
@@ -128,6 +129,7 @@ class ExtendedFakeManager(FakeManager):
             ]
         super().__init__(dev_id=devices[0]["id"] if devices else "dev-1")
         self.devices = devices
+        self.dev_conns = {}  # Initialize device connections for health tracking
         self.registry = FakeRegistry({
             "psu-1": {"IDN": "OWON,SPM3103,12345,V1.0"},
             "dmm-1": {"IDN": "OWON,XDM1041,67890,V1.0"},

@@ -349,6 +349,15 @@ def _build_instruments_list(class_filter: str | None = None) -> List[Dict[str, A
         if 'IDN' in reg_data:
             entry['IDN'] = reg_data['IDN']
 
+        # Add health status information
+        conn = _manager.dev_conns.get(dev_id) if _manager else None
+        if conn:
+            entry['health'] = {
+                'status': conn.health_status,
+                'consecutive_failures': conn.consecutive_failures,
+                'is_alive': conn.is_alive()
+            }
+
         # Attempt to populate classes/channels from manifest based on device driver and model
         classes_list: List[Dict[str, Any]] = []
         if _manifest_resolver:

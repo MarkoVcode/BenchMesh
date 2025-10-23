@@ -94,10 +94,12 @@ class SerialManager:
                 if dev_id:
                     self.device_queues[dev_id] = DeviceRequestQueue(dev_id)
 
-            # Create unified scheduler
+            # Create unified scheduler with device connections for health checking
             self.unified_scheduler = UnifiedScheduler(
                 interval_ms=settings.unified_poll_interval_ms,
-                max_queue_depth=settings.max_queue_depth_threshold
+                max_queue_depth=settings.max_queue_depth_threshold,
+                device_connections=self.dev_conns,  # Pass reference to device connections
+                registry=self.registry_obj  # Pass registry for clearing disconnected devices
             )
             logger.info(
                 f"Unified polling enabled: default_interval={settings.unified_poll_interval_ms}ms, "
@@ -214,7 +216,12 @@ class SerialManager:
             return None
         conn = self.dev_conns.get(dev_id)
         if not conn:
-            conn = DeviceConnection(None, self.clock)
+            conn = DeviceConnection(
+                None,
+                self.clock,
+                failure_threshold=settings.health_failure_threshold,
+                degraded_threshold=settings.health_degraded_threshold
+            )
             self.dev_conns[dev_id] = conn
             self.connections[dev_id] = None
         now = self.clock.now()
@@ -242,6 +249,7 @@ class SerialManager:
                 if dev_id in self.workers:
                     self.workers[dev_id].driver = drv
                 self.metrics.inc_reconnect_success(dev_id)
+                conn.reset_health()  # Health: new connection, reset health state
             except Exception as e:
                 # If connection failed and we haven't tried EOL detection yet, try it once
                 if dev_id not in self.initial_connect_tested:
@@ -279,7 +287,7 @@ class SerialManager:
         # Ensure a worker exists even if not identified yet; it will be IDN-gated
         if dev_id not in self.workers:
             probe_map = getattr(self, 'last_probe_class', {}).setdefault(dev_id, {})
-            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map, metrics_collector=self.metrics_collector)
+            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map, metrics_collector=self.metrics_collector, connection=conn)
         # Identify-only cadence
         if conn.is_open() and (not self.registry.get(dev_id, {}).get('IDN')) and conn.can_attempt_open(self.policy.identify_interval):
             conn.mark_attempt()
@@ -289,9 +297,11 @@ class SerialManager:
                     self.registry_obj.set_idn(dev_id, ident)
                     self.metrics.inc_identify_success(dev_id)
                     conn.mark_ok()
+                    conn.record_success()  # Health: successful identify
                 else:
-                    # Empty identify response - EOL settings might be incorrect
+                    # Empty identify response - EOL settings might be incorrect or device powered off
                     self.metrics.inc_identify_fail(dev_id)
+                    conn.record_failure()  # Health: empty response = failure
                     # Try auto-detection on first identify failure
                     if dev_id not in self.initial_connect_tested:
                         self.initial_connect_tested.add(dev_id)
@@ -320,6 +330,7 @@ class SerialManager:
                                 self.workers[dev_id].driver = drv
             except Exception as e:
                 self.metrics.inc_identify_fail(dev_id)
+                conn.record_failure()  # Health: exception = failure (timeout/communication error)
                 # Communication exception during identify - try auto-detection
                 if dev_id not in self.initial_connect_tested:
                     self.initial_connect_tested.add(dev_id)

@@ -7,6 +7,7 @@ for all devices with per-device intervals and queue throttling.
 Benefits:
 - Per-device polling intervals (respects device capabilities)
 - Queue depth throttling (prevents oversubscription)
+- Circuit breaker for dead devices (prevents wasted polling)
 - Better control over system load and timing
 
 The scheduler triggers device workers by enqueuing LOW priority
@@ -16,9 +17,12 @@ polling requests at device-specific intervals.
 import logging
 import threading
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from .priority_queue import DeviceRequestQueue, PollRequest, Priority
+
+if TYPE_CHECKING:
+    from .connection import DeviceConnection
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +32,14 @@ class UnifiedScheduler:
     Central polling scheduler for all devices.
 
     Coordinates polling of all devices by enqueuing polling requests
-    at per-device intervals. Includes queue throttling to prevent
-    oversubscription.
+    at per-device intervals. Includes queue throttling and circuit breaker
+    for dead devices to prevent oversubscription.
 
     Attributes:
         default_interval_ms: Default polling interval in milliseconds
         max_queue_depth: Maximum queue depth before throttling
         device_queues: Map of device_id -> DeviceRequestQueue
+        device_connections: Map of device_id -> DeviceConnection (for health checks)
         device_intervals: Map of device_id -> interval_ms
         last_poll_time: Map of device_id -> timestamp of last poll enqueue
         skipped_polls: Counter for throttled polls per device
@@ -42,20 +47,25 @@ class UnifiedScheduler:
         thread: Scheduler thread
     """
 
-    def __init__(self, interval_ms: float = 50.0, max_queue_depth: int = 10):
+    def __init__(self, interval_ms: float = 50.0, max_queue_depth: int = 10, device_connections: Optional[Dict[str, 'DeviceConnection']] = None, registry=None):
         """
         Initialize unified scheduler.
 
         Args:
             interval_ms: Default polling interval in milliseconds (default 50ms = 20Hz)
             max_queue_depth: Maximum queue depth before throttling (default 10)
+            device_connections: Map of device_id -> DeviceConnection for health checks
+            registry: DeviceRegistry instance for clearing disconnected devices
         """
         self.default_interval_ms = interval_ms
         self.max_queue_depth = max_queue_depth
         self.device_queues: Dict[str, DeviceRequestQueue] = {}
+        self.device_connections: Dict[str, 'DeviceConnection'] = device_connections or {}
         self.device_intervals: Dict[str, float] = {}
         self.last_poll_time: Dict[str, float] = {}
         self.skipped_polls: Dict[str, int] = {}
+        self.registry = registry
+        self.device_was_healthy: Dict[str, bool] = {}  # Track previous health state
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
@@ -74,6 +84,7 @@ class UnifiedScheduler:
             self.device_intervals[device_id] = interval_ms if interval_ms is not None else self.default_interval_ms
             self.last_poll_time[device_id] = 0.0  # Start immediately
             self.skipped_polls[device_id] = 0
+            self.device_was_healthy[device_id] = True  # Assume healthy initially
             logger.info(
                 f"Unified scheduler: registered device {device_id} "
                 f"with interval={self.device_intervals[device_id]}ms"
@@ -181,10 +192,19 @@ class UnifiedScheduler:
 
         For each device:
         1. Check if enough time has elapsed since last poll (per-device interval)
-        2. Check queue depth to prevent oversubscription
-        3. Enqueue LOW priority poll request if both conditions are met
+        2. Check device health (circuit breaker for dead/unknown devices)
+           - If unhealthy (dead or unknown): skip polling, drain queue if backlog > 5 requests
+           - Degraded devices continue to poll (they may recover)
+        3. Check queue depth to prevent oversubscription
+        4. Enqueue LOW priority poll request if all conditions are met
 
-        Skips polling and logs warning if queue is too deep.
+        Circuit breaker check MUST come before queue depth to prevent log spam
+        when a dead device has accumulated a queue backlog.
+
+        Queue draining prevents timeout requests from overwhelming the system when
+        a USB-powered device is turned OFF but maintains UART connection.
+
+        Skips polling and logs info/warning if device is unhealthy or queue is too deep.
         """
         now = time.time()
 
@@ -203,7 +223,64 @@ class UnifiedScheduler:
                 if time_since_last_poll_ms < interval_ms:
                     continue  # Not time yet
 
-                # Check 2: Is queue depth acceptable?
+                # Check 2: Circuit breaker - is device unhealthy?
+                # This check MUST come before queue depth to avoid log spam
+                conn = self.device_connections.get(device_id)
+                if conn and not conn.is_healthy():
+                    # Device is dead or unknown - skip polling to avoid queue overflow
+                    # Note: degraded devices (is_healthy=True) continue to poll
+                    with self._lock:
+                        self.skipped_polls[device_id] = self.skipped_polls.get(device_id, 0) + 1
+                        skip_count = self.skipped_polls[device_id]
+
+                        # Check if device just became unhealthy (health state transition)
+                        was_healthy = self.device_was_healthy.get(device_id, True)
+                        if was_healthy:
+                            # Device transitioned from healthy to unhealthy - clear registry
+                            self.device_was_healthy[device_id] = False
+                            if self.registry:
+                                self.registry.clear_disconnected(device_id)
+                                logger.info(
+                                    f"Device {device_id}: cleared registry due to health transition "
+                                    f"(health: {conn.health_status}, failures: {conn.consecutive_failures})"
+                                )
+
+                    # Drain queue if it's building up while device is unhealthy
+                    # This prevents timeout backlog from overwhelming the system
+                    queue_depth = queue.qsize()
+                    if queue_depth > 5:  # Only drain if queue has significant backlog
+                        drained = 0
+                        while queue.qsize() > 0:
+                            req = queue.try_dequeue()
+                            if req is None:
+                                break
+                            drained += 1
+                        if drained > 0:
+                            logger.info(
+                                f"Device {device_id}: drained {drained} queued requests "
+                                f"(health: {conn.health_status}, failures: {conn.consecutive_failures})"
+                            )
+
+                    # Log periodically based on health status
+                    # Note: Only dead and unknown devices reach here (degraded devices continue to poll)
+                    if skip_count % 20 == 1:
+                        logger.info(
+                            f"Device {device_id}: skipping poll due to {conn.health_status} health status "
+                            f"(consecutive failures: {conn.consecutive_failures}). "
+                            f"Total skipped: {skip_count}. "
+                            f"Circuit breaker active - device will retry on reconnection."
+                        )
+                    continue
+
+                # Device is healthy - update health tracking
+                with self._lock:
+                    was_healthy = self.device_was_healthy.get(device_id, True)
+                    if not was_healthy:
+                        # Device recovered - mark as healthy
+                        self.device_was_healthy[device_id] = True
+                        logger.info(f"Device {device_id}: recovered from unhealthy state")
+
+                # Check 3: Is queue depth acceptable?
                 queue_depth = queue.qsize()
                 if queue_depth > self.max_queue_depth:
                     # Queue is too deep - skip this poll
@@ -221,7 +298,7 @@ class UnifiedScheduler:
                         )
                     continue
 
-                # Both conditions met - enqueue poll request
+                # All conditions met - enqueue poll request
                 poll_request = PollRequest(
                     type="poll",
                     device_id=device_id,
