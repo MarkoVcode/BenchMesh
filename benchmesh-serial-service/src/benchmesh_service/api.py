@@ -223,6 +223,20 @@ def get_status():
     connected = sum(1 for did in device_ids if _manager.connections.get(did))
     return {"devices_total": total, "connected": connected, "disconnected": total - connected}
 
+@app.get("/version", summary="Application version", response_model=dict)
+def get_version():
+    """
+    Return application version information.
+    Reads from version.json at the repository root.
+    """
+    version_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'version.json')
+    try:
+        with open(version_path, 'r') as f:
+            import json
+            return json.load(f)
+    except Exception as e:
+        return {"version": "unknown", "name": "BenchMesh", "description": "Lab Instrument Control System", "error": str(e)}
+
 @app.get("/drivers", summary="List available drivers", response_model=dict)
 def list_drivers():
     """
@@ -676,19 +690,38 @@ def call_driver_get(klass: str, device_id: str, channel: str, method: str):
             # HIGH priority execution via queue
             value = _manager.enqueue_api_request(device_id, resolved_method, args=args)
         else:
-            # Legacy: execute under device lock
-            lock = _manager.dev_locks.get(device_id) if _manager else None
-            if lock:
-                with lock:
+            # Legacy: execute under device lock with metrics recording
+            import time
+            start_time = time.time()
+
+            # Record operation start
+            if _manager and hasattr(_manager, 'metrics_collector') and _manager.metrics_collector:
+                _manager.metrics_collector.record_serial_operation_start(device_id, 'api')
+
+            try:
+                lock = _manager.dev_locks.get(device_id) if _manager else None
+                if lock:
+                    with lock:
+                        if len(params) >= 1:
+                            value = func(ch)
+                        else:
+                            value = func()
+                else:
                     if len(params) >= 1:
                         value = func(ch)
                     else:
                         value = func()
-            else:
-                if len(params) >= 1:
-                    value = func(ch)
-                else:
-                    value = func()
+
+                # Record successful API request with latency
+                latency_ms = (time.time() - start_time) * 1000.0
+                if _manager and hasattr(_manager, 'metrics_collector') and _manager.metrics_collector:
+                    _manager.metrics_collector.record_api_request(device_id, resolved_method, latency_ms)
+                    _manager.metrics_collector.record_serial_operation_end(device_id)
+            except Exception as e:
+                # Record operation end even on failure
+                if _manager and hasattr(_manager, 'metrics_collector') and _manager.metrics_collector:
+                    _manager.metrics_collector.record_serial_operation_end(device_id)
+                raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
     return {"path": f"/instruments/{klass}/{device_id}/{channel}/{method}", "value": value}
@@ -736,23 +769,42 @@ def call_driver_post(klass: str, device_id: str, channel: str, method: str, para
             # HIGH priority execution via queue
             _manager.enqueue_api_request(device_id, resolved_method, args=args)
         else:
-            # Legacy: execute under device lock
-            lock = _manager.dev_locks.get(device_id) if _manager else None
-            if lock:
-                with lock:
+            # Legacy: execute under device lock with metrics recording
+            import time
+            start_time = time.time()
+
+            # Record operation start
+            if _manager and hasattr(_manager, 'metrics_collector') and _manager.metrics_collector:
+                _manager.metrics_collector.record_serial_operation_start(device_id, 'api')
+
+            try:
+                lock = _manager.dev_locks.get(device_id) if _manager else None
+                if lock:
+                    with lock:
+                        if len(params) >= 2:
+                            func(ch, arg)
+                        elif len(params) == 1:
+                            func(arg)
+                        else:
+                            func()
+                else:
                     if len(params) >= 2:
                         func(ch, arg)
                     elif len(params) == 1:
                         func(arg)
                     else:
                         func()
-            else:
-                if len(params) >= 2:
-                    func(ch, arg)
-                elif len(params) == 1:
-                    func(arg)
-                else:
-                    func()
+
+                # Record successful API request with latency
+                latency_ms = (time.time() - start_time) * 1000.0
+                if _manager and hasattr(_manager, 'metrics_collector') and _manager.metrics_collector:
+                    _manager.metrics_collector.record_api_request(device_id, resolved_method, latency_ms)
+                    _manager.metrics_collector.record_serial_operation_end(device_id)
+            except Exception as e:
+                # Record operation end even on failure
+                if _manager and hasattr(_manager, 'metrics_collector') and _manager.metrics_collector:
+                    _manager.metrics_collector.record_serial_operation_end(device_id)
+                raise e
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Driver method execution failed: {e}")
     return Response(status_code=204)

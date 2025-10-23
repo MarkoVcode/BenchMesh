@@ -40,7 +40,7 @@ sleep 2
 # Start Electron
 echo "Starting Electron..."
 cd "$SCRIPT_DIR"
-NODE_ENV=development electron .
+NODE_ENV=development node_modules/.bin/electron .
 
 # If Electron exits, cleanup
 cleanup

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
 import { RemoteLockWarning } from '../../components/RemoteLockWarning'
+import { TestingInstrumentGrid } from '../../TestingInstrumentGrid'
 
 // OWON OEL Electronic Load component
 // - Settings: Mode dropdown (like DMM) populated from /instruments/ELL/{device_id}
@@ -439,6 +440,20 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
           <ReadonlyBigNumber kind="P" label={<Label symbol="P" unit={`${powerSymbol}W`}/>} value={power !== null ? power.toFixed(4) : "—"} channelPath={channelPath} parameter="power" />
         </div>
         <hr className="sep"/>
+      </div>
+      {/* Testing Grid for visual inspection */}
+      <div style={{ marginTop: '16px', padding: '0 12px 12px 12px' }}>
+        <div style={{
+          fontSize: '12px',
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
+          marginBottom: '8px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px'
+        }}>
+          Testing Grid Layout
+        </div>
+        <TestingInstrumentGrid />
       </div>
     </div>
   )

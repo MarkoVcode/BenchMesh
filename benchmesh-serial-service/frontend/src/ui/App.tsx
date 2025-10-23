@@ -136,8 +136,36 @@ export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
 
+  // Check if running in Electron - use state to ensure preload script has time to run
+  const [isElectron, setIsElectron] = useState(false)
+
+  // Check for Electron context after mount
+  useEffect(() => {
+    const checkElectron = () => {
+      const inElectron = window.electron?.isElectron === true
+      console.log('Electron context check:', {
+        electron: window.electron,
+        isElectron: inElectron
+      })
+      setIsElectron(inElectron)
+    }
+
+    // Check immediately and after a short delay to ensure preload has run
+    checkElectron()
+    const timer = setTimeout(checkElectron, 100)
+    return () => clearTimeout(timer)
+  }, [])
+
   const apiOk = !loading && !error
   const hasInstruments = instruments && instruments.length > 0
+
+  // Auto-open docs modal if openDocs URL parameter is present (for Electron documentation window)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('openDocs') === 'true') {
+      setDocsModalOpen(true)
+    }
+  }, [])
 
   // Auto-open config modal if registry is active but no instruments configured
   useEffect(() => {
@@ -175,13 +203,16 @@ export default function App() {
             >
               📊 Recording
             </button>
-            <button
-              className="config-button"
-              onClick={() => setDocsModalOpen(true)}
-              title="View Documentation"
-            >
-              📚 Documentation
-            </button>
+            {/* Hide Documentation button in Electron (accessible via Help menu) */}
+            {!isElectron && (
+              <button
+                className="config-button"
+                onClick={() => setDocsModalOpen(true)}
+                title="View Documentation"
+              >
+                📚 Documentation
+              </button>
+            )}
             <button
               className="config-button"
               onClick={() => setMetricsModalOpen(true)}

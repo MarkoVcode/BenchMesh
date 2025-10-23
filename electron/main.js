@@ -1,11 +1,19 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu } = require('electron')
 const path = require('path')
 const { spawn } = require('child_process')
 const kill = require('tree-kill')
+const fs = require('fs')
 
 let mainWindow
 let backendProcess
 let nodeRedProcess
+let aboutWindow = null
+let docsWindow = null
+let userDocsWindow = null
+
+// Load version information
+const versionPath = path.join(__dirname, '..', 'version.json')
+const versionInfo = JSON.parse(fs.readFileSync(versionPath, 'utf8'))
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -35,6 +43,271 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+  // Create application menu
+  createMenu()
+}
+
+function createAboutWindow() {
+  if (aboutWindow) {
+    aboutWindow.focus()
+    return
+  }
+
+  aboutWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    title: 'About BenchMesh',
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    parent: mainWindow,
+    modal: true
+  })
+
+  // Create HTML content for About window
+  const logoPath = path.join(__dirname, '..', 'docs', 'static', 'BenchMesh.png')
+  const aboutHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>About BenchMesh</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: calc(100vh - 40px);
+    }
+    img {
+      width: 50%;
+      height: auto;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    }
+    h1 {
+      margin: 10px 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    p {
+      margin: 5px 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .version {
+      font-size: 16px;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <img src="file://${logoPath}" alt="BenchMesh Logo">
+  <h1>${versionInfo.name}</h1>
+  <p>${versionInfo.description}</p>
+  <p class="version">Version ${versionInfo.version}</p>
+</body>
+</html>
+  `
+
+  aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(aboutHtml)}`)
+
+  aboutWindow.on('closed', () => {
+    aboutWindow = null
+  })
+}
+
+function createDocsWindow() {
+  if (docsWindow) {
+    docsWindow.focus()
+    return
+  }
+
+  // Calculate window size (10% smaller than main window, or default if main is too small)
+  let width = 1400
+  let height = 900
+
+  if (mainWindow) {
+    const mainBounds = mainWindow.getBounds()
+    if (mainBounds.width > 800 && mainBounds.height > 600) {
+      width = Math.floor(mainBounds.width * 0.9)
+      height = Math.floor(mainBounds.height * 0.9)
+    }
+  }
+
+  docsWindow = new BrowserWindow({
+    width,
+    height,
+    title: 'BenchMesh API Documentation',
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    parent: mainWindow
+  })
+
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (isDev) {
+    docsWindow.loadURL('http://localhost:57666/docs')
+  } else {
+    docsWindow.loadURL('http://localhost:57666/docs')
+  }
+
+  docsWindow.on('closed', () => {
+    docsWindow = null
+  })
+}
+
+function createUserDocsWindow() {
+  if (userDocsWindow) {
+    userDocsWindow.focus()
+    return
+  }
+
+  // Calculate window size (10% smaller than main window, or default if main is too small)
+  let width = 1400
+  let height = 900
+
+  if (mainWindow) {
+    const mainBounds = mainWindow.getBounds()
+    if (mainBounds.width > 800 && mainBounds.height > 600) {
+      width = Math.floor(mainBounds.width * 0.9)
+      height = Math.floor(mainBounds.height * 0.9)
+    }
+  }
+
+  userDocsWindow = new BrowserWindow({
+    width,
+    height,
+    title: 'BenchMesh Documentation',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    parent: mainWindow
+  })
+
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (isDev) {
+    userDocsWindow.loadURL('http://localhost:57666/ui/?openDocs=true')
+  } else {
+    userDocsWindow.loadURL('http://localhost:57666/ui/?openDocs=true')
+  }
+
+  userDocsWindow.on('closed', () => {
+    userDocsWindow = null
+  })
+}
+
+function createMenu() {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Quit',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+          click: () => {
+            app.quit()
+          }
+        }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'close' }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Documentation',
+          click: () => {
+            createUserDocsWindow()
+          }
+        },
+        {
+          label: 'API Documentation',
+          click: () => {
+            createDocsWindow()
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'About BenchMesh',
+          click: () => {
+            createAboutWindow()
+          }
+        }
+      ]
+    }
+  ]
+
+  // On macOS, add app menu as first item
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.name,
+      submenu: [
+        {
+          label: `About ${app.name}`,
+          click: () => {
+            createAboutWindow()
+          }
+        },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    })
+  }
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 }
 
 function startBackend() {
