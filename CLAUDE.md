@@ -399,6 +399,96 @@ Partial method names are **strictly** resolved to `set_*` methods only:
 - `POST /instruments/PSU/device-1/1/_private_method/value` → **Rejected** (private method)
 - `GET /instruments/PSU/device-1/1/set_voltage` → **Rejected** (setter on GET request)
 
+## API Method Discovery
+
+The API provides automatic method discovery for all instruments, enabling dynamic UI generation (e.g., Node-RED dropdowns) without hardcoded method lists.
+
+### Method Discovery Endpoint
+
+**`GET /instruments/{class}/{device_id}/methods`** - Returns all available methods with rich metadata:
+
+```json
+{
+  "device_id": "psu-1",
+  "class": "PSU",
+  "methods": [
+    {
+      "name": "output_voltage",           // Partial name (API-friendly)
+      "full_name": "query_output_voltage", // Full method name
+      "http_method": "GET",                // GET or POST
+      "description": "Query the output voltage",
+      "parameters": [
+        {
+          "name": "channel",
+          "type": "int",
+          "required": true,
+          "description": "Channel number"
+        }
+      ],
+      "returns": "string",
+      "example": "GET /instruments/PSU/psu-1/1/output_voltage"
+    }
+  ]
+}
+```
+
+### How It Works
+
+**Automatic Discovery (80% auto-generated):**
+- Python introspection discovers all `query_*` and `set_*` methods
+- Extracts method signatures and parameter types from type hints
+- Auto-generates descriptions from method names:
+  - `query_output_voltage` → "Query the output voltage"
+  - `set_current` → "Set the current"
+- Categorizes by HTTP method (GET for query_, POST for set_)
+
+**Optional Manifest Enrichment (20% configuration):**
+Drivers can optionally add a `methods` section to `manifest.json` for enhanced metadata:
+
+```json
+{
+  "methods": {
+    "query_output_voltage": {
+      "description": "Query the actual output voltage being delivered",
+      "parameters": {
+        "channel": {
+          "description": "PSU channel number",
+          "range": [1, 3],
+          "unit": null
+        }
+      },
+      "returns": {
+        "type": "float",
+        "unit": "V"
+      }
+    }
+  }
+}
+```
+
+**See `benchmesh-serial-service/MANIFEST_METHODS_SCHEMA.md` for complete documentation.**
+
+### Use Cases
+
+**Node-RED Integration:**
+- Dynamically populate method dropdowns
+- Show user-friendly descriptions
+- Validate parameters before sending
+- Generate correct API calls automatically
+- Support all instrument classes without hardcoding
+
+**API Exploration:**
+- Discover available methods without reading code
+- Understand parameter requirements
+- See example usage patterns
+- Find methods by HTTP verb (GET vs POST)
+
+### Implementation Files
+
+- `method_inspector.py` - Introspection and enrichment logic
+- `/instruments/{class}/{device_id}/methods` endpoint in `api.py`
+- `test_method_inspector.py` - Comprehensive unit tests
+
 ## Configuration System
 
 Devices are defined in `config.yaml` (YAML v1 schema):
@@ -455,6 +545,8 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - `api.py`: FastAPI app with endpoints `/status`, `/instruments`, instrument control endpoints, and WebSocket `/ws`
   - Implements **secure** method resolution: GET requests resolve `voltage` → `query_voltage`, POST requests resolve `current` → `set_current`
   - Prevents arbitrary method execution - only `query_*` and `set_*` methods can be called via API
+  - Provides `/instruments/{class}/{device_id}/methods` for dynamic method discovery
+- `method_inspector.py`: Python introspection utility for discovering driver methods with parameter/return metadata
 - `connection.py`: DeviceConnection tracks connection state per device
 - `reconnect.py`: ReconnectPolicy implements backoff strategy
 

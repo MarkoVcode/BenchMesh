@@ -243,6 +243,7 @@ def si_to_value(s: str, sig_figs: int = 5) -> dict:
         Returns a dict with keys:
             - 'si': {'number': <numeric string>, 'symbol': <SI symbol>, 'prefix': <full name>}
             - 'sci': <scientific notation string>
+            - 'val': <input value>
 
         Example:
             si_to_value('1.166 m') -> {'si': {'number':'1.166', 'symbol':'m', 'prefix':'milli'}, 'sci':'1.16600E-03'}
@@ -258,6 +259,7 @@ def si_to_value(s: str, sig_figs: int = 5) -> dict:
         return {
             'si': si_obj,
             'sci': sci,
+            'val': str(s),
         }
 
 
@@ -286,6 +288,7 @@ def sci_to_value(sci: str, sig_figs: int = 5) -> dict:
         return {
             'si': si_obj,
             'sci': sci_norm,
+            'val': str(s),
         }
 
 

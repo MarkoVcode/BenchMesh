@@ -322,8 +322,18 @@ def update_config(config: Dict[str, List[Dict]]):
         "devices": _manager.devices
     }
 
-@app.get("/instruments", summary="List instruments and last IDN", response_model=list)
-def list_instruments(request: Request):
+def _build_instruments_list(class_filter: str | None = None) -> List[Dict[str, Any]]:
+    """
+    Build list of instruments with their classes and channels.
+    
+    Args:
+        class_filter: Optional class code (e.g., 'PSU', 'DMM') to filter results.
+                     If provided, only instruments with this class are included,
+                     and only the matching classes are returned for each instrument.
+    
+    Returns:
+        List of instrument dicts with id, optional IDN, and classes array
+    """
     global _manager
     items = []
     if not _manager:
@@ -358,6 +368,9 @@ def list_instruments(request: Request):
                             # Only include known 3-letter classes
                             if klass not in valid:
                                 continue
+                            # Apply class filter if provided
+                            if class_filter and klass != class_filter:
+                                continue
                             klass_cfg = inst_class_block.get(klass) or {}
                             features = klass_cfg.get('features') or {}
                             try:
@@ -374,10 +387,64 @@ def list_instruments(request: Request):
                             })
             except Exception:
                 pass  # Fail gracefully, continue without classes
+        
+        # Only include instrument if it has matching classes (when filter is applied)
         if classes_list:
             entry['classes'] = classes_list
+            items.append(entry)
+        elif not class_filter:
+            # Include instruments without classes only when no filter is applied
+            items.append(entry)
 
-        items.append(entry)
+    return items
+
+
+@app.get("/instruments", summary="List instruments and last IDN", response_model=list)
+def list_instruments(request: Request):
+    items = _build_instruments_list()
+
+    # Generate ETag from JSON content
+    content = json.dumps(items, sort_keys=True)
+    etag = f'"{hashlib.md5(content.encode()).hexdigest()}"'
+
+    # Check If-None-Match header
+    if_none_match = request.headers.get('if-none-match')
+    if if_none_match == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+
+    # Return response with ETag header
+    return JSONResponse(content=items, headers={"ETag": etag})
+
+
+@app.get("/instruments/{klass}", summary="List instruments filtered by class", response_model=list)
+def list_instruments_by_class(klass: str, request: Request):
+    """
+    List instruments that have the specified instrument class.
+    
+    Returns only instruments with the specified class, and for each instrument
+    only includes the matching class in the classes array.
+    
+    Args:
+        klass: 3-letter instrument class code (e.g., 'PSU', 'DMM', 'ELL')
+        
+    Returns:
+        List of instruments with the specified class, same structure as /instruments
+        but filtered to only include matching classes
+        
+    Raises:
+        404: If class is invalid or no instruments have this class
+    """
+    # Validate class code
+    valid = _load_valid_classes()
+    if klass not in valid:
+        raise HTTPException(status_code=404, detail=f"Invalid instrument class: {klass}")
+    
+    # Build filtered instrument list
+    items = _build_instruments_list(class_filter=klass)
+    
+    # Return 404 if no instruments match
+    if not items:
+        raise HTTPException(status_code=404, detail=f"No instruments found with class: {klass}")
 
     # Generate ETag from JSON content
     content = json.dumps(items, sort_keys=True)
@@ -441,33 +508,87 @@ def get_manifest_features(klass: str, device_id: str):
     return features
 
 
-@app.get("/instruments/{klass}/{device_id}/methods", summary="List available query methods for device")
+@app.get("/instruments/{klass}/{device_id}/methods", summary="List available methods for device with detailed metadata")
 def list_available_methods(klass: str, device_id: str):
     """
-    List all available query methods for a device.
-    Returns method names WITHOUT the 'query_' prefix (as used in recording API).
+    List all available methods for a device with rich metadata.
+    
+    Returns detailed information about each method including:
+    - Method name (partial and full)
+    - HTTP method (GET/POST)
+    - Description
+    - Parameters with types and requirements
+    - Return type
+    - Example usage
+    
+    This endpoint is designed for dynamic UI generation (e.g., Node-RED dropdowns)
+    where method discovery needs to be programmatic.
 
     Example response:
     {
-        "device_id": "eol-1",
-        "class_name": "ELL",
-        "methods": ["volt", "curr", "pow", "status", ...]
+        "device_id": "psu-1",
+        "class": "PSU",
+        "methods": [
+            {
+                "name": "output_voltage",
+                "full_name": "query_output_voltage",
+                "http_method": "GET",
+                "description": "Query the output voltage",
+                "parameters": [
+                    {
+                        "name": "channel",
+                        "type": "int",
+                        "required": true,
+                        "default": null,
+                        "description": "Channel number"
+                    }
+                ],
+                "returns": "string",
+                "example": "GET /instruments/PSU/psu-1/1/output_voltage"
+            }
+        ]
     }
     """
+    from .method_inspector import inspect_driver_methods, generate_example_url
+    
+    # Validate class
+    valid = _load_valid_classes()
+    if klass not in valid:
+        raise HTTPException(status_code=404, detail="Invalid instrument class")
+    
     # Get the driver
     driver = _get_driver_or_error(device_id)
 
-    # Get all methods that start with 'query_'
-    query_methods = [
-        method[6:]  # Remove 'query_' prefix
-        for method in dir(driver)
-        if method.startswith('query_') and callable(getattr(driver, method))
-    ]
+    # Get manifest methods if available (for enrichment)
+    manifest_methods = None
+    global _manager, _manifest_resolver
+    if _manager and _manifest_resolver:
+        dev = next((d for d in _manager.devices if d.get('id') == device_id), None)
+        if dev:
+            try:
+                from .serial_manager import _load_manifest
+                driver_key = dev.get('driver')
+                manifest = _load_manifest(driver_key) if driver_key else None
+                if isinstance(manifest, dict):
+                    # Get model-specific config
+                    model_cfg = _manifest_resolver._get_model_cfg(manifest, dev)
+                    if isinstance(model_cfg, dict):
+                        manifest_methods = model_cfg.get('methods', {})
+            except Exception:
+                pass  # Fail gracefully, continue without manifest enrichment
+
+    # Inspect driver methods
+    methods = inspect_driver_methods(driver, manifest_methods)
+    
+    # Generate example URLs for each method
+    for method in methods:
+        if 'example' not in method:
+            method['example'] = generate_example_url(method, klass, device_id)
 
     return {
         "device_id": device_id,
-        "class_name": klass,
-        "methods": sorted(query_methods)
+        "class": klass,
+        "methods": methods
     }
 
 

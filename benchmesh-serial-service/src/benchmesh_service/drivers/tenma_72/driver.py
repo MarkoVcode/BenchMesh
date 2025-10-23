@@ -148,7 +148,7 @@ class TenmaPSU:
     def set_output(self, channel: int, value):
         if value == 'ON':
             self.t.write_line('OUT1')
-        else:
+        elif value == "OFF":
             self.t.write_line('OUT0')
         return self.t.read_until_reol(1024)
     
