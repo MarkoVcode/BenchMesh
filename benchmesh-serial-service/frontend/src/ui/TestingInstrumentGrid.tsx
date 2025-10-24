@@ -3,7 +3,8 @@ import './TestingInstrumentGrid.css'
 
 /**
  * TestingInstrumentGrid - Visual layout test component
- * Matches instrument display design from reference image
+ * Fixed size: 310px × 70px
+ * Layout matches instrument display with invisible grid structure
  */
 export function TestingInstrumentGrid() {
   return (
@@ -38,19 +39,19 @@ export function TestingInstrumentGrid() {
         </div>
       </div>
 
-      {/* SET Button */}
-      <div className="testing-grid-cell testing-grid-set-button">
-        SET
-      </div>
-
-      {/* Button 1 */}
-      <div className="testing-grid-cell testing-grid-btn-1">
+      {/* Number Button 1 */}
+      <div className="testing-grid-cell testing-grid-num-1">
         1
       </div>
 
-      {/* Button 2 */}
-      <div className="testing-grid-cell testing-grid-btn-2">
+      {/* Number Button 2 */}
+      <div className="testing-grid-cell testing-grid-num-2">
         2
+      </div>
+
+      {/* SET Button */}
+      <div className="testing-grid-cell testing-grid-set-button">
+        SET
       </div>
 
       {/* Button A */}
@@ -58,9 +59,19 @@ export function TestingInstrumentGrid() {
         A
       </div>
 
+      {/* Button C */}
+      <div className="testing-grid-cell testing-grid-btn-c">
+        C
+      </div>
+
       {/* Button B */}
       <div className="testing-grid-cell testing-grid-btn-b">
         B
+      </div>
+
+      {/* Button D */}
+      <div className="testing-grid-cell testing-grid-btn-d">
+        D
       </div>
     </div>
   )
