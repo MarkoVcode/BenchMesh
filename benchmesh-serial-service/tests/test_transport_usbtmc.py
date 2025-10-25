@@ -164,36 +164,33 @@ class TestUsbTmcTransport:
 
         mock_os_write.assert_called_once_with(42, b'*RST')
 
-    @patch('select.select')
     @patch('os.read')
-    def test_read_success(self, mock_os_read, mock_select):
+    def test_read_success(self, mock_os_read):
         """Test reading raw bytes with timeout."""
         transport = UsbTmcTransport(device='/dev/usbtmc0')
         transport._fd = 42
 
         # Simulate data available
-        mock_select.return_value = ([42], [], [])
         mock_os_read.return_value = b'OWON,DGE2070'
 
         result = transport.read(1024)
 
         assert result == b'OWON,DGE2070'
-        mock_select.assert_called_once_with([42], [], [], 1.0)
         mock_os_read.assert_called_once_with(42, 1024)
 
-    @patch('select.select')
-    def test_read_timeout(self, mock_select):
-        """Test read returns empty bytes on timeout."""
+    @patch('os.read')
+    def test_read_timeout(self, mock_os_read):
+        """Test read returns empty bytes on OSError (timeout or no data)."""
         transport = UsbTmcTransport(device='/dev/usbtmc0', timeout=0.5)
         transport._fd = 42
 
-        # Simulate timeout (no readable data)
-        mock_select.return_value = ([], [], [])
+        # Simulate OSError (timeout, no data, or device error)
+        mock_os_read.side_effect = OSError("Timeout or no data")
 
         result = transport.read(1024)
 
         assert result == b''
-        mock_select.assert_called_once_with([42], [], [], 0.5)
+        mock_os_read.assert_called_once_with(42, 1024)
 
     def test_read_when_not_open(self):
         """Test read raises error when transport not open."""
@@ -202,88 +199,78 @@ class TestUsbTmcTransport:
         with pytest.raises(RuntimeError, match='Transport not open'):
             transport.read(1024)
 
-    @patch('select.select')
     @patch('os.read')
-    def test_read_until_reol_success(self, mock_os_read, mock_select):
+    def test_read_until_reol_success(self, mock_os_read):
         """Test reading until EOL terminator."""
         transport = UsbTmcTransport(device='/dev/usbtmc0', reol='\n')
         transport._fd = 42
 
-        # Simulate reading byte-by-byte until newline
-        mock_select.return_value = ([42], [], [])
-        mock_os_read.side_effect = [
-            b'O', b'W', b'O', b'N', b',', b'D', b'G', b'E', b'2', b'0', b'7', b'0', b'\n'
-        ]
+        # USB TMC devices return complete messages in one read
+        mock_os_read.return_value = b'OWON,DGE2070\n'
 
         result = transport.read_until_reol(1024)
 
         assert result == 'OWON,DGE2070'
+        mock_os_read.assert_called_once_with(42, 1024)
 
-    @patch('select.select')
     @patch('os.read')
-    def test_read_until_reol_with_crlf(self, mock_os_read, mock_select):
+    def test_read_until_reol_with_crlf(self, mock_os_read):
         """Test reading until CRLF terminator."""
         transport = UsbTmcTransport(device='/dev/usbtmc0', reol='\r\n')
         transport._fd = 42
 
-        # Simulate reading until \r\n
-        mock_select.return_value = ([42], [], [])
-        mock_os_read.side_effect = [
-            b'T', b'E', b'S', b'T', b'\r', b'\n'
-        ]
+        # USB TMC devices return complete messages in one read
+        mock_os_read.return_value = b'TEST\r\n'
 
         result = transport.read_until_reol(1024)
 
         assert result == 'TEST'
+        mock_os_read.assert_called_once_with(42, 1024)
 
-    @patch('time.time')
-    @patch('select.select')
     @patch('os.read')
-    def test_read_until_reol_timeout(self, mock_os_read, mock_select, mock_time):
-        """Test read_until_reol respects timeout."""
+    def test_read_until_reol_timeout(self, mock_os_read):
+        """Test read_until_reol handles OSError (timeout/no data)."""
         transport = UsbTmcTransport(device='/dev/usbtmc0', timeout=1.0, reol='\n')
         transport._fd = 42
 
-        # Simulate time progression to trigger timeout
-        mock_time.side_effect = [0.0, 0.5, 1.1]  # Start, progress, timeout
-        mock_select.return_value = ([42], [], [])
-        mock_os_read.return_value = b'X'  # Data without EOL
+        # Simulate OSError (timeout or no data)
+        mock_os_read.side_effect = OSError("Timeout")
 
         result = transport.read_until_reol(1024)
 
-        # Should return partial data before timeout
-        assert result == 'X'
+        # Should return empty string on error
+        assert result == ''
+        mock_os_read.assert_called_once_with(42, 1024)
 
-    @patch('select.select')
     @patch('os.read')
-    def test_read_until_reol_no_eol_configured(self, mock_os_read, mock_select):
+    def test_read_until_reol_no_eol_configured(self, mock_os_read):
         """Test read_until_reol with no EOL configured."""
         transport = UsbTmcTransport(device='/dev/usbtmc0', reol='')
         transport._fd = 42
 
-        # Simulate single read
-        mock_select.return_value = ([42], [], [])
+        # USB TMC devices return complete messages in one read
         mock_os_read.return_value = b'Line1\nLine2\n'
 
         result = transport.read_until_reol(1024)
 
         # Should return first line only
         assert result == 'Line1'
+        mock_os_read.assert_called_once_with(42, 1024)
 
-    @patch('select.select')
     @patch('os.read')
-    def test_read_until_reol_max_bytes_limit(self, mock_os_read, mock_select):
+    def test_read_until_reol_max_bytes_limit(self, mock_os_read):
         """Test read_until_reol respects max_bytes limit."""
         transport = UsbTmcTransport(device='/dev/usbtmc0', reol='\n')
         transport._fd = 42
 
-        # Simulate reading more than max_bytes
-        mock_select.return_value = ([42], [], [])
-        mock_os_read.side_effect = [b'X'] * 20  # Return 20 bytes
+        # Mock respects the size parameter (returns at most 10 bytes when asked for 10)
+        mock_os_read.return_value = b'X' * 10
 
         result = transport.read_until_reol(max_bytes=10)
 
-        # Should stop at max_bytes even without EOL
+        # USB TMC reads in one operation, passing max_bytes to os.read()
+        mock_os_read.assert_called_once_with(42, 10)
+        # Result should be at most max_bytes
         assert len(result) == 10
 
     def test_read_until_reol_when_not_open(self):
@@ -292,6 +279,47 @@ class TestUsbTmcTransport:
 
         with pytest.raises(RuntimeError, match='Transport not open'):
             transport.read_until_reol(1024)
+
+    @patch('os.read')
+    def test_read_binary_success(self, mock_os_read):
+        """Test reading binary data without text decoding."""
+        transport = UsbTmcTransport(device='/dev/usbtmc0')
+        transport._fd = 42
+
+        # Simulate binary data with non-printable characters
+        binary_data = b'\x00\x01\x02\xFF\xFE\xFD'
+        mock_os_read.return_value = binary_data
+
+        result = transport.read_binary(1024)
+
+        assert result == binary_data
+        assert isinstance(result, bytes)
+        mock_os_read.assert_called_once_with(42, 1024)
+
+    @patch('os.read')
+    def test_read_binary_ieee488_format(self, mock_os_read):
+        """Test reading IEEE 488.2 binary block format."""
+        transport = UsbTmcTransport(device='/dev/usbtmc0')
+        transport._fd = 42
+
+        # IEEE 488.2 binary block: #42000<2000 bytes of data>
+        # Header: # + 4 (length digits) + 2000 (length value)
+        binary_header = b'#42000'
+        binary_payload = b'\x00' * 2000
+        mock_os_read.return_value = binary_header + binary_payload
+
+        result = transport.read_binary(max_bytes=4096)
+
+        # Verify we got the complete binary block
+        assert result.startswith(b'#42000')
+        assert len(result) == 6 + 2000  # header + payload
+
+    def test_read_binary_when_not_open(self):
+        """Test read_binary raises error when transport not open."""
+        transport = UsbTmcTransport(device='/dev/usbtmc0')
+
+        with pytest.raises(RuntimeError, match='Transport not open'):
+            transport.read_binary(1024)
 
 
 class TestDiscoverUsbTmcDevices:

@@ -18,14 +18,15 @@
       "polling": [
         {
           "method": "poll_status",
-          "interval": 1
+          "interval": 0.5
         }
       ],
       "instrument_class": {
         "AWG": {
           "ui_component": "GenericAWG",
           "features": {
-            "lock": true,
+            "lock": false,
+            "compulsory_lock": false,
             "channels": 2
           }
         }

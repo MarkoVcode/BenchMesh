@@ -107,19 +107,45 @@ class UsbTmcTransport(Transport):
         Raises:
             RuntimeError: If transport not open
             OSError: If read fails
+
+        Note:
+            USB TMC devices don't support select() on Linux. The kernel USBTMC
+            driver handles timeouts internally, so we use direct os.read().
         """
         if self._fd is None:
             raise RuntimeError('Transport not open')
 
-        # USB TMC read with timeout handling
-        # Use select for timeout support
-        import select
-        readable, _, _ = select.select([self._fd], [], [], self.timeout)
+        # Direct read - USB TMC driver handles timeouts at kernel level
+        try:
+            return os.read(self._fd, size)
+        except OSError:
+            # On timeout or error, return empty bytes
+            return b''
 
-        if not readable:
-            return b''  # Timeout
+    def read_binary(self, max_bytes: int = 4096) -> bytes:
+        """
+        Read raw binary data without text decoding.
 
-        return os.read(self._fd, size)
+        Use this method for binary data transfers such as:
+        - Waveform capture data
+        - Screenshot/image data
+        - Binary file transfers
+        - Raw measurement arrays
+
+        Args:
+            max_bytes: Maximum bytes to read
+
+        Returns:
+            Raw bytes received (may be less than max_bytes)
+
+        Raises:
+            RuntimeError: If transport not open
+
+        Note:
+            This is identical to read() but explicitly named for clarity
+            when reading binary data. Use read_until_reol() for text commands.
+        """
+        return self.read(max_bytes)
 
     def read_until_reol(self, max_bytes: int = 4096) -> str:
         """
@@ -133,110 +159,153 @@ class UsbTmcTransport(Transport):
 
         Raises:
             RuntimeError: If transport not open
+
+        Note:
+            USB TMC devices return complete messages in one read operation.
+            Reading byte-by-byte causes re-transmission, so we read the full
+            response at once and then look for the EOL terminator.
         """
         if self._fd is None:
             raise RuntimeError('Transport not open')
 
-        if not self.reol:
-            # No EOL configured - read once and return first line
-            data = self.read(max_bytes)
-            try:
-                text = data.decode('utf-8', errors='ignore')
-            except Exception:
-                return ''
-            # Normalize to single line
-            lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-            return lines[0] if lines else ''
+        # USB TMC devices return complete messages - read all at once
+        data = self.read(max_bytes)
 
-        # Read until configured EOL terminator
-        buf = bytearray()
-        start_time = time.time()
-
-        while len(buf) < max_bytes:
-            # Check timeout
-            if time.time() - start_time > self.timeout:
-                break
-
-            chunk = self.read(1)  # Read one byte at a time
-            if not chunk:
-                break
-
-            buf += chunk
-
-            if buf.endswith(self.reol):
-                break
+        if not data:
+            return ''
 
         try:
-            text = bytes(buf).decode('utf-8', errors='ignore')
+            text = data.decode('utf-8', errors='ignore')
         except Exception:
             return ''
 
-        # Strip configured EOL and normalize
+        # Strip EOL terminators and normalize
         text = text.rstrip('\r\n')
+
+        # Return first line only
         lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
         return lines[0] if lines else ''
 
 
 def discover_usbtmc_devices():
     """
-    Discover available USB TMC devices on the system.
+    Discover available USB TMC devices on the system, including symlinks.
 
     Returns:
         List of dictionaries with device information:
         [
             {
                 "device": "/dev/usbtmc0",
+                "name": "usbtmc0",
                 "vendor_id": "0x1ab1",  # If available
                 "product_id": "0x04ce",  # If available
                 "manufacturer": "RIGOL TECHNOLOGIES",  # If available
                 "product": "DS1104Z Plus"  # If available
+            },
+            {
+                "device": "/dev/owon-dge-1",  # Symlink
+                "name": "owon-dge-1",
+                "symlink_target": "/dev/usbtmc0",
+                "vendor_id": "0x5345",
+                "product_id": "0x1235",
+                "manufacturer": "Owon",
+                "product": "generator"
             }
         ]
     """
     devices = []
+    seen_devices = set()
+
+    def get_device_info(entry, device_path, is_symlink=False, symlink_target=None):
+        """Helper to get device info from sysfs."""
+        device_info = {
+            "device": device_path,
+            "name": entry
+        }
+
+        if is_symlink and symlink_target:
+            device_info["symlink_target"] = symlink_target
+
+        # For symlinks, extract the actual device name from target
+        actual_entry = entry
+        if is_symlink and symlink_target:
+            # Extract usbtmcX from /dev/usbtmcX
+            target_name = os.path.basename(symlink_target)
+            if target_name.startswith('usbtmc'):
+                actual_entry = target_name
+
+        # Try to get USB device info from sysfs
+        # /dev/usbtmc0 -> /sys/class/usb/usbtmc0/device
+        try:
+            sysfs_path = f'/sys/class/usb/{actual_entry}/device'
+            if os.path.exists(sysfs_path):
+                # Read vendor ID
+                vendor_path = os.path.join(sysfs_path, 'idVendor')
+                if os.path.exists(vendor_path):
+                    with open(vendor_path, 'r') as f:
+                        device_info['vendor_id'] = f'0x{f.read().strip()}'
+
+                # Read product ID
+                product_path = os.path.join(sysfs_path, 'idProduct')
+                if os.path.exists(product_path):
+                    with open(product_path, 'r') as f:
+                        device_info['product_id'] = f'0x{f.read().strip()}'
+
+                # Read manufacturer
+                mfr_path = os.path.join(sysfs_path, 'manufacturer')
+                if os.path.exists(mfr_path):
+                    with open(mfr_path, 'r') as f:
+                        device_info['manufacturer'] = f.read().strip()
+
+                # Read product name
+                prod_path = os.path.join(sysfs_path, 'product')
+                if os.path.exists(prod_path):
+                    with open(prod_path, 'r') as f:
+                        device_info['product'] = f.read().strip()
+        except Exception:
+            # Sysfs read failed - device info will be incomplete
+            pass
+
+        return device_info
 
     # Find all /dev/usbtmc* devices
     for entry in os.listdir('/dev'):
         if entry.startswith('usbtmc'):
             device_path = f'/dev/{entry}'
+            devices.append(get_device_info(entry, device_path))
+            seen_devices.add(device_path)
 
-            device_info = {
-                "device": device_path,
-                "name": entry
-            }
+    # Find all symlinks in /dev that point to USB TMC devices
+    for entry in os.listdir('/dev'):
+        device_path = f'/dev/{entry}'
 
-            # Try to get USB device info from sysfs
-            # /dev/usbtmc0 -> /sys/class/usb/usbtmc0/device
+        # Skip if already processed
+        if device_path in seen_devices:
+            continue
+
+        # Check if it's a symlink
+        if os.path.islink(device_path):
             try:
-                sysfs_path = f'/sys/class/usb/{entry}/device'
-                if os.path.exists(sysfs_path):
-                    # Read vendor ID
-                    vendor_path = os.path.join(sysfs_path, 'idVendor')
-                    if os.path.exists(vendor_path):
-                        with open(vendor_path, 'r') as f:
-                            device_info['vendor_id'] = f'0x{f.read().strip()}'
+                # Resolve the symlink
+                target = os.readlink(device_path)
 
-                    # Read product ID
-                    product_path = os.path.join(sysfs_path, 'idProduct')
-                    if os.path.exists(product_path):
-                        with open(product_path, 'r') as f:
-                            device_info['product_id'] = f'0x{f.read().strip()}'
+                # Make target absolute if it's relative
+                if not os.path.isabs(target):
+                    target = os.path.normpath(os.path.join('/dev', target))
 
-                    # Read manufacturer
-                    mfr_path = os.path.join(sysfs_path, 'manufacturer')
-                    if os.path.exists(mfr_path):
-                        with open(mfr_path, 'r') as f:
-                            device_info['manufacturer'] = f.read().strip()
+                # Check if target is a USB TMC device
+                target_name = os.path.basename(target)
+                if target_name.startswith('usbtmc'):
+                    device_info = get_device_info(
+                        entry, device_path,
+                        is_symlink=True,
+                        symlink_target=target
+                    )
+                    devices.append(device_info)
+                    seen_devices.add(device_path)
 
-                    # Read product name
-                    prod_path = os.path.join(sysfs_path, 'product')
-                    if os.path.exists(prod_path):
-                        with open(prod_path, 'r') as f:
-                            device_info['product'] = f.read().strip()
-            except Exception:
-                # Sysfs read failed - device info will be incomplete
+            except (OSError, IOError):
+                # Broken symlink or permission error
                 pass
-
-            devices.append(device_info)
 
     return devices
