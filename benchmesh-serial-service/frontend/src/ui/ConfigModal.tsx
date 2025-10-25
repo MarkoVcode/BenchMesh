@@ -276,6 +276,12 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
     setDevices(updated)
   }
 
+  function updateDeviceMultiple(index: number, updates: Partial<Device>) {
+    const updated = [...devices]
+    updated[index] = { ...updated[index], ...updates }
+    setDevices(updated)
+  }
+
   function sanitizeDeviceId(value: string): string {
     // Only allow lowercase letters, digits, and hyphens
     // Max 20 characters
@@ -367,18 +373,23 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                         value={device.transport || 'serial'}
                         onChange={(e) => {
                           const newTransport = e.target.value
-                          updateDevice(index, 'transport', newTransport)
-                          // Clear transport-specific fields when switching
+                          // Batch all updates into a single state update to prevent race conditions
                           if (newTransport === 'serial') {
-                            updateDevice(index, 'device', undefined)
-                            if (!device.port) updateDevice(index, 'port', '/dev/ttyUSB0')
-                            if (!device.baud) updateDevice(index, 'baud', 115200)
-                            if (!device.serial) updateDevice(index, 'serial', '8N1')
+                            updateDeviceMultiple(index, {
+                              transport: newTransport,
+                              device: undefined,
+                              port: device.port || '/dev/ttyUSB0',
+                              baud: device.baud || 115200,
+                              serial: device.serial || '8N1'
+                            })
                           } else if (newTransport === 'usbtmc') {
-                            updateDevice(index, 'port', undefined)
-                            updateDevice(index, 'baud', undefined)
-                            updateDevice(index, 'serial', undefined)
-                            if (!device.device) updateDevice(index, 'device', '/dev/usbtmc0')
+                            updateDeviceMultiple(index, {
+                              transport: newTransport,
+                              port: undefined,
+                              baud: undefined,
+                              serial: undefined,
+                              device: device.device || '/dev/usbtmc0'
+                            })
                           }
                         }}
                       >
