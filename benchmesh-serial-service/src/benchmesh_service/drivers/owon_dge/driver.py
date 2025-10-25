@@ -5,7 +5,7 @@ Supports DGE2070, DGE2035, DGE3032, DGE3062, DGE3031, DGE3061
 from ...transport import SerialTransport
 
 
-class OWENDGE:
+class OwonDGE:
     """Driver for OWON DGE series function generators"""
 
     def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
@@ -23,23 +23,38 @@ class OWENDGE:
     def set_reset(self):
         """Reset device to factory settings"""
         self.t.write_line('*RST')
+        return self.t.read_until_reol(1024)
 
-    def poll_status(self):
+    def poll_status(self, channel: int = 1):
         """Poll device status"""
-        # For now, just return basic identification
+        # For AWG, channel is typically not used (single-instrument status)
+        # But we accept it for API compatibility
         idn = self.query_identify()
         return {
             "idn": idn,
             "connected": True
         }
 
-    def set_output(self, channel, state):
+    def set_output(self, channel: int, state: bool):
         """Enable/disable output channel"""
-        state_val = '1' if state else '0'
+        state_val = 'ON' if state else 'OFF'
         self.t.write_line(f'C{channel}:OUTP {state_val}')
+        return self.t.read_until_reol(1024)
 
-    def query_output(self, channel):
+    def query_output(self, channel: int):
         """Query output channel state"""
         self.t.write_line(f'C{channel}:OUTP?')
         response = self.t.read_until_reol(1024)
         return response.strip() == 'ON'
+
+    def write(self, data: bytes):
+        """Write raw data to transport"""
+        self.t.write(data)
+
+    def read(self, size=1024):
+        """Read raw data from transport"""
+        return self.t.read(size)
+
+    def close(self):
+        """Close transport connection"""
+        self.t.close()

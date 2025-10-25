@@ -4,7 +4,7 @@
   "family": "DGE",
   "version": "1.0.0",
   "enabled": false,
-  "supported_transports": ["serial", "usbtmc"],
+  "supported_transports": ["usbtmc"],
   "models": {
     "DEFAULT": {
       "classes": [
@@ -18,7 +18,7 @@
       "polling": [
         {
           "method": "poll_status",
-          "interval": 0.6
+          "interval": 1
         }
       ],
       "instrument_class": {
