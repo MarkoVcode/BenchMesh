@@ -190,6 +190,11 @@ Both systems coexist without interference and provide complementary insights.
 # Start with frontend UI build (use when frontend code has changed)
 ./start.sh --uibuild
 
+# Build and run in Electron desktop app wrapper
+./start.sh --electron
+# or
+npm run start:electron
+
 # Services will be available at:
 # - Frontend: http://localhost:57666/ui
 # - API Docs: http://localhost:57666/docs
@@ -197,6 +202,8 @@ Both systems coexist without interference and provide complementary insights.
 ```
 
 **Note**: The `--uibuild` flag triggers a full frontend build before starting services. This runs `npm ci` and `npm run build` in the frontend directory. Use this flag when you've made changes to the frontend code. Without the flag, the script uses the existing build in `dist/`.
+
+**Note**: The `--electron` flag builds the frontend UI, starts all backend services (Node-RED, FastAPI), and launches the Electron desktop application. When the Electron window closes, all backend services are automatically cleaned up.
 
 ### Backend Development
 
@@ -513,6 +520,101 @@ Each driver has a `manifest.json` defining:
 
 Manifest aliases in `serial_manager.py` and `manifest_resolver.py` map legacy driver names (e.g., `tenma_psu` → `tenma_72`).
 
+## User Data Persistence
+
+BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node-RED flows, and recordings persist across app updates and installations.
+
+### Directory Structure
+
+```
+~/.benchmesh/
+├── config.yaml          # Device configurations (copied from default on first run)
+├── node-red/            # Node-RED flows and data
+│   ├── flows.json
+│   ├── settings.js
+│   ├── node_modules/
+│   │   └── node-red-contrib-benchmesh -> symlink to project custom nodes
+│   └── ...
+├── recordings.db        # SQLite database for recording feature
+└── logs/                # Application logs (Electron and web modes)
+```
+
+### Initialization
+
+**Electron Mode:**
+- On app startup, `electron/init-user-data.js` creates `~/.benchmesh/` structure
+- Copies default `config.yaml` if not present
+- Creates symlink to custom Node-RED nodes (`node-red-contrib-benchmesh`)
+- Sets environment variables automatically
+
+**Web/Browser Mode:**
+- `start.sh` creates `~/.benchmesh/` structure
+- Copies default `config.yaml` if not present
+- Creates symlink to custom Node-RED nodes (`node-red-contrib-benchmesh`)
+- Exports environment variables for backend services
+
+### Configuration
+
+Both modes use these environment variables:
+- `BENCHMESH_CONFIG`: Path to config.yaml (set to `~/.benchmesh/config.yaml`)
+- `BENCHMESH_DATA_DIR`: User data directory (set to `~/.benchmesh/`)
+
+**Configuration Persistence:**
+- Changes made through the Configuration modal (UI) are automatically persisted to `~/.benchmesh/config.yaml`
+- The `POST /config` API endpoint saves changes atomically using a temp file + rename strategy
+- Configuration survives app restarts and updates
+- To manually edit config: modify `~/.benchmesh/config.yaml` and restart the app
+
+### Backup and Migration
+
+**To backup your configuration:**
+```bash
+# Backup entire user data directory
+cp -r ~/.benchmesh ~/.benchmesh.backup
+
+# Or backup just the config
+cp ~/.benchmesh/config.yaml ~/.benchmesh/config.yaml.backup
+```
+
+**To migrate to a new machine:**
+```bash
+# Copy user data directory to new machine
+scp -r ~/.benchmesh user@newmachine:~/
+```
+
+**To reset to defaults:**
+```bash
+# Remove user data directory (will recreate on next startup)
+rm -rf ~/.benchmesh
+```
+
+### Location by Operating System
+
+The user data directory is always `~/.benchmesh/` on all platforms:
+- **Linux**: `/home/username/.benchmesh/`
+- **macOS**: `/Users/username/.benchmesh/`
+- **Windows**: `C:\Users\username\.benchmesh\`
+
+### Troubleshooting
+
+**Config not loading:**
+1. Check that `~/.benchmesh/config.yaml` exists
+2. Verify file permissions: `chmod 644 ~/.benchmesh/config.yaml`
+3. Check logs for parsing errors
+
+**Node-RED flows missing after update:**
+1. Verify `~/.benchmesh/node-red/flows.json` exists
+2. Check Node-RED is using correct userDir (shown in startup logs)
+
+**Node-RED custom nodes not showing:**
+1. Check symlink exists: `ls -la ~/.benchmesh/node-red/node_modules/node-red-contrib-benchmesh`
+2. Restart Node-RED to reload nodes
+3. The symlink is automatically created on startup to link to project's `node-red-contrib-benchmesh/` directory
+
+**Recordings database not found:**
+1. Check `~/.benchmesh/recordings.db` exists
+2. Verify `BENCHMESH_DATA_DIR` environment variable is set
+
 ## Adding a New Driver
 
 1. Create driver package: `benchmesh-serial-service/src/benchmesh_service/drivers/<driver_name>/`
@@ -559,9 +661,31 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 
 ## Environment Variables
 
-- `BENCHMESH_CONFIG`: Path to config.yaml (default: `config.yaml`)
+**User Data and Configuration:**
+- `BENCHMESH_CONFIG`: Path to config.yaml (default: `~/.benchmesh/config.yaml`, automatically set by start.sh and Electron)
+- `BENCHMESH_DATA_DIR`: User data directory path (default: `~/.benchmesh/`, automatically set by start.sh and Electron)
+
+**Service Ports:**
 - `API_PORT`: FastAPI port (default: `57666`)
 - `UI_PORT`: Frontend dev server port (default: `52893`)
+
+**Unified Polling Configuration:**
+- `BM_UNIFIED_POLLING`: Enable unified polling (default: `false`)
+- `BM_UNIFIED_POLL_INTERVAL`: Polling interval in milliseconds (default: `50`)
+- `BM_MAX_QUEUE_DEPTH`: Maximum queue depth threshold (default: `10`)
+- `BM_API_QUEUE_TIMEOUT`: API request timeout in seconds (default: `10.0`)
+
+**Serial Communication:**
+- `BM_SERIAL_OPEN_TIMEOUT`: Serial port open timeout in seconds (default: `2.0`)
+- `BM_SERIAL_READ_TIMEOUT`: Serial read timeout in seconds (default: `0.3`)
+- `BM_API_REQUEST_TIMEOUT`: API request timeout in seconds (default: `5.0`)
+
+**WebSocket:**
+- `BM_WS_INTERVAL`: WebSocket broadcast interval in seconds (default: `0.2`)
+
+**Health Monitoring:**
+- `BM_HEALTH_FAILURE_THRESHOLD`: Health check failure threshold (default: `3`)
+- `BM_HEALTH_DEGRADED_THRESHOLD`: Health check degraded threshold (default: `1`)
 
 ## Node.js Version Requirements
 

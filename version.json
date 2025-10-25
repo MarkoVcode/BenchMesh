@@ -1,5 +1,5 @@
 {
+  "name": "Benchmesh",
   "version": "0.0.51",
-  "name": "BenchMesh",
-  "description": "Lab Instrument Control System"
+  "description": "BenchMesh - Lab Instrument Control System"
 }

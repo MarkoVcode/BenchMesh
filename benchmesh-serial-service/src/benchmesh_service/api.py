@@ -1,8 +1,10 @@
 import os
+import sys
 import json
 import asyncio
 import subprocess
 import hashlib
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect, Request
@@ -11,10 +13,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse, JSONResponse
 from .serial_manager import SerialManager, _load_manifest
 from .manifest_resolver import ManifestResolver
-from .config import load_config
+from .config import load_config, save_config
 from .settings import settings
 from .api_recording import create_recording_router
 import benchmesh_service.services.recording_service as recording_service_module
+import serial.tools.list_ports
 
 API_PORT = int(os.getenv('API_PORT', '57666'))
 UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
@@ -298,6 +301,111 @@ def list_driver_models(driver_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read manifest: {str(e)}")
 
+@app.get("/serial-ports", summary="List available serial ports", response_model=list)
+def list_serial_ports(exclude: str = ""):
+    """
+    List available serial ports on the system.
+
+    Query parameters:
+    - exclude: Comma-separated list of port paths to exclude (e.g., ports already in use)
+
+    Returns a list of serial port information with:
+    - device: Port path (e.g., /dev/ttyUSB0, COM3, /dev/cu.usbserial-1420)
+    - description: Human-readable description of the device
+    - manufacturer: Manufacturer name (if available)
+    - serial_number: Device serial number (if available)
+    - hwid: Hardware ID string
+
+    Cross-platform support:
+    - Windows: COM1, COM2, etc.
+    - Linux: /dev/ttyUSB*, /dev/ttyACM*, etc. plus udev symlinks
+    - macOS: /dev/cu.*, /dev/tty.*
+    """
+    try:
+        # Get list of all available serial ports
+        all_ports = serial.tools.list_ports.comports()
+
+        # Parse exclude list
+        excluded_ports = set()
+        if exclude:
+            excluded_ports = set(p.strip() for p in exclude.split(',') if p.strip())
+
+        # Build result list
+        result = []
+        device_set = set()  # Track devices to avoid duplicates
+
+        for port in all_ports:
+            # Skip excluded ports
+            if port.device in excluded_ports:
+                continue
+
+            result.append({
+                "device": port.device,
+                "description": port.description or "Unknown Device",
+                "manufacturer": port.manufacturer or None,
+                "serial_number": port.serial_number or None,
+                "hwid": port.hwid or None
+            })
+            device_set.add(port.device)
+
+        # On Linux, also discover udev symlinks to serial ports
+        if sys.platform.startswith('linux'):
+            try:
+                dev_path = Path('/dev')
+                if dev_path.exists():
+                    for entry in dev_path.iterdir():
+                        # Check if it's a symlink
+                        if not entry.is_symlink():
+                            continue
+
+                        # Skip if already in our list or excluded
+                        device_str = str(entry)
+                        if device_str in device_set or device_str in excluded_ports:
+                            continue
+
+                        try:
+                            # Resolve the symlink target
+                            target = entry.resolve()
+                            target_str = str(target)
+
+                            # Check if target is a tty device
+                            if target_str.startswith('/dev/tty'):
+                                # Find the actual port info if available
+                                manufacturer = None
+                                serial_number = None
+                                hwid = None
+
+                                # Try to find the target in our port list
+                                for port in all_ports:
+                                    if port.device == target_str:
+                                        manufacturer = port.manufacturer
+                                        serial_number = port.serial_number
+                                        hwid = port.hwid
+                                        break
+
+                                result.append({
+                                    "device": device_str,
+                                    "description": f"Symlink to {target.name}",
+                                    "manufacturer": manufacturer,
+                                    "serial_number": serial_number,
+                                    "hwid": hwid
+                                })
+                                device_set.add(device_str)
+                        except (OSError, RuntimeError):
+                            # Skip broken symlinks or permission errors
+                            continue
+            except Exception as e:
+                # Non-fatal - just log and continue with what we have
+                print(f"Warning: Failed to scan /dev for symlinks: {e}")
+
+        # Sort by device name for consistent ordering
+        result.sort(key=lambda p: p["device"])
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list serial ports: {str(e)}")
+
 @app.get("/config", summary="Get current configuration from serial_manager")
 def get_config():
     """Get the current runtime configuration from serial_manager.devices"""
@@ -312,6 +420,8 @@ def update_config(config: Dict[str, List[Dict]]):
     Update the entire configuration and restart all connections.
     The payload must contain a 'devices' key with a list of device configs.
     This replaces the entire configuration - if you send 1 device, all others are removed.
+
+    Changes are persisted to the config.yaml file.
     """
     global _manager
 
@@ -321,6 +431,16 @@ def update_config(config: Dict[str, List[Dict]]):
     devices = config.get('devices', [])
     if not isinstance(devices, list):
         raise HTTPException(status_code=400, detail="'devices' must be a list")
+
+    # Persist configuration to file before applying
+    cfg_path = os.getenv("BENCHMESH_CONFIG", "config.yaml")
+    try:
+        save_config(cfg_path, devices)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save configuration to {cfg_path}: {str(e)}"
+        )
 
     # Stop existing manager and all its threads
     if _manager:
@@ -332,7 +452,7 @@ def update_config(config: Dict[str, List[Dict]]):
 
     return {
         "status": "success",
-        "message": f"Configuration updated with {len(devices)} device(s)",
+        "message": f"Configuration updated with {len(devices)} device(s) and saved to {cfg_path}",
         "devices": _manager.devices
     }
 

@@ -15,9 +15,7 @@ def get_database_path() -> str:
 
     Priority:
     1. BENCHMESH_DATA_DIR environment variable (if set)
-    2. ~/.benchmesh/ (user home directory for Electron)
-    3. /opt/benchmesh/data/ (system location for web deployment)
-    4. Current directory (fallback for development)
+    2. ~/.benchmesh/ (default user data directory)
 
     Returns:
         str: Absolute path to recordings.db file
@@ -27,15 +25,9 @@ def get_database_path() -> str:
 
     if data_dir:
         db_path = Path(data_dir) / "recordings.db"
-    elif os.path.exists(os.path.expanduser("~/.benchmesh")):
-        # Electron deployment (user home)
-        db_path = Path.home() / ".benchmesh" / "recordings.db"
-    elif os.path.exists("/opt/benchmesh/data"):
-        # Web deployment (system directory)
-        db_path = Path("/opt/benchmesh/data") / "recordings.db"
     else:
-        # Development fallback (current directory)
-        db_path = Path.cwd() / "recordings.db"
+        # Default to ~/.benchmesh/ for all deployments
+        db_path = Path.home() / ".benchmesh" / "recordings.db"
 
     # Ensure parent directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)

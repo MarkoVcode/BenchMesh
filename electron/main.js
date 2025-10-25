@@ -1,8 +1,10 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron')
 const path = require('path')
 const { spawn } = require('child_process')
 const kill = require('tree-kill')
 const fs = require('fs')
+const { initializeUserData } = require('./init-user-data')
+const { checkVersionDowngrade, saveVersionToUserData } = require('./version-manager')
 
 let mainWindow
 let backendProcess
@@ -310,7 +312,27 @@ function createMenu() {
   Menu.setApplicationMenu(menu)
 }
 
-function startBackend() {
+async function showVersionDowngradeWarning(currentVersion, lastVersion) {
+  const result = await dialog.showMessageBox({
+    type: 'warning',
+    title: 'Version Downgrade Detected',
+    message: 'Running an older version of BenchMesh',
+    detail: `You are about to run version ${currentVersion.version}, but you previously used version ${lastVersion.version}.\n\n` +
+            'Running an older version may result in:\n' +
+            '• Data corruption\n' +
+            '• Incompatible configuration formats\n' +
+            '• Unexpected application behavior\n\n' +
+            'It is recommended to use the latest version or perform a fresh installation.\n\n' +
+            'Do you want to continue anyway?',
+    buttons: ['Exit Application', 'Continue Anyway'],
+    defaultId: 0,
+    cancelId: 0
+  })
+
+  return result.response === 1 // Returns true if "Continue Anyway" was clicked
+}
+
+function startBackend(userDataPaths) {
   const isDev = process.env.NODE_ENV === 'development'
   const projectRoot = path.join(__dirname, '..')
 
@@ -327,6 +349,8 @@ function startBackend() {
   console.log('Python path:', pythonPath)
   console.log('Backend directory:', backendDir)
   console.log('Project root:', projectRoot)
+  console.log('Config path:', userDataPaths.configPath)
+  console.log('Data directory:', userDataPaths.userDataDir)
 
   backendProcess = spawn(pythonPath, [
     '-m', 'uvicorn',
@@ -335,7 +359,12 @@ function startBackend() {
     '--port', '57666'
   ], {
     cwd: backendDir,
-    env: { ...process.env, PYTHONPATH: 'src' },
+    env: {
+      ...process.env,
+      PYTHONPATH: 'src',
+      BENCHMESH_CONFIG: userDataPaths.configPath,
+      BENCHMESH_DATA_DIR: userDataPaths.userDataDir
+    },
     stdio: ['ignore', 'pipe', 'pipe']
   })
 
@@ -356,7 +385,7 @@ function startBackend() {
   })
 }
 
-function startNodeRed() {
+function startNodeRed(userDataPaths) {
   const isDev = process.env.NODE_ENV === 'development'
   const projectRoot = path.join(__dirname, '..')
 
@@ -367,14 +396,13 @@ function startNodeRed() {
 
   // Start Node-RED
   const nodeRedPath = path.join(projectRoot, 'node_modules/.bin/node-red')
-  const nodeRedDir = path.join(projectRoot, '.node-red')
 
   console.log('Starting Node-RED...')
   console.log('Node-RED path:', nodeRedPath)
-  console.log('Node-RED user dir:', nodeRedDir)
+  console.log('Node-RED user dir:', userDataPaths.nodeRedDir)
 
   nodeRedProcess = spawn(nodeRedPath, [
-    '--userDir', nodeRedDir,
+    '--userDir', userDataPaths.nodeRedDir,
     '--port', '1880'
   ], {
     cwd: projectRoot,
@@ -462,11 +490,38 @@ async function waitForBackend(retries = 30, delay = 1000) {
 }
 
 app.whenReady().then(async () => {
-  startBackend()
+  // Initialize user data directory structure
+  const projectRoot = path.join(__dirname, '..')
+  const userDataPaths = initializeUserData(projectRoot)
+
+  // Check for version downgrade
+  const versionCheck = checkVersionDowngrade(projectRoot, userDataPaths.userDataDir)
+
+  if (versionCheck.isDowngrade) {
+    const continueAnyway = await showVersionDowngradeWarning(
+      versionCheck.currentVersion,
+      versionCheck.lastVersion
+    )
+
+    if (!continueAnyway) {
+      console.log('User chose to exit due to version downgrade')
+      app.quit()
+      return
+    }
+
+    console.log('User chose to continue despite version downgrade')
+  }
+
+  // Save current version to user data for future comparisons
+  if (versionCheck.currentVersion) {
+    saveVersionToUserData(userDataPaths.userDataDir, versionCheck.currentVersion)
+  }
+
+  startBackend(userDataPaths)
 
   // Give backend a moment to start before starting Node-RED
   setTimeout(() => {
-    startNodeRed()
+    startNodeRed(userDataPaths)
   }, 1000)
 
   // Wait for backend to be ready before opening window
@@ -497,6 +552,8 @@ app.on('before-quit', async (event) => {
 // Handle IPC messages if needed
 ipcMain.on('restart-services', async () => {
   await stopProcesses()
-  startBackend()
-  setTimeout(startNodeRed, 1000)
+  const projectRoot = path.join(__dirname, '..')
+  const userDataPaths = initializeUserData(projectRoot)
+  startBackend(userDataPaths)
+  setTimeout(() => startNodeRed(userDataPaths), 1000)
 })

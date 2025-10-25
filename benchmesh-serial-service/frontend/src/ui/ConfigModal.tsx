@@ -15,6 +15,14 @@ interface DriverInfo {
   family: string
 }
 
+interface SerialPortInfo {
+  device: string
+  description: string
+  manufacturer: string | null
+  serial_number: string | null
+  hwid: string | null
+}
+
 interface ConfigModalProps {
   isOpen: boolean
   onClose: () => void
@@ -31,6 +39,8 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
   const [devices, setDevices] = useState<Device[]>([])
   const [drivers, setDrivers] = useState<Record<string, DriverInfo>>({})
   const [driverModels, setDriverModels] = useState<Record<string, string[]>>({})
+  const [availablePorts, setAvailablePorts] = useState<SerialPortInfo[]>([])
+  const [loadingPorts, setLoadingPorts] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +50,7 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
     if (isOpen) {
       loadConfig()
       loadDrivers()
+      loadSerialPorts()
     }
   }, [isOpen, apiBase])
 
@@ -106,6 +117,51 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
     }
   }
 
+  async function loadSerialPorts() {
+    setLoadingPorts(true)
+    try {
+      // Get list of currently used ports to exclude
+      const usedPorts = devices.map(d => d.port).filter(p => p).join(',')
+      const url = usedPorts
+        ? `${apiBase}/serial-ports?exclude=${encodeURIComponent(usedPorts)}`
+        : `${apiBase}/serial-ports`
+
+      const resp = await fetch(url)
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const ports = await resp.json()
+      setAvailablePorts(ports)
+    } catch (e: any) {
+      console.error('Failed to load serial ports:', e)
+      // Non-fatal - user can still enter port manually
+      setAvailablePorts([])
+    } finally {
+      setLoadingPorts(false)
+    }
+  }
+
+  function getAvailablePortsForDevice(deviceIndex: number): SerialPortInfo[] {
+    // Get all ports currently used by OTHER devices
+    const otherDevicePorts = devices
+      .filter((_, i) => i !== deviceIndex)
+      .map(d => d.port)
+      .filter(p => p)
+
+    // Filter available ports to exclude those used by other devices
+    const filtered = availablePorts.filter(port => !otherDevicePorts.includes(port.device))
+
+    // If current device has a port that's not in available list, add it
+    const currentPort = devices[deviceIndex]?.port
+    if (currentPort && !filtered.find(p => p.device === currentPort)) {
+      // Try to find it in original available ports (might have been filtered)
+      const originalPort = availablePorts.find(p => p.device === currentPort)
+      if (originalPort) {
+        filtered.push(originalPort)
+      }
+    }
+
+    return filtered
+  }
+
   async function saveConfig() {
     setSaving(true)
     setError(null)
@@ -134,8 +190,8 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
 
   function addDevice() {
     setDevices([...devices, {
-      id: `device-${Date.now()}`,
-      name: 'New Device',
+      id: `instrument-${Date.now()}`,
+      name: 'New Instrument',
       driver: '',
       port: '/dev/ttyUSB0',
       baud: 115200,
@@ -152,6 +208,15 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
     const updated = [...devices]
     updated[index] = { ...updated[index], [field]: value }
     setDevices(updated)
+  }
+
+  function sanitizeDeviceId(value: string): string {
+    // Only allow lowercase letters, digits, and hyphens
+    // Max 20 characters
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 20)
   }
 
   if (!isOpen) return null
@@ -172,24 +237,24 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
           {!loading && (
             <>
               <div style={{ marginBottom: '16px', color: 'var(--text-2)', fontSize: '14px' }}>
-                Configure your instruments below. Each device requires a unique ID, driver, and serial port.
+                Configure your instruments below. Each instrument requires a unique ID, driver, and serial port.
                 Changes will restart all instrument connections.
               </div>
 
               {devices.length === 0 && (
                 <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-2)' }}>
-                  No devices configured. Click "Add Device" to get started.
+                  No instruments configured. Click "Add Instrument" to get started.
                 </div>
               )}
 
               {devices.map((device, index) => (
                 <div key={index} className="device-form">
                   <div className="device-form-header">
-                    <h3>Device {index + 1}</h3>
+                    <h3>Instrument {index + 1}</h3>
                     <button
                       className="btn-remove"
                       onClick={() => removeDevice(index)}
-                      title="Remove this device"
+                      title="Remove this instrument"
                     >
                       Remove
                     </button>
@@ -200,26 +265,27 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                     <div className="form-field">
                       <label>
                         ID<span className="required">*</span>
-                        <span className="field-hint">Unique identifier (e.g., psu-1, dmm-1)</span>
+                        <span className="field-hint">Only lowercase letters, digits, and "-" allowed (max 20 chars)</span>
                       </label>
                       <input
                         type="text"
                         value={device.id}
-                        onChange={(e) => updateDevice(index, 'id', e.target.value)}
-                        placeholder="device-id"
+                        onChange={(e) => updateDevice(index, 'id', sanitizeDeviceId(e.target.value))}
+                        placeholder="psu-1"
+                        maxLength={20}
                       />
                     </div>
 
                     <div className="form-field">
                       <label>
                         Name<span className="required">*</span>
-                        <span className="field-hint">Display name for this device</span>
+                        <span className="field-hint">Display name for this instrument</span>
                       </label>
                       <input
                         type="text"
                         value={device.name}
                         onChange={(e) => updateDevice(index, 'name', e.target.value)}
-                        placeholder="My Device"
+                        placeholder="My Instrument"
                       />
                     </div>
                   </div>
@@ -231,12 +297,58 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                         Port<span className="required">*</span>
                         <span className="field-hint">Serial port path</span>
                       </label>
-                      <input
-                        type="text"
-                        value={device.port}
-                        onChange={(e) => updateDevice(index, 'port', e.target.value)}
-                        placeholder="/dev/ttyUSB0"
-                      />
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <select
+                          style={{ flex: 1 }}
+                          value={device.port}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            if (value === '__custom__') {
+                              // Switch to manual entry
+                              updateDevice(index, 'port', '')
+                            } else {
+                              updateDevice(index, 'port', value)
+                            }
+                          }}
+                        >
+                          {device.port && !getAvailablePortsForDevice(index).find(p => p.device === device.port) && (
+                            <option value={device.port}>{device.port} (current)</option>
+                          )}
+                          {getAvailablePortsForDevice(index).map((port) => (
+                            <option key={port.device} value={port.device}>
+                              {port.device} - {port.description}
+                              {port.manufacturer ? ` (${port.manufacturer})` : ''}
+                            </option>
+                          ))}
+                          <option value="__custom__">Manual entry...</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={loadSerialPorts}
+                          disabled={loadingPorts}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'var(--bg-2)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            cursor: loadingPorts ? 'wait' : 'pointer',
+                            color: 'var(--text-1)',
+                            fontSize: '14px'
+                          }}
+                          title="Refresh serial ports"
+                        >
+                          {loadingPorts ? '↻' : '⟳'}
+                        </button>
+                      </div>
+                      {device.port === '' && (
+                        <input
+                          type="text"
+                          value={device.port}
+                          onChange={(e) => updateDevice(index, 'port', e.target.value)}
+                          placeholder="/dev/ttyUSB0 or COM3"
+                          style={{ marginTop: '8px' }}
+                        />
+                      )}
                     </div>
 
                     <div className="form-field">
@@ -298,7 +410,7 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                     <div className="form-field">
                       <label>
                         Model<span className="required">*</span>
-                        <span className="field-hint">Device model number</span>
+                        <span className="field-hint">Instrument model number</span>
                       </label>
                       {device.driver && driverModels[device.driver] && driverModels[device.driver].length > 0 ? (
                         <select
@@ -328,7 +440,7 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
               ))}
 
               <button className="btn-add" onClick={addDevice}>
-                + Add Device
+                + Add Instrument
               </button>
             </>
           )}
