@@ -2,8 +2,12 @@ from ...transport import SerialTransport
 from ...utils.si import si_to_value
 
 class OwonOEL:
-    def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
-        self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
+    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
+        # Accept either pre-configured transport or port/baudrate for backward compatibility
+        if transport is not None:
+            self.t = transport
+        else:
+            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
         # Cache for INPUT and MODE to reduce queries during polling
         # These values rarely change (only when user calls set_input/set_mode)
         self._cached_input = None

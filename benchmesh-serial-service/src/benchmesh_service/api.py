@@ -18,6 +18,7 @@ from .settings import settings
 from .api_recording import create_recording_router
 import benchmesh_service.services.recording_service as recording_service_module
 import serial.tools.list_ports
+from .transport import discover_usbtmc_devices
 
 API_PORT = int(os.getenv('API_PORT', '57666'))
 UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
@@ -270,8 +271,8 @@ def get_version():
 @app.get("/drivers", summary="List available drivers", response_model=dict)
 def list_drivers():
     """
-    Scan drivers folder and return available drivers with their vendor and family information.
-    Returns a dict mapping driver_id (folder name) to {vendor, family} extracted from manifest.json
+    Scan drivers folder and return available drivers with their vendor, family, and supported transports.
+    Returns a dict mapping driver_id (folder name) to {vendor, family, supported_transports} extracted from manifest.json
     """
     drivers = {}
     drivers_dir = os.path.join(os.path.dirname(__file__), 'drivers')
@@ -298,9 +299,11 @@ def list_drivers():
                     continue
                 vendor = manifest.get('vendor', 'Unknown')
                 family = manifest.get('family', 'Unknown')
+                supported_transports = manifest.get('supported_transports', ['serial'])  # Default to serial
                 drivers[entry] = {
                     "vendor": vendor,
-                    "family": family
+                    "family": family,
+                    "supported_transports": supported_transports
                 }
         except Exception:
             continue
@@ -435,6 +438,43 @@ def list_serial_ports(exclude: str = ""):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list serial ports: {str(e)}")
+
+@app.get("/usbtmc-devices", summary="List available USB TMC devices", response_model=list)
+def list_usbtmc_devices(exclude: str = ""):
+    """
+    List available USB Test & Measurement Class (TMC) devices on the system.
+
+    Query parameters:
+    - exclude: Comma-separated list of device paths to exclude (e.g., devices already in use)
+
+    Returns a list of USB TMC device information with:
+    - device: Device path (e.g., /dev/usbtmc0, /dev/tmcDGE2070)
+    - name: Device name (e.g., usbtmc0, tmcDGE2070)
+    - vendor_id: USB vendor ID (e.g., 0x1ab1)
+    - product_id: USB product ID (e.g., 0x04ce)
+    - manufacturer: Manufacturer name (if available)
+    - product: Product name (if available)
+    - serial: Device serial number (if available)
+    """
+    try:
+        # Get list of all available USB TMC devices
+        all_devices = discover_usbtmc_devices()
+
+        # Parse exclude list
+        excluded_devices = set()
+        if exclude:
+            excluded_devices = set(d.strip() for d in exclude.split(',') if d.strip())
+
+        # Filter out excluded devices
+        result = [dev for dev in all_devices if dev['device'] not in excluded_devices]
+
+        # Sort by device name for consistent ordering
+        result.sort(key=lambda d: d["device"])
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list USB TMC devices: {str(e)}")
 
 @app.get("/config", summary="Get current configuration from serial_manager")
 def get_config():

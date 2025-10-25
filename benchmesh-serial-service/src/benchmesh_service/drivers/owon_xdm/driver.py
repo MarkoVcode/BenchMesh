@@ -3,8 +3,12 @@ from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
 
 class OWONXDM:
-    def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r'):
-        self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
+    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
+        # Accept either pre-configured transport or port/baudrate for backward compatibility
+        if transport is not None:
+            self.t = transport
+        else:
+            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
     def query_identify(self):
         self.t.write_line('*IDN?')

@@ -4,15 +4,22 @@ interface Device {
   id: string
   name: string
   driver: string
-  port: string
-  baud: number
-  serial: string
+  transport?: string  // 'serial' (default) | 'usbtmc' | 'tcpip'
+  // Serial transport fields
+  port?: string
+  baud?: number
+  serial?: string
+  // USB TMC transport fields
+  device?: string
+  // TCP/IP transport fields (future)
+  host?: string
   model: string
 }
 
 interface DriverInfo {
   vendor: string
   family: string
+  supported_transports: string[]
 }
 
 interface SerialPortInfo {
@@ -21,6 +28,16 @@ interface SerialPortInfo {
   manufacturer: string | null
   serial_number: string | null
   hwid: string | null
+}
+
+interface UsbTmcDeviceInfo {
+  device: string
+  name: string
+  vendor_id?: string
+  product_id?: string
+  manufacturer?: string
+  product?: string
+  serial?: string
 }
 
 interface ConfigModalProps {
@@ -40,7 +57,9 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
   const [drivers, setDrivers] = useState<Record<string, DriverInfo>>({})
   const [driverModels, setDriverModels] = useState<Record<string, string[]>>({})
   const [availablePorts, setAvailablePorts] = useState<SerialPortInfo[]>([])
+  const [availableUsbTmcDevices, setAvailableUsbTmcDevices] = useState<UsbTmcDeviceInfo[]>([])
   const [loadingPorts, setLoadingPorts] = useState(false)
+  const [loadingUsbTmc, setLoadingUsbTmc] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +70,7 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
       loadConfig()
       loadDrivers()
       loadSerialPorts()
+      loadUsbTmcDevices()
     }
   }, [isOpen, apiBase])
 
@@ -139,6 +159,28 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
     }
   }
 
+  async function loadUsbTmcDevices() {
+    setLoadingUsbTmc(true)
+    try {
+      // Get list of currently used USB TMC devices to exclude
+      const usedDevices = devices.map(d => d.device).filter(d => d).join(',')
+      const url = usedDevices
+        ? `${apiBase}/usbtmc-devices?exclude=${encodeURIComponent(usedDevices)}`
+        : `${apiBase}/usbtmc-devices`
+
+      const resp = await fetch(url)
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const tmcDevices = await resp.json()
+      setAvailableUsbTmcDevices(tmcDevices)
+    } catch (e: any) {
+      console.error('Failed to load USB TMC devices:', e)
+      // Non-fatal - user can still enter device path manually
+      setAvailableUsbTmcDevices([])
+    } finally {
+      setLoadingUsbTmc(false)
+    }
+  }
+
   function getAvailablePortsForDevice(deviceIndex: number): SerialPortInfo[] {
     // Get all ports currently used by OTHER devices
     const otherDevicePorts = devices
@@ -156,6 +198,29 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
       const originalPort = availablePorts.find(p => p.device === currentPort)
       if (originalPort) {
         filtered.push(originalPort)
+      }
+    }
+
+    return filtered
+  }
+
+  function getAvailableUsbTmcDevicesForDevice(deviceIndex: number): UsbTmcDeviceInfo[] {
+    // Get all USB TMC devices currently used by OTHER devices
+    const otherDeviceDevices = devices
+      .filter((_, i) => i !== deviceIndex)
+      .map(d => d.device)
+      .filter(d => d)
+
+    // Filter available USB TMC devices to exclude those used by other devices
+    const filtered = availableUsbTmcDevices.filter(dev => !otherDeviceDevices.includes(dev.device))
+
+    // If current device has a USB TMC device that's not in available list, add it
+    const currentDevice = devices[deviceIndex]?.device
+    if (currentDevice && !filtered.find(d => d.device === currentDevice)) {
+      // Try to find it in original available devices (might have been filtered)
+      const originalDevice = availableUsbTmcDevices.find(d => d.device === currentDevice)
+      if (originalDevice) {
+        filtered.push(originalDevice)
       }
     }
 
@@ -193,6 +258,7 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
       id: `instrument-${Date.now()}`,
       name: 'New Instrument',
       driver: '',
+      transport: 'serial',  // Default to serial transport
       port: '/dev/ttyUSB0',
       baud: 115200,
       serial: '8N1',
@@ -290,7 +356,40 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                     </div>
                   </div>
 
-                  {/* Row 2: Port, Baud Rate, Data Bits/Parity/Stop */}
+                  {/* Row 2: Transport Type */}
+                  <div className="form-grid">
+                    <div className="form-field">
+                      <label>
+                        Transport<span className="required">*</span>
+                        <span className="field-hint">Communication interface type</span>
+                      </label>
+                      <select
+                        value={device.transport || 'serial'}
+                        onChange={(e) => {
+                          const newTransport = e.target.value
+                          updateDevice(index, 'transport', newTransport)
+                          // Clear transport-specific fields when switching
+                          if (newTransport === 'serial') {
+                            updateDevice(index, 'device', undefined)
+                            if (!device.port) updateDevice(index, 'port', '/dev/ttyUSB0')
+                            if (!device.baud) updateDevice(index, 'baud', 115200)
+                            if (!device.serial) updateDevice(index, 'serial', '8N1')
+                          } else if (newTransport === 'usbtmc') {
+                            updateDevice(index, 'port', undefined)
+                            updateDevice(index, 'baud', undefined)
+                            updateDevice(index, 'serial', undefined)
+                            if (!device.device) updateDevice(index, 'device', '/dev/usbtmc0')
+                          }
+                        }}
+                      >
+                        <option value="serial">Serial (RS232/USB-Serial)</option>
+                        <option value="usbtmc">USB TMC (Test & Measurement Class)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Serial Transport Fields - Port, Baud Rate, Data Bits/Parity/Stop */}
+                  {(device.transport || 'serial') === 'serial' && (
                   <div className="form-grid">
                     <div className="form-field">
                       <label>
@@ -386,8 +485,73 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                       </select>
                     </div>
                   </div>
+                  )}
 
-                  {/* Row 3: Driver and Model */}
+                  {/* Row 4: USB TMC Transport Fields - Device */}
+                  {(device.transport || 'serial') === 'usbtmc' && (
+                  <div className="form-grid">
+                    <div className="form-field">
+                      <label>
+                        USB TMC Device<span className="required">*</span>
+                        <span className="field-hint">USB TMC device path</span>
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <select
+                          style={{ flex: 1 }}
+                          value={device.device || ''}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            if (value === '__custom__') {
+                              // Switch to manual entry
+                              updateDevice(index, 'device', '')
+                            } else {
+                              updateDevice(index, 'device', value)
+                            }
+                          }}
+                        >
+                          {device.device && !getAvailableUsbTmcDevicesForDevice(index).find(d => d.device === device.device) && (
+                            <option value={device.device}>{device.device} (current)</option>
+                          )}
+                          {getAvailableUsbTmcDevicesForDevice(index).map((dev) => (
+                            <option key={dev.device} value={dev.device}>
+                              {dev.device} - {dev.product || 'USB TMC Device'}
+                              {dev.manufacturer ? ` (${dev.manufacturer})` : ''}
+                            </option>
+                          ))}
+                          <option value="__custom__">Manual entry...</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={loadUsbTmcDevices}
+                          disabled={loadingUsbTmc}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'var(--bg-2)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            cursor: loadingUsbTmc ? 'wait' : 'pointer',
+                            color: 'var(--text-1)',
+                            fontSize: '14px'
+                          }}
+                          title="Refresh USB TMC devices"
+                        >
+                          {loadingUsbTmc ? '↻' : '⟳'}
+                        </button>
+                      </div>
+                      {device.device === '' && (
+                        <input
+                          type="text"
+                          value={device.device || ''}
+                          onChange={(e) => updateDevice(index, 'device', e.target.value)}
+                          placeholder="/dev/usbtmc0 or /dev/tmcDGE2070"
+                          style={{ marginTop: '8px' }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  )}
+
+                  {/* Row 5: Driver and Model */}
                   <div className="form-grid">
                     <div className="form-field">
                       <label>
@@ -399,11 +563,19 @@ export function ConfigModal({ isOpen, onClose, apiBase, onConfigUpdated }: Confi
                         onChange={(e) => updateDevice(index, 'driver', e.target.value)}
                       >
                         <option value="">Select driver...</option>
-                        {drivers && Object.keys(drivers).sort().map((driverId) => (
-                          <option key={driverId} value={driverId}>
-                            {drivers[driverId].vendor} {drivers[driverId].family} ({driverId})
-                          </option>
-                        ))}
+                        {drivers && Object.keys(drivers)
+                          .filter(driverId => {
+                            // Filter drivers by supported transports
+                            const selectedTransport = device.transport || 'serial'
+                            const supportedTransports = drivers[driverId].supported_transports || ['serial']
+                            return supportedTransports.includes(selectedTransport)
+                          })
+                          .sort()
+                          .map((driverId) => (
+                            <option key={driverId} value={driverId}>
+                              {drivers[driverId].vendor} {drivers[driverId].family} ({driverId})
+                            </option>
+                          ))}
                       </select>
                     </div>
 

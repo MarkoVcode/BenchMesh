@@ -21,3 +21,10 @@ devices:
   baud: 9600
   serial: 8N1
   model: 72-2540
+# USB TMC device example (uncomment and enable owon_dge driver to use):
+# - id: awg-1
+#   name: OWON DGE Function Generator
+#   driver: owon_dge
+#   transport: usbtmc
+#   device: /dev/tmcDGE2070
+#   model: DGE2070

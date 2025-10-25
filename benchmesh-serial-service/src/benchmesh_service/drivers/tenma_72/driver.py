@@ -3,9 +3,13 @@ from ...transport import SerialTransport
 from ...utils.si import si_to_value
 
 class TenmaPSU:
-    def __init__(self, port, baudrate=115200, serial_mode='8N1', seol='', reol=''):
-        # TENMA manifest declares empty EOLs
-        self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
+    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='', reol='', transport=None):
+        # Accept either pre-configured transport or port/baudrate for backward compatibility
+        if transport is not None:
+            self.t = transport
+        else:
+            # TENMA manifest declares empty EOLs
+            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
         
     def query_identify(self):
         self.t.write_line('*IDN?')

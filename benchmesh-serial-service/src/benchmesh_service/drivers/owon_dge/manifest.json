@@ -4,6 +4,7 @@
   "family": "DGE",
   "version": "1.0.0",
   "enabled": false,
+  "supported_transports": ["serial", "usbtmc"],
   "models": {
     "DEFAULT": {
       "classes": [

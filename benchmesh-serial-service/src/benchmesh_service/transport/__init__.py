@@ -6,13 +6,20 @@ communicating with SCPI-compatible instruments over various physical transports.
 
 Available transports:
 - SerialTransport: RS232/USB-Serial communication
-- (Future) UsbTmcTransport: USB Test & Measurement Class
+- UsbTmcTransport: USB Test & Measurement Class (IEEE 488.2 over USB)
 - (Future) TcpIpTransport: TCP/IP sockets for LXI/SCPI-over-TCP
 
 Example usage:
-    from benchmesh_service.transport import SerialTransport
+    from benchmesh_service.transport import SerialTransport, UsbTmcTransport
 
+    # Serial transport
     transport = SerialTransport('/dev/ttyUSB0', 9600).open()
+    transport.write_line('*IDN?')
+    response = transport.read_until_reol()
+    transport.close()
+
+    # USB TMC transport
+    transport = UsbTmcTransport('/dev/usbtmc0').open()
     transport.write_line('*IDN?')
     response = transport.read_until_reol()
     transport.close()
@@ -20,6 +27,7 @@ Example usage:
 
 from .base import Transport
 from .serial import SerialTransport
+from .usbtmc import UsbTmcTransport, discover_usbtmc_devices
 
 # Backward compatibility: export at package level
-__all__ = ['Transport', 'SerialTransport']
+__all__ = ['Transport', 'SerialTransport', 'UsbTmcTransport', 'discover_usbtmc_devices']

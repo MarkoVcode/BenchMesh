@@ -196,19 +196,54 @@ class SerialManager:
             logger.warning(f"[{dev_id}] ✗ EOL auto-detection failed. Will use manifest settings.")
             return False
 
+    def _create_transport(self, dev: dict, seol: str, reol: str):
+        """Create appropriate transport based on device config."""
+        transport_type = dev.get('transport', 'serial')  # Default to serial for backward compat
+
+        if transport_type == 'serial':
+            from .transport import SerialTransport
+            return SerialTransport(
+                dev['port'],
+                dev.get('baud', 115200),
+                serial_mode=dev.get('serial', '8N1'),
+                seol=seol,
+                reol=reol,
+            )
+        elif transport_type == 'usbtmc':
+            from .transport import UsbTmcTransport
+            return UsbTmcTransport(
+                device=dev['device'],
+                seol=seol,
+                reol=reol,
+            )
+        elif transport_type == 'tcpip':
+            # Future: TCP/IP transport
+            raise NotImplementedError(f"TCP/IP transport not yet implemented")
+        else:
+            raise ValueError(f"Unknown transport type: {transport_type}")
+
     def _make_driver(self, dev: dict):
         """Create driver instance using EOL settings (from cache or manifest)."""
         driver_key = dev['driver']
         cls = self.driver_factory.load_driver_class(driver_key)
         seol, reol = self._get_eol_settings(dev)
 
-        return cls(
-            dev['port'],
-            dev.get('baud', 115200),
-            serial_mode=dev.get('serial', '8N1'),
-            seol=seol,
-            reol=reol,
-        )
+        # Validate transport is supported by driver
+        transport_type = dev.get('transport', 'serial')
+        manifest = self.resolver._load_manifest(driver_key)
+        supported_transports = manifest.get('supported_transports', ['serial'])
+
+        if transport_type not in supported_transports:
+            raise ValueError(
+                f"Device {dev.get('id')}: Transport '{transport_type}' not supported by driver '{driver_key}'. "
+                f"Supported transports: {supported_transports}"
+            )
+
+        # Create and open transport
+        transport = self._create_transport(dev, seol, reol).open()
+
+        # Instantiate driver with transport
+        return cls(transport=transport)
 
     def _open_or_identify(self, dev: dict):
         dev_id = dev.get('id')

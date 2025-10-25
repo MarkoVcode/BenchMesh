@@ -3,6 +3,7 @@
   "vendor": "TENMA",
   "family": "72",
   "version": "1.0.0",
+  "supported_transports": ["serial"],
   "models": {
     "DEFAULT": {
       "classes": [
