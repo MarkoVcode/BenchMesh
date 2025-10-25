@@ -17,7 +17,7 @@ The system follows a layered architecture:
 
 - **SerialManager** (`serial_manager.py`): Central orchestrator that manages device connections, spawns per-device worker threads, maintains device registry with IDN and status data, and handles reconnection logic
 - **Driver Layer** (`drivers/`): Modular device-specific drivers (tenma_72, owon_spm, owon_xdm, owon_oel, owon_dge) that implement device-specific protocols and polling
-- **Transport Layer** (`transport.py`): SerialTransport abstraction over pyserial for serial communication
+- **Transport Layer** (`transport/`): Abstract transport interface supporting multiple physical transports (Serial, USB TMC, TCP/IP) with consistent SCPI communication patterns
 - **API Layer** (`api.py`): FastAPI application exposing REST endpoints and WebSocket for device status and control
 - **Frontend** (`frontend/`): React+TypeScript UI built with Vite
 
@@ -735,7 +735,7 @@ find ~/.benchmesh/logs -name "*.log" -exec grep "$(date -d '1 hour ago' -Isecond
 - **Setter methods** (write): prefix with `set_` (e.g., `set_voltage`, `set_current`)
 - This enables the API's smart resolution: GET `/voltage` → `query_voltage()`, POST `/current/2.5` → `set_current()`
 
-Driver should accept `transport: SerialTransport` in constructor and use it for all communication.
+Driver should accept `transport: Transport` in constructor and use it for all communication. The Transport interface supports multiple physical transports (SerialTransport for RS232/USB-Serial, with USB TMC and TCP/IP support planned).
 
 ## Key Modules
 
@@ -744,7 +744,10 @@ Driver should accept `transport: SerialTransport` in constructor and use it for 
 - `driver_factory.py`: Instantiates driver classes from string names and device configs
 - `poll_worker.py`: DeviceWorker runs per-device polling loop in dedicated thread
 - `registry.py`: DeviceRegistry thread-safe storage for device IDN and status
-- `transport.py`: SerialTransport wraps pyserial with EOL handling
+- `transport/`: Abstract transport layer with multiple implementations
+  - `transport/base.py`: Transport ABC defining interface for all transports
+  - `transport/serial.py`: SerialTransport for RS232/USB-Serial with pyserial
+  - Future: USB TMC and TCP/IP transports for SCPI-over-network
 - `api.py`: FastAPI app with endpoints `/status`, `/instruments`, instrument control endpoints, and WebSocket `/ws`
   - Implements **secure** method resolution: GET requests resolve `voltage` → `query_voltage`, POST requests resolve `current` → `set_current`
   - Prevents arbitrary method execution - only `query_*` and `set_*` methods can be called via API

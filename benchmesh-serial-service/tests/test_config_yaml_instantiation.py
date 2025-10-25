@@ -51,7 +51,7 @@ def test_loads_from_yaml_and_instantiates_all(tmp_path):
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.safe_dump(cfg))
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(str(cfg_path))
 
     assert set(m.connections.keys()) == {d['id'] for d in devices}

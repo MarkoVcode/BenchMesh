@@ -43,21 +43,21 @@ class FakeSerial:
 
 
 def test_identify_owon_oel_uses_cr_eol():
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         d = OwonOEL('/dev/ttyFAKE1', 115200, serial_mode='8N1', seol='\r', reol='\r')
         idn = d.query_identify()
     assert 'VENDOR' in idn
 
 
 def test_identify_owon_spm_uses_cr_eol():
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         d = OWONSPM('/dev/ttyFAKE2', 115200, serial_mode='8N1', seol='\r', reol='\r')
         idn = d.query_identify()
     assert 'VENDOR' in idn
 
 
 def test_identify_owon_xdm_uses_cr_eol():
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         d = OWONXDM('/dev/ttyFAKE3', 115200, serial_mode='8N1', seol='\r', reol='\r')
         idn = d.query_identify()
     assert 'VENDOR' in idn
@@ -70,7 +70,7 @@ def test_identify_tenma_empty_eol():
             super().__init__(**kw)
             self._buf = b"TENMA 72-2540 OK"
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: TenmaFake(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: TenmaFake(**kw)):
         d = TenmaPSU('/dev/ttyFAKE4', 9600, serial_mode='8N1', seol='', reol='')
         idn = d.query_identify()
     assert 'TENMA' in idn or 'OK' in idn

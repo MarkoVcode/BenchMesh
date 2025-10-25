@@ -46,7 +46,7 @@ def make_devices(n=1, driver='owon_oel'):
 
 def test_identify_empty_and_partial_responses_do_not_set_idn(manual_clock):
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=manual_clock)
         dev = devices[0]
         dev_id = dev['id']

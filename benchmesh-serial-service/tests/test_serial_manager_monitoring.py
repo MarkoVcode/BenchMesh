@@ -57,7 +57,7 @@ def _get_driver(m: SerialManager, dev_id: str):
 
 def test_poll_empty_clears_idn_and_stops_poll_until_identify():
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
         dev_id = devices[0]['id']
@@ -105,7 +105,7 @@ def test_identify_not_called_while_idn_present():
 
 def test_no_polling_when_idn_missing():
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
         dev_id = devices[0]['id']
@@ -132,7 +132,7 @@ def test_no_polling_when_idn_missing():
 
 def test_polling_starts_only_after_idn_set():
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
         dev_id = devices[0]['id']
@@ -164,7 +164,7 @@ def test_polling_starts_only_after_idn_set():
 
         m.stop()
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
         dev_id = devices[0]['id']

@@ -85,7 +85,7 @@ def test_registry_population_psu():
     devices = [make_device('psu-1', 'tenma_72', '/dev/ttyFAKE1')]
     clock = ManualClock()
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
 
@@ -112,7 +112,7 @@ def test_registry_population_dmm():
     devices = [make_device('dmm-1', 'owon_xdm', '/dev/ttyFAKE2')]
     clock = ManualClock()
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
 
@@ -134,7 +134,7 @@ def test_registry_population_ell():
     devices = [make_device('ell-1', 'owon_oel', '/dev/ttyFAKE3')]
     clock = ManualClock()
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
 
@@ -156,7 +156,7 @@ def test_registry_population_spm():
     devices = [make_device('spm-1', 'owon_spm', '/dev/ttyFAKE4')]
     clock = ManualClock()
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
 
@@ -192,7 +192,7 @@ def test_all_drivers_have_query_identify():
             f"{name} driver must have query_identify() method"
 
         # Check it's a method
-        with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+        with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
             instance = driver_class('/dev/ttyFAKE', 115200, serial_mode='8N1', seol='\r', reol='\r')
             assert callable(getattr(instance, 'query_identify')), \
                 f"{name}.query_identify must be callable"

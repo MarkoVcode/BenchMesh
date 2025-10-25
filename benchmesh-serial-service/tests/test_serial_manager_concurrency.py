@@ -58,7 +58,7 @@ def _get_driver(m: SerialManager, dev_id: str):
 
 def test_per_device_threads_poll_independently():
     devices = make_devices(2)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
 
@@ -92,7 +92,7 @@ def test_per_device_threads_poll_independently():
 
 def test_single_reconnect_attempt_per_window():
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
         dev_id = devices[0]['id']
@@ -128,7 +128,7 @@ def test_single_reconnect_attempt_per_window():
 
 def test_poll_failure_drops_connection_and_triggers_reconnect():
     devices = make_devices(1)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         # Ensure immediate poll
         m.last_probe[devices[0]['id']] = 0.0

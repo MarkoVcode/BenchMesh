@@ -57,7 +57,7 @@ def test_repo_config_yaml_instantiates_all_devices():
     assert expected_ids, "Expected at least one device in config.yaml"
 
     # Patch the serial port class so no real hardware is needed
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(cfg_path)
 
     # Ensure the manager has a connection object for each device id and transport is open

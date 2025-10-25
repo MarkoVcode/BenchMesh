@@ -46,7 +46,7 @@ def test_registry_nested_under_class_and_channels():
             'model': 'SPM3103',
         }
     ]
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
         m.start()
         dev_id = devices[0]['id']

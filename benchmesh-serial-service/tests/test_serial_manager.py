@@ -64,7 +64,7 @@ def _get_underlying_serial(m: SerialManager, dev_id: str) -> FakeSerial:
 
 def test_establish_connections_opens_all_devices():
     devices = make_devices(4)
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices)
     assert set(m.connections.keys()) == {d['id'] for d in devices}
     for dev_id, drv in m.connections.items():
@@ -82,7 +82,7 @@ def test_establish_connections_tolerates_failures_and_continues():
             raise Exception('open failed')
         return FakeSerial(**kw)
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=serial_factory):
+    with patch('serial.Serial', side_effect=serial_factory):
         m = SerialManager(devices)
     # two should be connected; the failing one may be absent or present with None
     assert devices[0]['id'] in m.connections
@@ -99,7 +99,7 @@ def test_identify_cadence_uses_manual_clock_and_registry_idn_set():
     class IdentSerial(FakeSerial):
         pass
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: IdentSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: IdentSerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
         dev_id = dev['id']
@@ -131,7 +131,7 @@ def test_reconnect_backoff_respected_with_manual_clock():
             opened['count'] += 1
             super().__init__(**kw)
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FlakySerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
         dev_id = dev['id']
@@ -160,7 +160,7 @@ def test_identify_writes_idn_probe_and_reads_response():
     from benchmesh_service.clock import ManualClock
     clock = ManualClock(start=0.0)
 
-    with patch('benchmesh_service.transport.serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
+    with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=clock)
         dev = devices[0]
         dev_id = dev['id']
