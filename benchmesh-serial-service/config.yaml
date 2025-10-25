@@ -28,3 +28,9 @@ devices:
   transport: usbtmc
   device: /dev/tmcDGE2070
   model: DGE2070
+- id: dho-1
+  name: DHO Oscilloscope
+  driver: rigol_dho800
+  transport: usbtmc
+  device: /dev/tmcDHO804
+  model: DHO804

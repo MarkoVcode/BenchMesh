@@ -1,14 +1,14 @@
 {
   "$schema": "benchmesh.schema.instrument.profile.v1.json",
-  "vendor": "OWON",
-  "family": "DGE",
+  "vendor": "RIGOL",
+  "family": "DHO800",
   "version": "1.0.0",
   "enabled": true,
   "supported_transports": ["usbtmc"],
   "models": {
     "DEFAULT": {
       "classes": [
-        "AWG"
+        "OSC"
       ],
       "connection": {
         "seol": "\r",
@@ -22,44 +22,19 @@
         }
       ],
       "instrument_class": {
-        "AWG": {
-          "ui_component": "GenericAWG",
+        "OSC": {
+          "ui_component": "GenericOSC",
           "features": {
             "lock": false,
             "compulsory_lock": false,
-            "channels": 2
+            "channels": 4
           }
         }
       }
     },
-    "DGE2070": {
+    "DHO804": {
       "id_patterns": [
-        "OWON,DGE2070"
-      ]
-    },
-    "DGE2035": {
-      "id_patterns": [
-        "OWON,DGE2035"
-      ]
-    },
-    "DGE3032": {
-      "id_patterns": [
-        "OWON,DGE3032"
-      ]
-    },
-    "DGE3062": {
-      "id_patterns": [
-        "OWON,DGE3062"
-      ]
-    },
-    "DGE3031": {
-      "id_patterns": [
-        "OWON,DGE3031"
-      ]
-    },
-    "DGE3061": {
-      "id_patterns": [
-        "OWON,DGE3061"
+        "RIGOL TECHNOLOGIES,DHO804"
       ]
     }
   }
