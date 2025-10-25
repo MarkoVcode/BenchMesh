@@ -328,8 +328,9 @@ class SerialManager:
             conn.mark_attempt()
             try:
                 ident = conn.identify()
+                # Always store IDN, even if empty, so registry shows {"IDN": ""} instead of {}
+                self.registry_obj.set_idn(dev_id, ident or "")
                 if ident:
-                    self.registry_obj.set_idn(dev_id, ident)
                     self.metrics.inc_identify_success(dev_id)
                     conn.mark_ok()
                     conn.record_success()  # Health: successful identify

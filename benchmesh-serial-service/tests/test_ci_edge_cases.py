@@ -45,6 +45,11 @@ def make_devices(n=1, driver='owon_oel'):
 
 
 def test_identify_empty_and_partial_responses_do_not_set_idn(manual_clock):
+    """Test that both empty and valid identify responses are stored in registry.
+
+    Empty responses are stored as "" to distinguish between 'never identified'
+    and 'identified but returned empty string' (e.g., device off or wrong EOL).
+    """
     devices = make_devices(1)
     with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         m = SerialManager(devices, clock=manual_clock)
@@ -56,13 +61,14 @@ def test_identify_empty_and_partial_responses_do_not_set_idn(manual_clock):
         # Recent open may prevent immediate identify write; it is acceptable if no write yet
         if ser is not None:
             assert not ser._written
-        # Advance to allow identify and ensure empty identify does not set IDN
+        # Advance to allow identify and ensure empty identify DOES set IDN to empty string
         manual_clock.advance(m.policy.identify_interval)
         # Force driver query_identify to return empty string
         drv = m.connections[dev_id]
         setattr(drv, 'query_identify', lambda: '')
         m._open_or_identify(dev)
-        assert m.registry[dev_id].get('IDN') is None
+        # Changed: empty responses are now stored as "" instead of not being stored
+        assert m.registry[dev_id].get('IDN') == ''
         # Now force a proper identify response
         manual_clock.advance(m.policy.identify_interval)
         setattr(drv, 'query_identify', lambda: 'OK,MODEL,SN')
