@@ -420,20 +420,35 @@ function startBackend(userDataPaths) {
     stdio: ['ignore', 'pipe', 'pipe']
   })
 
+  // Create log streams for backend output
+  const backendLogPath = path.join(userDataPaths.logsDir, 'uvicorn.log')
+  const backendErrorLogPath = path.join(userDataPaths.logsDir, 'uvicorn_error.log')
+
+  const backendLogStream = fs.createWriteStream(backendLogPath, { flags: 'a' })
+  const backendErrorLogStream = fs.createWriteStream(backendErrorLogPath, { flags: 'a' })
+
   backendProcess.stdout.on('data', (data) => {
-    console.log('[Backend]', data.toString().trim())
+    const message = data.toString()
+    console.log('[Backend]', message.trim())
+    backendLogStream.write(`${new Date().toISOString()} ${message}`)
   })
 
   backendProcess.stderr.on('data', (data) => {
-    console.error('[Backend Error]', data.toString().trim())
+    const message = data.toString()
+    console.error('[Backend Error]', message.trim())
+    backendErrorLogStream.write(`${new Date().toISOString()} ${message}`)
   })
 
   backendProcess.on('error', (err) => {
     console.error('Failed to start backend:', err)
+    backendErrorLogStream.write(`${new Date().toISOString()} Failed to start backend: ${err.message}\n`)
   })
 
   backendProcess.on('exit', (code) => {
     console.log(`Backend process exited with code ${code}`)
+    backendLogStream.write(`${new Date().toISOString()} Backend process exited with code ${code}\n`)
+    backendLogStream.end()
+    backendErrorLogStream.end()
   })
 }
 
@@ -461,20 +476,35 @@ function startNodeRed(userDataPaths) {
     stdio: ['ignore', 'pipe', 'pipe']
   })
 
+  // Create log streams for Node-RED output
+  const nodeRedLogPath = path.join(userDataPaths.logsDir, 'node-red.log')
+  const nodeRedErrorLogPath = path.join(userDataPaths.logsDir, 'node-red_error.log')
+
+  const nodeRedLogStream = fs.createWriteStream(nodeRedLogPath, { flags: 'a' })
+  const nodeRedErrorLogStream = fs.createWriteStream(nodeRedErrorLogPath, { flags: 'a' })
+
   nodeRedProcess.stdout.on('data', (data) => {
-    console.log('[Node-RED]', data.toString().trim())
+    const message = data.toString()
+    console.log('[Node-RED]', message.trim())
+    nodeRedLogStream.write(`${new Date().toISOString()} ${message}`)
   })
 
   nodeRedProcess.stderr.on('data', (data) => {
-    console.error('[Node-RED Error]', data.toString().trim())
+    const message = data.toString()
+    console.error('[Node-RED Error]', message.trim())
+    nodeRedErrorLogStream.write(`${new Date().toISOString()} ${message}`)
   })
 
   nodeRedProcess.on('error', (err) => {
     console.error('Failed to start Node-RED:', err)
+    nodeRedErrorLogStream.write(`${new Date().toISOString()} Failed to start Node-RED: ${err.message}\n`)
   })
 
   nodeRedProcess.on('exit', (code) => {
     console.log(`Node-RED process exited with code ${code}`)
+    nodeRedLogStream.write(`${new Date().toISOString()} Node-RED process exited with code ${code}\n`)
+    nodeRedLogStream.end()
+    nodeRedErrorLogStream.end()
   })
 }
 

@@ -1,4 +1,5 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -11,9 +12,15 @@ def setup_logger():
 
     logger.setLevel(logging.DEBUG)
 
-    # Use centralized logs directory at repository root
-    # This ensures logs always go to the same location regardless of where service is run from
-    log_dir = Path(__file__).parent.parent.parent.parent / "logs"
+    # Use user data directory if BENCHMESH_DATA_DIR is set (Electron/production mode)
+    # Otherwise fall back to repository root logs directory (development mode)
+    data_dir = os.getenv("BENCHMESH_DATA_DIR")
+    if data_dir:
+        log_dir = Path(data_dir) / "logs"
+    else:
+        # Development mode: use repository root logs directory
+        log_dir = Path(__file__).parent.parent.parent.parent / "logs"
+
     log_dir.mkdir(exist_ok=True)
     log_file = log_dir / "benchmesh_service.log"
 

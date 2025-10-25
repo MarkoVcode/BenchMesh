@@ -538,6 +538,11 @@ BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node
 │   └── ...
 ├── recordings.db        # SQLite database for recording feature
 └── logs/                # Application logs (Electron and web modes)
+    ├── benchmesh_service.log      # Serial service application logs (rotating, max 50MB)
+    ├── uvicorn.log                # FastAPI/uvicorn stdout (Electron mode)
+    ├── uvicorn_error.log          # FastAPI/uvicorn stderr (Electron mode)
+    ├── node-red.log               # Node-RED stdout (Electron mode)
+    └── node-red_error.log         # Node-RED stderr (Electron mode)
 ```
 
 ### Initialization
@@ -635,6 +640,46 @@ The user data directory is always `~/.benchmesh/` on all platforms:
 - **Linux**: `/home/username/.benchmesh/`
 - **macOS**: `/Users/username/.benchmesh/`
 - **Windows**: `C:\Users\username\.benchmesh\`
+
+### Application Logging
+
+**Log Location:**
+All application logs are stored in `~/.benchmesh/logs/` directory.
+
+**Log Files:**
+- `benchmesh_service.log` - Serial service application logs (rotating, max 50MB total)
+  - Device connections, polling, errors, serial communication
+  - Automatically rotates: 10MB per file, keeps 5 backup files
+- `uvicorn.log` - FastAPI/uvicorn standard output (Electron mode only)
+  - HTTP requests, startup messages, general server output
+- `uvicorn_error.log` - FastAPI/uvicorn error output (Electron mode only)
+  - Python exceptions, HTTP errors, startup failures
+- `node-red.log` - Node-RED standard output (Electron mode only)
+  - Flow execution, node messages, startup output
+- `node-red_error.log` - Node-RED error output (Electron mode only)
+  - Flow errors, node failures, runtime exceptions
+
+**Log Format:**
+All logs include timestamps in ISO 8601 format for correlation across services.
+
+**Viewing Logs:**
+```bash
+# View serial service logs (all modes)
+tail -f ~/.benchmesh/logs/benchmesh_service.log
+
+# View all logs (Electron mode)
+tail -f ~/.benchmesh/logs/*.log
+
+# Search for errors
+grep -i error ~/.benchmesh/logs/*.log
+
+# View logs from last hour
+find ~/.benchmesh/logs -name "*.log" -exec grep "$(date -d '1 hour ago' -Iseconds)" {} +
+```
+
+**Development Mode:**
+- Serial service logs: Repository `logs/benchmesh_service.log`
+- Uvicorn/Node-RED: Console output only (not written to files)
 
 ### Troubleshooting
 
