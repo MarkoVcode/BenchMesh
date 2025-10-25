@@ -723,6 +723,9 @@ find ~/.benchmesh/logs -name "*.log" -exec grep "$(date -d '1 hour ago' -Isecond
      - Read methods: `query_voltage()`, `query_current()`, `query_status()`, etc.
      - Write methods: `set_voltage()`, `set_current()`, `set_mode()`, etc.
 3. Create `manifest.json` defining models, classes, polling config, and EOL characters
+   - **Optional**: Add `"enabled": false` at root level to hide work-in-progress drivers from configuration UI
+   - Drivers default to enabled if flag is omitted
+   - Example: `{"vendor": "OWON", "family": "DGE", "version": "1.0.0", "enabled": false, "models": {...}}`
 4. Update `drivers/classes.json` if adding new 3-letter class codes
 5. Add driver instantiation logic to `driver_factory.py` if needed
 6. Create tests in `tests/` using pytest and mock serial communication

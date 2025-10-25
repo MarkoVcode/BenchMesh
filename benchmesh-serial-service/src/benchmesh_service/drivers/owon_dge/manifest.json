@@ -3,6 +3,7 @@
   "vendor": "OWON",
   "family": "DGE",
   "version": "1.0.0",
+  "enabled": false,
   "models": {
     "DEFAULT": {
       "classes": [

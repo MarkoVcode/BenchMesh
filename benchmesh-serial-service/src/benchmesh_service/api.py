@@ -293,6 +293,9 @@ def list_drivers():
         try:
             with open(manifest_path, 'r') as f:
                 manifest = json.load(f)
+                # Skip drivers that are explicitly disabled
+                if not manifest.get('enabled', True):
+                    continue
                 vendor = manifest.get('vendor', 'Unknown')
                 family = manifest.get('family', 'Unknown')
                 drivers[entry] = {
