@@ -829,3 +829,64 @@ select:focus {
     transform:translateY(0);
   }
 }
+
+/* ============================================================================
+   Standalone Documentation Page (for Electron help menu)
+   ============================================================================ */
+
+.docs-page{
+  display:flex; flex-direction:column;
+  height:100vh; width:100vw;
+  background:var(--bg-0); color:var(--text-0);
+  overflow:hidden;
+}
+
+.docs-page-header{
+  padding:20px 32px; border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+
+.docs-page-header h1{
+  margin:0; font-size:24px; font-weight:600; color:var(--text-0);
+  display:flex; align-items:center; gap:8px;
+}
+
+.docs-page-body{
+  display:flex; flex:1; overflow:hidden; min-height:0;
+}
+
+.docs-page-content{
+  flex:1; overflow-y:auto; padding:32px 40px;
+  background:var(--bg-0);
+}
+
+/* Reuse existing docs-sidebar, docs-nav, docs-nav-item, docs-markdown,
+   docs-swagger-wrapper styles which are already defined above */
+
+/* ============================================================================
+   Standalone Metrics Page (for Electron help menu)
+   ============================================================================ */
+
+.metrics-page{
+  display:flex; flex-direction:column;
+  height:100vh; width:100vw;
+  background:var(--bg-0); color:var(--text-0);
+  overflow:hidden;
+}
+
+.metrics-page-header{
+  padding:20px 32px; border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+
+.metrics-page-header h1{
+  margin:0; font-size:24px; font-weight:600; color:var(--text-0);
+  display:flex; align-items:center; gap:8px;
+}
+
+.metrics-page-content{
+  flex:1; overflow-y:auto; padding:32px 40px;
+  background:var(--bg-0);
+}

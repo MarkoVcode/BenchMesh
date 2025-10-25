@@ -6,6 +6,7 @@ import { Page, Route } from '@playwright/test';
 export const mockInstruments = [
   {
     id: 'test-psu-1',
+    name: 'Test PSU',
     IDN: 'TENMA,72-2540,SN123456,V1.0',
     classes: [
       {
@@ -17,6 +18,7 @@ export const mockInstruments = [
   },
   {
     id: 'test-dmm-1',
+    name: 'Test DMM',
     IDN: 'OWON,XDM1041,SN789012,V2.1',
     classes: [
       {

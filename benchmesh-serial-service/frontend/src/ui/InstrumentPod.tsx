@@ -3,6 +3,7 @@ import { ClassPodResolver } from './ClassPods'
 
 export type Instrument = {
   id: string
+  name?: string
   IDN?: string
   classes: { class: string, channels: string[], ui_component?: string }[]
 }
@@ -27,7 +28,9 @@ export function InstrumentPod({ instrument, registry }: { instrument: Instrument
         <StatusDot online={online} />
         <span>{online ? 'online' : 'offline'}</span>
       </div>
-      <h3 className="card-title">{instrument.id}</h3>
+      <h3 className="card-title">
+        {instrument.name ? `${instrument.name} (${instrument.id})` : instrument.id}
+      </h3>
       <div className="card-idn">
         {instrument.IDN || registry?.[instrument.id]?.IDN || '—'}
       </div>

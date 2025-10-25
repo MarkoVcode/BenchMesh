@@ -10,6 +10,7 @@
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const crypto = require('crypto')
 
 /**
  * Get the user data directory path
@@ -68,6 +69,92 @@ function createSymlinkIfNotExists(target, linkPath) {
 }
 
 /**
+ * Generate a cryptographically secure random secret
+ * @param {number} length - Length of the secret in bytes (default: 32)
+ * @returns {string} Hex-encoded random secret
+ */
+function generateSecureSecret(length = 32) {
+  return crypto.randomBytes(length).toString('hex')
+}
+
+/**
+ * Get or create Node-RED credential secret
+ * Generates a secure random secret and stores it persistently in user data directory.
+ * This secret is used by Node-RED to encrypt flow credentials.
+ *
+ * @param {string} nodeRedDir - Path to Node-RED user directory
+ * @returns {string} The credential secret
+ */
+function getOrCreateCredentialSecret(nodeRedDir) {
+  const secretFile = path.join(nodeRedDir, '.credentials-secret')
+
+  // Read existing secret if available
+  if (fs.existsSync(secretFile)) {
+    try {
+      const secret = fs.readFileSync(secretFile, 'utf8').trim()
+      if (secret.length > 0) {
+        console.log('Using existing Node-RED credential secret')
+        return secret
+      }
+    } catch (error) {
+      console.warn('Failed to read credential secret, generating new one:', error.message)
+    }
+  }
+
+  // Generate new secret
+  const secret = generateSecureSecret(32) // 256-bit security
+  try {
+    fs.writeFileSync(secretFile, secret, { mode: 0o600 }) // Owner read/write only
+    console.log('Generated new Node-RED credential secret')
+    console.log('⚠️  IMPORTANT: Backup ~/.benchmesh/node-red/.credentials-secret for data recovery')
+    return secret
+  } catch (error) {
+    console.error('Failed to save credential secret:', error.message)
+    throw new Error('Could not persist Node-RED credential secret')
+  }
+}
+
+/**
+ * Update Node-RED settings.js with credential secret
+ * @param {string} nodeRedDir - Path to Node-RED user directory
+ * @param {string} credentialSecret - The credential secret to configure
+ */
+function updateNodeRedSettings(nodeRedDir, credentialSecret) {
+  const settingsPath = path.join(nodeRedDir, 'settings.js')
+
+  if (!fs.existsSync(settingsPath)) {
+    console.warn('Node-RED settings.js not found, will be created on first run')
+    return
+  }
+
+  try {
+    let settings = fs.readFileSync(settingsPath, 'utf8')
+
+    // Check if credentialSecret is already set (not commented)
+    const activeSecretRegex = /^\s*credentialSecret:\s*["'].*["']/m
+    if (activeSecretRegex.test(settings)) {
+      console.log('Node-RED credentialSecret already configured')
+      return
+    }
+
+    // Replace commented credentialSecret line with active configuration
+    const commentedSecretRegex = /(\s*)\/\/credentialSecret:\s*["'].*["']/
+    if (commentedSecretRegex.test(settings)) {
+      settings = settings.replace(
+        commentedSecretRegex,
+        `$1credentialSecret: "${credentialSecret}"`
+      )
+      fs.writeFileSync(settingsPath, settings, 'utf8')
+      console.log('✓ Configured Node-RED credentialSecret in settings.js')
+    } else {
+      console.warn('Could not find credentialSecret line in settings.js')
+    }
+  } catch (error) {
+    console.error('Failed to update Node-RED settings:', error.message)
+  }
+}
+
+/**
  * Initialize user data directory structure
  * Creates ~/.benchmesh/ and subdirectories, copies default config
  *
@@ -112,6 +199,11 @@ function initializeUserData(projectRoot) {
   } else {
     console.warn('Warning: Custom Node-RED nodes not found at', customNodesSource)
   }
+
+  // Setup Node-RED credential encryption
+  console.log('Configuring Node-RED credential encryption...')
+  const credentialSecret = getOrCreateCredentialSecret(nodeRedDir)
+  updateNodeRedSettings(nodeRedDir, credentialSecret)
 
   console.log('User data initialization complete')
   console.log('=========================================')

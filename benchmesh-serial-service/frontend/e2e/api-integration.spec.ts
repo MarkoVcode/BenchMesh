@@ -123,11 +123,12 @@ test.describe('API Integration', () => {
 
   test('should send If-None-Match header with ETag', async ({ mockPage, page }) => {
     let requestHeaders: Record<string, string> = {};
+    let requestCount = 0;
 
     await page.route('**/instruments', async (route) => {
-      requestHeaders = Object.fromEntries(
-        route.request().headers() as any
-      );
+      requestCount++;
+      // Playwright's headers() already returns a plain object
+      requestHeaders = route.request().headers();
 
       await route.fulfill({
         status: 200,
@@ -145,8 +146,8 @@ test.describe('API Integration', () => {
     // Wait for second request (should include If-None-Match)
     await page.waitForTimeout(6000);
 
-    // Second request should have included If-None-Match header
-    // Note: This might not work in the test environment due to timing
+    // Should have made at least 2 requests
+    expect(requestCount).toBeGreaterThanOrEqual(2);
   });
 
   test('should handle malformed JSON responses', async ({ mockPage, page }) => {
@@ -168,8 +169,41 @@ test.describe('API Integration', () => {
   });
 
   test('should handle WebSocket connection failures', async ({ page }) => {
-    // Don't setup WebSocket mock for this test
-    await page.goto('/ui/');
+    // Block WebSocket connections to simulate failure
+    await page.addInitScript(() => {
+      class FailingWebSocket {
+        url: string;
+        readyState: number = 0; // CONNECTING
+        onopen: ((event: Event) => void) | null = null;
+        onclose: ((event: CloseEvent) => void) | null = null;
+        onerror: ((event: Event) => void) | null = null;
+        onmessage: ((event: MessageEvent) => void) | null = null;
+
+        constructor(url: string) {
+          this.url = url;
+          // Simulate connection failure
+          setTimeout(() => {
+            this.readyState = 3; // CLOSED
+            if (this.onerror) {
+              this.onerror(new Event('error'));
+            }
+            if (this.onclose) {
+              this.onclose(new CloseEvent('close'));
+            }
+          }, 100);
+        }
+
+        close() {
+          this.readyState = 3; // CLOSED
+        }
+
+        send(data: any) {
+          // Do nothing
+        }
+      }
+
+      (window as any).WebSocket = FailingWebSocket;
+    });
 
     // Mock instruments endpoint
     await page.route('**/instruments', async (route) => {
@@ -181,17 +215,22 @@ test.describe('API Integration', () => {
       });
     });
 
-    // Wait a bit
+    await page.goto('/ui/');
+
+    // Wait for WebSocket connection attempts
     await page.waitForTimeout(1500);
 
-    // WebSocket should show error or disconnected state
-    const wsStatus = page.locator('.statuspill').filter({ has: page.locator('.dot') }).first();
-    await expect(wsStatus).toBeVisible();
-
-    // Check that it's not showing "receiving"
+    // WebSocket should show error or disconnected state (not "receiving")
     const receivingStatus = page.locator('.statuspill').filter({ hasText: 'receiving' });
     const count = await receivingStatus.count();
     expect(count).toBe(0);
+
+    // Should show one of the error states
+    const errorStates = page.locator('.statuspill').filter({ 
+      hasText: /disconnected|error|no data/ 
+    });
+    const errorCount = await errorStates.count();
+    expect(errorCount).toBeGreaterThan(0);
   });
 
   test('should maintain WebSocket connection and receive updates', async ({ mockPage, page }) => {

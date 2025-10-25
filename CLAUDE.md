@@ -532,6 +532,7 @@ BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node
 ├── node-red/            # Node-RED flows and data
 │   ├── flows.json
 │   ├── settings.js
+│   ├── .credentials-secret  # Encryption key for Node-RED credentials (⚠️ BACKUP THIS FILE)
 │   ├── node_modules/
 │   │   └── node-red-contrib-benchmesh -> symlink to project custom nodes
 │   └── ...
@@ -545,12 +546,14 @@ BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node
 - On app startup, `electron/init-user-data.js` creates `~/.benchmesh/` structure
 - Copies default `config.yaml` if not present
 - Creates symlink to custom Node-RED nodes (`node-red-contrib-benchmesh`)
+- Generates Node-RED credential encryption secret (`.credentials-secret`)
 - Sets environment variables automatically
 
 **Web/Browser Mode:**
 - `start.sh` creates `~/.benchmesh/` structure
 - Copies default `config.yaml` if not present
 - Creates symlink to custom Node-RED nodes (`node-red-contrib-benchmesh`)
+- Node-RED generates credential secret on first run
 - Exports environment variables for backend services
 
 ### Configuration
@@ -565,16 +568,54 @@ Both modes use these environment variables:
 - Configuration survives app restarts and updates
 - To manually edit config: modify `~/.benchmesh/config.yaml` and restart the app
 
+### Node-RED Credential Secret
+
+**⚠️ CRITICAL: This file must be backed up to ensure credential recovery**
+
+BenchMesh automatically manages a persistent encryption key for Node-RED credentials stored at:
+```
+~/.benchmesh/node-red/.credentials-secret
+```
+
+**How it works:**
+- **First run**: Generates a cryptographically secure 256-bit (32-byte) random secret
+- **Subsequent runs**: Reads existing secret from `.credentials-secret` file
+- **Automatic configuration**: Updates Node-RED `settings.js` with the credential secret
+- **File permissions**: Restricted to owner-only (0600) for security
+- **Persistence**: Survives app updates and reinstalls
+
+**Why this matters:**
+- Node-RED encrypts stored credentials (API keys, passwords, tokens) using this secret
+- Without this file, encrypted credentials become **permanently unrecoverable**
+- Each BenchMesh installation should have its own unique secret
+
+**Backup recommendations:**
+```bash
+# Backup the credential secret (REQUIRED for credential recovery)
+cp ~/.benchmesh/node-red/.credentials-secret ~/.benchmesh.backup/
+
+# Or include it in your full user data backup
+cp -r ~/.benchmesh ~/.benchmesh.backup
+```
+
+**Recovery scenarios:**
+- **Lost secret file**: All Node-RED credentials must be re-entered manually
+- **Restored from backup**: Credentials automatically decrypt if secret is restored
+- **Fresh install**: New secret is generated, old credentials won't decrypt
+
 ### Backup and Migration
 
 **To backup your configuration:**
 ```bash
-# Backup entire user data directory
+# Backup entire user data directory (RECOMMENDED - includes credential secret)
 cp -r ~/.benchmesh ~/.benchmesh.backup
 
-# Or backup just the config
+# Or backup individual critical files
 cp ~/.benchmesh/config.yaml ~/.benchmesh/config.yaml.backup
+cp ~/.benchmesh/node-red/.credentials-secret ~/.benchmesh/credentials-secret.backup
 ```
+
+**⚠️ IMPORTANT**: Always include `~/.benchmesh/node-red/.credentials-secret` in backups. Without this file, Node-RED encrypted credentials cannot be recovered.
 
 **To migrate to a new machine:**
 ```bash
@@ -614,6 +655,18 @@ The user data directory is always `~/.benchmesh/` on all platforms:
 **Recordings database not found:**
 1. Check `~/.benchmesh/recordings.db` exists
 2. Verify `BENCHMESH_DATA_DIR` environment variable is set
+
+**Node-RED credential warning:**
+1. Check if `~/.benchmesh/node-red/.credentials-secret` exists
+2. Verify file has correct permissions: `chmod 600 ~/.benchmesh/node-red/.credentials-secret`
+3. Check Node-RED settings.js has `credentialSecret` configured (not commented out)
+4. If file is missing, a new one will be generated on next startup (old credentials lost)
+
+**Node-RED credentials not working after restore:**
+1. Verify `.credentials-secret` file was included in backup/restore
+2. Check that secret file has same content as original installation
+3. Ensure file permissions are correct (0600)
+4. If secret doesn't match, credentials must be re-entered manually
 
 ## Adding a New Driver
 

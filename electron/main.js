@@ -12,6 +12,8 @@ let nodeRedProcess
 let aboutWindow = null
 let docsWindow = null
 let userDocsWindow = null
+let metricsWindow = null
+let isQuitting = false  // Track if we're in shutdown sequence
 
 // Load version information
 const versionPath = path.join(__dirname, '..', 'version.json')
@@ -210,13 +212,57 @@ function createUserDocsWindow() {
   const isDev = process.env.NODE_ENV === 'development'
 
   if (isDev) {
-    userDocsWindow.loadURL('http://localhost:57666/ui/?openDocs=true')
+    userDocsWindow.loadURL('http://localhost:57666/ui/docs')
   } else {
-    userDocsWindow.loadURL('http://localhost:57666/ui/?openDocs=true')
+    userDocsWindow.loadURL('http://localhost:57666/ui/docs')
   }
 
   userDocsWindow.on('closed', () => {
     userDocsWindow = null
+  })
+}
+
+function createMetricsWindow() {
+  if (metricsWindow) {
+    metricsWindow.focus()
+    return
+  }
+
+  // Calculate window size (10% smaller than main window, or default if main is too small)
+  let width = 1400
+  let height = 900
+
+  if (mainWindow) {
+    const mainBounds = mainWindow.getBounds()
+    if (mainBounds.width > 800 && mainBounds.height > 600) {
+      width = Math.floor(mainBounds.width * 0.9)
+      height = Math.floor(mainBounds.height * 0.9)
+    }
+  }
+
+  metricsWindow = new BrowserWindow({
+    width,
+    height,
+    title: 'BenchMesh Metrics',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    parent: mainWindow
+  })
+
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (isDev) {
+    metricsWindow.loadURL('http://localhost:57666/ui/metrics')
+  } else {
+    metricsWindow.loadURL('http://localhost:57666/ui/metrics')
+  }
+
+  metricsWindow.on('closed', () => {
+    metricsWindow = null
   })
 }
 
@@ -270,6 +316,12 @@ function createMenu() {
           label: 'API Documentation',
           click: () => {
             createDocsWindow()
+          }
+        },
+        {
+          label: 'Metrics',
+          click: () => {
+            createMetricsWindow()
           }
         },
         {
@@ -430,27 +482,50 @@ function stopProcesses() {
   return new Promise((resolve) => {
     let killed = 0
     const total = 2
+    let resolved = false
+
+    // Ensure we resolve within 5 seconds even if processes don't stop cleanly
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        console.warn('Process cleanup timed out after 5s, forcing exit')
+        resolved = true
+        resolve()
+      }
+    }, 5000)
 
     const checkDone = () => {
       killed++
-      if (killed >= total) resolve()
+      if (killed >= total && !resolved) {
+        resolved = true
+        clearTimeout(timeout)
+        console.log('All processes stopped cleanly')
+        resolve()
+      }
     }
 
     if (backendProcess) {
+      console.log(`Stopping backend process (PID: ${backendProcess.pid})`)
       kill(backendProcess.pid, 'SIGTERM', (err) => {
         if (err) console.error('Error killing backend:', err)
+        else console.log('Backend process stopped')
+        backendProcess = null
         checkDone()
       })
     } else {
+      console.log('No backend process to stop')
       checkDone()
     }
 
     if (nodeRedProcess) {
+      console.log(`Stopping Node-RED process (PID: ${nodeRedProcess.pid})`)
       kill(nodeRedProcess.pid, 'SIGTERM', (err) => {
         if (err) console.error('Error killing Node-RED:', err)
+        else console.log('Node-RED process stopped')
+        nodeRedProcess = null
         checkDone()
       })
     } else {
+      console.log('No Node-RED process to stop')
       checkDone()
     }
   })
@@ -537,16 +612,33 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', async () => {
-  await stopProcesses()
+  // Don't stop processes here if we're already quitting (handled in before-quit)
+  if (!isQuitting) {
+    console.log('All windows closed, initiating shutdown...')
+    isQuitting = true
+    await stopProcesses()
+  }
+
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
 app.on('before-quit', async (event) => {
-  event.preventDefault()
-  await stopProcesses()
-  app.exit(0)
+  // Only stop processes once
+  if (!isQuitting) {
+    console.log('Application quitting, stopping backend services...')
+    isQuitting = true
+    event.preventDefault()  // Prevent quit to allow cleanup
+
+    await stopProcesses()
+
+    // Force kill any remaining processes after timeout
+    setTimeout(() => {
+      console.log('Final cleanup, forcing exit')
+      app.exit(0)
+    }, 1000)
+  }
 })
 
 // Handle IPC messages if needed

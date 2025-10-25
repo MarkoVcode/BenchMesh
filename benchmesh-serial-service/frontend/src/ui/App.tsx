@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react'
 import { InstrumentPod, Instrument } from './InstrumentPod'
 import { MeasurementProvider } from './MeasurementContext'
 import { MeasurementStatusBar } from './MeasurementStatusBar'
-import { ConfigModal } from './ConfigModal'
-import { DocsViewer } from './DocsViewer'
-import { MetricsViewer } from './MetricsViewer'
-import { RecordingModal } from './recording/RecordingModal'
+
+// Lazy load modal components to reduce initial bundle size
+const ConfigModal = lazy(() => import('./ConfigModal').then(m => ({ default: m.ConfigModal })))
+const DocsViewer = lazy(() => import('./DocsViewer').then(m => ({ default: m.DocsViewer })))
+const MetricsViewer = lazy(() => import('./MetricsViewer').then(m => ({ default: m.MetricsViewer })))
+const RecordingModal = lazy(() => import('./recording/RecordingModal').then(m => ({ default: m.RecordingModal })))
 
 function useApiBase() {
   // API is served by FastAPI app; assume same origin during production.
@@ -213,13 +215,15 @@ export default function App() {
                 📚 Documentation
               </button>
             )}
-            <button
-              className="config-button"
-              onClick={() => setMetricsModalOpen(true)}
-              title="View Performance Metrics"
-            >
-              📈 Metrics
-            </button>
+            {!(window as any).electron?.isElectron && (
+              <button
+                className="config-button"
+                onClick={() => setMetricsModalOpen(true)}
+                title="View Performance Metrics"
+              >
+                📈 Metrics
+              </button>
+            )}
           </div>
           <div className="statusbar">
             <div className="statuspill" title="WebSocket data flow">
@@ -233,32 +237,40 @@ export default function App() {
           </div>
         </div>
 
-        <ConfigModal
-          isOpen={configModalOpen}
-          onClose={() => setConfigModalOpen(false)}
-          apiBase={apiBase}
-          onConfigUpdated={handleConfigUpdated}
-        />
+        <Suspense fallback={<div className="modal-loading">Loading...</div>}>
+          <ConfigModal
+            isOpen={configModalOpen}
+            onClose={() => setConfigModalOpen(false)}
+            apiBase={apiBase}
+            onConfigUpdated={handleConfigUpdated}
+          />
+        </Suspense>
 
-        <RecordingModal
-          isOpen={recordingModalOpen}
-          onClose={() => setRecordingModalOpen(false)}
-          apiBase={apiBase}
-          instruments={instruments || []}
-        />
+        <Suspense fallback={<div className="modal-loading">Loading...</div>}>
+          <RecordingModal
+            isOpen={recordingModalOpen}
+            onClose={() => setRecordingModalOpen(false)}
+            apiBase={apiBase}
+            instruments={instruments || []}
+          />
+        </Suspense>
 
         {docsModalOpen && (
-          <DocsViewer
-            onClose={() => setDocsModalOpen(false)}
-            apiBase={apiBase}
-          />
+          <Suspense fallback={<div className="modal-loading">Loading...</div>}>
+            <DocsViewer
+              onClose={() => setDocsModalOpen(false)}
+              apiBase={apiBase}
+            />
+          </Suspense>
         )}
 
         {metricsModalOpen && (
-          <MetricsViewer
-            onClose={() => setMetricsModalOpen(false)}
-            apiBase={apiBase}
-          />
+          <Suspense fallback={<div className="modal-loading">Loading...</div>}>
+            <MetricsViewer
+              onClose={() => setMetricsModalOpen(false)}
+              apiBase={apiBase}
+            />
+          </Suspense>
         )}
 
         {hasInstruments && instruments && (

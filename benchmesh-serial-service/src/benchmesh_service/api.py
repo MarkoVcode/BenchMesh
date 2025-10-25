@@ -72,6 +72,33 @@ app.add_middleware(
 app.include_router(create_recording_router(), prefix="/recordings", tags=["recordings"])
 
 
+# SPA routing: Serve index.html for frontend routes (must be defined BEFORE mount)
+from fastapi.responses import FileResponse as _FileResponse
+import os as _os
+
+@app.get("/ui/docs")
+@app.get("/ui/docs/")
+async def serve_docs_page():
+    """Serve docs page route for Electron help menu"""
+    base_dir = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), '..', '..', 'frontend'))
+    dist_dir = _os.path.join(base_dir, 'dist')
+    index_path = _os.path.join(dist_dir, 'index.html')
+    if _os.path.isfile(index_path):
+        return _FileResponse(index_path)
+    return {"error": "Frontend not built"}
+
+@app.get("/ui/metrics")
+@app.get("/ui/metrics/")
+async def serve_metrics_page():
+    """Serve metrics page route for Electron help menu"""
+    base_dir = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), '..', '..', 'frontend'))
+    dist_dir = _os.path.join(base_dir, 'dist')
+    index_path = _os.path.join(dist_dir, 'index.html')
+    if _os.path.isfile(index_path):
+        return _FileResponse(index_path)
+    return {"error": "Frontend not built"}
+
+
 def _make_manager() -> SerialManager:
     cfg_path = os.getenv("BENCHMESH_CONFIG", "config.yaml")
     cfg = load_config(cfg_path)
@@ -479,6 +506,9 @@ def _build_instruments_list(class_filter: str | None = None) -> List[Dict[str, A
         if not dev_id:
             continue
         entry: Dict[str, Any] = {"id": dev_id}
+        # Include name from config if available
+        if 'name' in dev:
+            entry['name'] = dev['name']
         reg_data = registry.get(dev_id, {})
         if 'IDN' in reg_data:
             entry['IDN'] = reg_data['IDN']
@@ -733,6 +763,77 @@ def list_available_methods(klass: str, device_id: str):
         "class": klass,
         "methods": methods
     }
+
+
+@app.get("/ai/context", summary="Get AI assistant context", tags=["ai-assistant"])
+@app.get("/ai/system-prompt", summary="Get AI assistant system prompt (alias)", tags=["ai-assistant"], include_in_schema=False)
+async def get_ai_context(
+    format: str = "markdown",
+    include: str = "system,config,instruments,api,nodered,safety,examples"
+):
+    """
+    Generate comprehensive AI assistant context based on current configuration.
+    
+    This endpoint provides a complete system prompt or structured data for AI assistants
+    to understand and operate the BenchMesh system.
+    
+    **Included Information**:
+    - System overview and architecture
+    - Currently configured instruments with capabilities
+    - Available API patterns and endpoints
+    - Node-RED integration and custom nodes
+    - Safety guidelines and constraints
+    - Common task examples
+    
+    **Parameters**:
+    - `format`: Output format ("markdown" for LLM consumption, "json" for structured data)
+    - `include`: Comma-separated list of sections (default: all)
+    
+    **Use Cases**:
+    - AI assistants operating instruments via natural language
+    - Generating automation flows for Node-RED
+    - Documentation and troubleshooting guidance
+    - Training AI models on system capabilities
+    
+    **Example**:
+    ```bash
+    # Get full markdown context for Claude/GPT
+    curl http://localhost:57666/ai/context
+    
+    # Get JSON structure
+    curl "http://localhost:57666/ai/context?format=json"
+    
+    # Get only instruments and API sections
+    curl "http://localhost:57666/ai/context?include=instruments,api"
+    ```
+    """
+    from .ai_context_builder import AIContextBuilder
+    
+    global _manager, _manifest_resolver
+    
+    # Get version from version.json
+    version = "0.1.0"
+    try:
+        version_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'version.json')
+        with open(version_path, 'r') as f:
+            version_data = json.load(f)
+            version = version_data.get('version', version)
+    except Exception:
+        pass
+    
+    builder = AIContextBuilder(
+        manager=_manager,
+        manifest_resolver=_manifest_resolver,
+        version=version
+    )
+    
+    sections = [s.strip() for s in include.split(',') if s.strip()]
+    context = await builder.build(sections=sections, format=format)
+    
+    if format == "markdown":
+        return Response(content=context, media_type="text/markdown; charset=utf-8")
+    else:
+        return JSONResponse(content=context)
 
 
 @app.websocket("/ws/registry")

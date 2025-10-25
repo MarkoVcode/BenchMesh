@@ -707,22 +707,37 @@ class SerialManager:
                 self.metrics_collector.reset_window()
 
     def stop(self):
+        """Stop all device workers and close all serial connections"""
+        self.logger.info("SerialManager shutting down...")
+
         # Stop unified scheduler first
         if self.unified_polling_enabled and self.unified_scheduler:
             self.unified_scheduler.stop()
             logger.info("Unified polling scheduler stopped")
 
+        # Signal all workers to stop
         self.keep_running = False
-        # Join worker threads
+
+        # Join worker threads with timeout
         for dev_id, t in list(self.dev_threads.items()):
             try:
-                t.join(timeout=1.0)
-            except Exception:
-                pass
-        for drv in self.connections.values():
-            try:
-                drv.close()
-            except Exception:
-                pass
-        self.logger.info("All connections closed.")
+                self.logger.info(f"Stopping worker thread for {dev_id}")
+                t.join(timeout=2.0)
+                if t.is_alive():
+                    self.logger.warning(f"Worker thread {dev_id} did not stop cleanly")
+                else:
+                    self.logger.info(f"Worker thread {dev_id} stopped")
+            except Exception as e:
+                self.logger.error(f"Error stopping worker {dev_id}: {e}")
+
+        # Close all serial connections
+        for dev_id, drv in list(self.connections.items()):
+            if drv is not None:
+                try:
+                    self.logger.info(f"Closing connection for {dev_id}")
+                    drv.close()
+                except Exception as e:
+                    self.logger.error(f"Error closing connection {dev_id}: {e}")
+
+        self.logger.info("SerialManager shutdown complete, all connections closed")
 
