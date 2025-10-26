@@ -643,8 +643,8 @@ Single message with multiple Task calls:
 
 ## Philosophical Anchors
 
-- Always reference `@ai_context/IMPLEMENTATION_PHILOSOPHY.md`
-- Always reference `@ai_context/MODULAR_DESIGN_PHILOSOPHY.md`
+**See `ai_context/IMPLEMENTATION_PHILOSOPHY.md` for complete implelemtation philosophy guide.**
+**See `ai_context/MODULAR_DESIGN_PHILOSOPHY.md` for complete modular design philosophy guide.**
 - Embrace ruthless simplicity
 - Build as bricks and studs
 - Trust in emergence over control
