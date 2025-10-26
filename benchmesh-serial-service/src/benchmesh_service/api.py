@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import asyncio
 import subprocess
 import hashlib
@@ -309,6 +310,50 @@ def list_drivers():
             continue
 
     return drivers
+
+@app.get("/metrics", summary="Get performance and throttling metrics for all devices", response_model=dict)
+def get_all_metrics():
+    """
+    Phase 4: Get performance and adaptive throttling metrics for all devices.
+
+    Returns metrics including:
+    - Serial port utilization %
+    - QPS (queries per second)
+    - API latency percentiles (P95, P99)
+    - Average queue depth
+    - Throttle events and skip rate
+    - Backoff multipliers
+    - Connection quality scores, tiers, and trends
+    - Transport types
+    """
+    global _manager
+    if not _manager or not _manager.metrics_collector:
+        return {"error": "Metrics collector not available"}
+
+    summary = _manager.metrics_collector.get_utilization_summary()
+    return {
+        "summary": summary,
+        "timestamp": time.time()
+    }
+
+@app.get("/metrics/{device_id}", summary="Get performance and throttling metrics for a specific device", response_model=dict)
+def get_device_metrics(device_id: str):
+    """
+    Phase 4: Get performance and adaptive throttling metrics for a specific device.
+
+    Returns detailed metrics for the specified device including utilization,
+    latency, queue depth, throttling events, backoff state, and quality metrics.
+    """
+    global _manager
+    if not _manager or not _manager.metrics_collector:
+        return {"error": "Metrics collector not available"}
+
+    metrics = _manager.metrics_collector.get_device_metrics(device_id)
+    if not metrics:
+        return {"error": f"No metrics available for device {device_id}"}
+
+    metrics["timestamp"] = time.time()
+    return metrics
 
 @app.get("/drivers/{driver_id}", summary="List models for a specific driver", response_model=list)
 def list_driver_models(driver_id: str):

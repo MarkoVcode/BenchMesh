@@ -18,7 +18,7 @@
       "polling": [
         {
           "method": "poll_status",
-          "interval": 0.5
+          "interval": 2.0
         }
       ],
       "instrument_class": {

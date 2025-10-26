@@ -99,7 +99,8 @@ class SerialManager:
                 interval_ms=settings.unified_poll_interval_ms,
                 max_queue_depth=settings.max_queue_depth_threshold,
                 device_connections=self.dev_conns,  # Pass reference to device connections
-                registry=self.registry_obj  # Pass registry for clearing disconnected devices
+                registry=self.registry_obj,  # Pass registry for clearing disconnected devices
+                metrics_collector=self.metrics_collector  # Phase 4: Pass metrics collector for throttling metrics
             )
             logger.info(
                 f"Unified polling enabled: default_interval={settings.unified_poll_interval_ms}ms, "
@@ -251,11 +252,20 @@ class SerialManager:
             return None
         conn = self.dev_conns.get(dev_id)
         if not conn:
+            # Phase 2: Extract transport type for transport-specific limits
+            transport_type = dev.get('transport', 'serial')  # Default to 'serial' if not specified
+
             conn = DeviceConnection(
                 None,
                 self.clock,
                 failure_threshold=settings.health_failure_threshold,
-                degraded_threshold=settings.health_degraded_threshold
+                degraded_threshold=settings.health_degraded_threshold,
+                enable_quality_monitoring=settings.adaptive_throttling_enabled,
+                quality_window_size=settings.quality_window_size,
+                quality_success_points=settings.quality_success_points,
+                quality_timeout_penalty=settings.quality_timeout_penalty,
+                quality_error_penalty=settings.quality_error_penalty,
+                transport_type=transport_type
             )
             self.dev_conns[dev_id] = conn
             self.connections[dev_id] = None
@@ -322,7 +332,7 @@ class SerialManager:
         # Ensure a worker exists even if not identified yet; it will be IDN-gated
         if dev_id not in self.workers:
             probe_map = getattr(self, 'last_probe_class', {}).setdefault(dev_id, {})
-            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map, metrics_collector=self.metrics_collector, connection=conn)
+            self.workers[dev_id] = DeviceWorker(dev, conn.driver, self.registry_obj, self.resolver, self.metrics, probe_map, metrics_collector=self.metrics_collector, connection=conn, unified_scheduler=self.unified_scheduler)
         # Identify-only cadence
         if conn.is_open() and (not self.registry.get(dev_id, {}).get('IDN')) and conn.can_attempt_open(self.policy.identify_interval):
             conn.mark_attempt()

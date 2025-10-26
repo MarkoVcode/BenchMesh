@@ -1,5 +1,12 @@
 version: 1
 devices:
+- id: eol-1
+  name: OWON OEL
+  driver: owon_oel
+  port: /dev/ttyOEL1515
+  baud: 115200
+  serial: 8N1
+  model: OEL1515
 - id: dmm-1
   name: OWON XDM
   driver: owon_xdm

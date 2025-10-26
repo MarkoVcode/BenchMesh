@@ -18,7 +18,7 @@ class DeviceWorker:
 
     Designed to be called periodically (or loop in a thread). For tests, run_once can be used.
     """
-    def __init__(self, dev: dict, driver, registry: DeviceRegistry, resolver: ManifestResolver, metrics: MetricsRecorder | None = None, probe_map: Optional[Dict[str, float]] = None, interval_override: Optional[Dict[str, float]] = None, channels_override: Optional[Dict[str, int]] = None, metrics_collector: Optional[MetricsCollector] = None, connection: Optional['DeviceConnection'] = None):
+    def __init__(self, dev: dict, driver, registry: DeviceRegistry, resolver: ManifestResolver, metrics: MetricsRecorder | None = None, probe_map: Optional[Dict[str, float]] = None, interval_override: Optional[Dict[str, float]] = None, channels_override: Optional[Dict[str, int]] = None, metrics_collector: Optional[MetricsCollector] = None, connection: Optional['DeviceConnection'] = None, unified_scheduler=None):
         self.dev = dev
         self.driver = driver
         self.registry = registry
@@ -26,6 +26,7 @@ class DeviceWorker:
         self.metrics = metrics
         self.metrics_collector = metrics_collector
         self.connection = connection
+        self.unified_scheduler = unified_scheduler  # For adaptive throttling notifications
         self.last_probe_class: Dict[str, float] = probe_map if probe_map is not None else {}
         self.interval_override = interval_override
         self.channels_override = channels_override
@@ -90,6 +91,11 @@ class DeviceWorker:
                 # Health: empty poll response = failure
                 if self.connection:
                     self.connection.record_failure()
+
+                # Notify scheduler of failure (for adaptive throttling)
+                if self.unified_scheduler:
+                    self.unified_scheduler.notify_poll_failure(dev_id)
+
                 raise RuntimeError('poll_empty')
 
             # Distribute results by class
@@ -102,6 +108,10 @@ class DeviceWorker:
             # Health: successful poll
             if self.connection:
                 self.connection.record_success()
+            
+            # Notify scheduler of success (for adaptive throttling)
+            if self.unified_scheduler:
+                self.unified_scheduler.notify_poll_success(dev_id)
 
             # Update last poll time
             self.last_probe_class['unified'] = now
@@ -120,6 +130,10 @@ class DeviceWorker:
             # Health: poll exception = failure
             if self.connection:
                 self.connection.record_failure()
+            
+            # Notify scheduler of failure (for adaptive throttling)
+            if self.unified_scheduler:
+                self.unified_scheduler.notify_poll_failure(dev_id)
     
     def _run_per_class_poll(self, now: float):
         """
@@ -153,6 +167,10 @@ class DeviceWorker:
                     # Health: poll exception = failure
                     if self.connection:
                         self.connection.record_failure()
+                    
+                    # Notify scheduler of failure (for adaptive throttling)
+                    if self.unified_scheduler:
+                        self.unified_scheduler.notify_poll_failure(dev_id)
                 if not st:
                     if self.metrics:
                         self.metrics.inc_poll_failed(dev_id, klass)
@@ -162,6 +180,11 @@ class DeviceWorker:
                     # Health: empty poll response = failure
                     if self.connection:
                         self.connection.record_failure()
+
+                    # Notify scheduler of failure (for adaptive throttling)
+                    if self.unified_scheduler:
+                        self.unified_scheduler.notify_poll_failure(dev_id)
+                        
                     # signal caller to drop connection by raising a sentinel exception
                     raise RuntimeError('poll_empty')
                 key = f"status_ch{ch}"
@@ -172,6 +195,10 @@ class DeviceWorker:
                 # Health: successful poll
                 if self.connection:
                     self.connection.record_success()
+                
+                # Notify scheduler of success (for adaptive throttling)
+                if self.unified_scheduler:
+                    self.unified_scheduler.notify_poll_success(dev_id)
 
     def process_request(self, priority_request: PriorityRequest) -> Any:
         """

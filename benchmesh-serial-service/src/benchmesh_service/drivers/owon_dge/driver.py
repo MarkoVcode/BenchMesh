@@ -25,26 +25,28 @@ class OwonDGE:
 
     def set_reset(self):
         """Reset device to factory settings"""
+        # SCPI set commands don't return responses - just write, don't read
         self.t.write_line('*RST')
-        return self.t.read_until_reol(1024)
 
     def poll_status(self, channel: int = 1):
-        """Poll device status"""
+        """Poll device status - simplified to prevent USB TMC buffer issues"""
         # For AWG, channel is typically not used (single-instrument status)
         # But we accept it for API compatibility
-        shape = self.query_shape(channel)
-        output = self.query_output(channel)
-        symmetry = self.query_symmetry(channel)
-        return {
-            "SHAPE": shape,
-            "OUTPUT": output,
-            "SYMMETRY": symmetry
-        }
+        try:
+            # Just query output state as minimal health check
+            # Full status can be queried via API when needed
+            output = self.query_output(channel)
+            return {
+                "OUTPUT": output
+            }
+        except Exception as e:
+            # Re-raise exception to trigger health failure tracking
+            raise
 
     def set_output(self, channel: int, state: str):
         """Enable/disable output channel"""
+        # SCPI set commands don't return responses - just write, don't read
         self.t.write_line(f'OUTPut{channel}:STATe {state}')
-        return self.t.read_until_reol(1024)
 
     def query_output(self, channel: int):
         """Query output channel state"""
