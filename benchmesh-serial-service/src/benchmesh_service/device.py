@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class Device:
     def __init__(self, id, name, port, baud, driver):
         self.id = id
@@ -11,23 +16,23 @@ class Device:
         """Establish a serial connection using the specified driver."""
         try:
             self.connection = self.driver.connect(self.port, self.baud)
-            print(f"{self.name} connected on {self.port}")
+            logger.info(f"{self.name} connected on {self.port}")
         except Exception as e:
-            print(f"Failed to connect to {self.name}: {e}")
+            logger.error(f"Failed to connect to {self.name}: {e}")
 
     def send_command(self, command):
         """Send a command to the device."""
         if self.connection:
             self.connection.write(command)
         else:
-            print(f"{self.name} is not connected.")
+            logger.warning(f"{self.name} is not connected.")
 
     def receive_response(self):
         """Receive a response from the device."""
         if self.connection:
             return self.connection.read()
         else:
-            print(f"{self.name} is not connected.")
+            logger.warning(f"{self.name} is not connected.")
             return None
 
     def check_status(self):
@@ -40,4 +45,4 @@ class Device:
         """Close the connection to the device."""
         if self.connection:
             self.connection.close()
-            print(f"{self.name} connection closed.")
+            logger.info(f"{self.name} connection closed.")

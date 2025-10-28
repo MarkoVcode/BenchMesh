@@ -52,8 +52,8 @@ def _load_manifest(driver_key: str) -> Dict:
 
 class SerialManager:
     def __init__(self, config_source: Any, *, resolver: ManifestResolver | None = None, driver_factory: DriverFactory | None = None, clock: Clock | None = None, metrics: MetricsRecorder | None = None, policy: ReconnectPolicy | None = None):
-        print("Initializing SerialManager with config:", config_source)
         self.logger = setup_logger()
+        self.logger.info(f"Initializing SerialManager with config: {config_source}")
         self.devices: List[Dict] = self._load_devices(config_source)
         self.keep_running = True
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
@@ -126,7 +126,7 @@ class SerialManager:
             return []
 
     def establish_connections(self):
-        print("Establishing connections to devices...")
+        self.logger.info("Establishing connections to devices...")
         for device in self.devices:
             dev_id = device.get('id')
             if not dev_id:

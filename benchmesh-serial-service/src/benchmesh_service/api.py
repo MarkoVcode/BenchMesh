@@ -5,6 +5,7 @@ import time
 import asyncio
 import subprocess
 import hashlib
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List
@@ -20,6 +21,8 @@ from .api_recording import create_recording_router
 import benchmesh_service.services.recording_service as recording_service_module
 import serial.tools.list_ports
 from .transport import discover_usbtmc_devices
+
+logger = logging.getLogger(__name__)
 
 API_PORT = int(os.getenv('API_PORT', '57666'))
 UI_DEV_PORT = int(os.getenv('UI_PORT', '52893'))
@@ -474,7 +477,7 @@ def list_serial_ports(exclude: str = ""):
                             continue
             except Exception as e:
                 # Non-fatal - just log and continue with what we have
-                print(f"Warning: Failed to scan /dev for symlinks: {e}")
+                logger.warning(f"Failed to scan /dev for symlinks: {e}")
 
         # Sort by device name for consistent ordering
         result.sort(key=lambda p: p["device"])

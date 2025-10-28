@@ -8,10 +8,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", "-c", default="config.yaml", help="Path to config YAML")
     args = parser.parse_args()
-    print("Using config file:", args.config)
     logger = setup_logger()
+    logger.info(f"Using config file: {args.config}")
     config = load_config(args.config)
-    print("Loaded config:", config)
+    logger.info(f"Loaded config: {config}")
     serial_manager = SerialManager(config['devices'])
     serial_manager.start()
 
