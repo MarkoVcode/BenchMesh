@@ -359,6 +359,16 @@ BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node
 
 Driver should accept `transport: Transport` in constructor and use it for all communication. The Transport interface supports multiple physical transports (SerialTransport for RS232/USB-Serial, with USB TMC and TCP/IP support planned).
 
+**Optional Caching:**
+Drivers can use `SimpleCache` to minimize redundant SCPI calls between polling and API requests:
+- Import: `from ...cache import SimpleCache`
+- Initialize in `__init__()`: `self.cache = SimpleCache()`
+- Use in `poll_status()`: Check `self.cache.get(key)` before querying, call `self.cache.set(key, value)` after query
+- Invalidate in `set_*` methods: Call `self.cache.invalidate(key)` when device state changes
+- See `drivers/owon_oel/driver.py` for reference implementation
+- See `CACHE_DESIGN.md` for complete caching guide and migration steps
+- Typical performance gain: 3x speedup in polling (owon_oel measured)
+
 ## Key Modules
 
 - `serial_manager.py`: SerialManager orchestrates all device connections and worker threads
@@ -375,6 +385,7 @@ Driver should accept `transport: Transport` in constructor and use it for all co
   - Prevents arbitrary method execution - only `query_*` and `set_*` methods can be called via API
   - Provides `/instruments/{class}/{device_id}/methods` for dynamic method discovery
 - `method_inspector.py`: Python introspection utility for discovering driver methods with parameter/return metadata
+- `cache.py`: SimpleCache universal caching layer for driver values with TTL support and thread safety
 - `connection.py`: DeviceConnection tracks connection state per device
 - `reconnect.py`: ReconnectPolicy implements backoff strategy
 
