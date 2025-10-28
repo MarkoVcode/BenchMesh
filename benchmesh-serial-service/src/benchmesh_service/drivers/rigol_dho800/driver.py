@@ -2,29 +2,16 @@
 RIGOL DHO800 Series Oscilloscope Driver
 Supports DHO804, DHO802, DHO814, DHO812, and other DHO800 series models
 """
-from ...transport import Transport
+from ..base import DriverBase
 
 
-class RigolDHO800:
+class RigolDHO800(DriverBase):
     """Driver for RIGOL DHO800 series oscilloscopes"""
-
-    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\n', reol='\n', transport=None):
-        # Accept either pre-configured transport or port/baudrate for backward compatibility
-        if transport is not None:
-            self.t = transport
-        else:
-            from ...transport import SerialTransport
-            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
     def query_identify(self):
         """Query device identification"""
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
-
-    def set_reset(self):
-        """Reset device to factory settings"""
-        # SCPI set commands don't return responses - just write, don't read
-        self.t.write_line('*RST')
 
     def poll_status(self, channel: int = 1):
         """Poll device status"""
@@ -110,15 +97,3 @@ class RigolDHO800:
         """Query horizontal timebase scale"""
         self.t.write_line(':TIMebase:MAIN:SCALe?')
         return self.t.read_until_reol(1024)
-    
-    def write(self, data: bytes):
-        """Write raw data to transport"""
-        self.t.write(data)
-
-    def read(self, size=1024):
-        """Read raw data from transport"""
-        return self.t.read(size)
-
-    def close(self):
-        """Close transport connection"""
-        self.t.close()

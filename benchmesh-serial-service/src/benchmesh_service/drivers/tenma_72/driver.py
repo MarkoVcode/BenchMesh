@@ -1,24 +1,11 @@
-import re
-from ...transport import SerialTransport
+from ..base import DriverBase
 from ...utils.si import si_to_value
 
-class TenmaPSU:
-    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='', reol='', transport=None):
-        # Accept either pre-configured transport or port/baudrate for backward compatibility
-        if transport is not None:
-            self.t = transport
-        else:
-            # TENMA manifest declares empty EOLs
-            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
-        
+class TenmaPSU(DriverBase):
     def query_identify(self):
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
-    
-    def set_reset(self):
-        self.t.write_line('*RST')
-        return self.t.read_until_reol(1024)
-    
+
     def query_output_voltage(self, channel: int):
         self.t.write_line('VOUT1?')
         return self.t.read_until_reol(1024)
@@ -171,27 +158,3 @@ class TenmaPSU:
         self.t.write_line('RCL' + str(bank))
         self.t.read_until_reol(1024)
         return
-
-    def _parse_numeric(self, s):
-        if s is None:
-            return None
-        if isinstance(s, bytes):
-            try:
-                s = s.decode('utf-8', 'ignore')
-            except Exception:
-                return None
-        s = str(s).strip()
-        m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", s)
-        try:
-            return float(m.group(0)) if m else None
-        except Exception:
-            return None
-
-    def write(self, text: str):
-        self.t.write_line(text)
-
-    def read(self, size=1024):
-        return self.t.read(size)
-
-    def close(self):
-        self.t.close()

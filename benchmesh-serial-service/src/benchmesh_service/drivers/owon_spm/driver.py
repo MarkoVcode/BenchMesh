@@ -1,25 +1,14 @@
 import logging
-from ...transport import SerialTransport
+from ..base import DriverBase
 from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
 from ...utils.si import si_to_value
 
 logger = logging.getLogger(__name__)
 
-class OWONSPM:
-    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
-        # Accept either pre-configured transport or port/baudrate for backward compatibility
-        if transport is not None:
-            self.t = transport
-        else:
-            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
-
+class OWONSPM(DriverBase):
     def query_identify(self):
         self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-    
-    def set_reset(self):
-        self.t.write_line('*RST')
         return self.t.read_until_reol(1024)
 
     def query_output_voltage(self, channel: int):
@@ -231,14 +220,5 @@ class OWONSPM:
         elif value == "DIOD":
             self.set_diode(1)
         elif value == "CONT":
-            self.set_continuity(1)               
+            self.set_continuity(1)
         return
-
-    def write(self, text: str):
-        self.t.write_line(text)
-
-    def read(self, size=1024):
-        return self.t.read(size)
-
-    def close(self):
-        self.t.close()

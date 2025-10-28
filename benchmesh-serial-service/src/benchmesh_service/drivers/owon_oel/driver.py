@@ -1,24 +1,9 @@
-from ...transport import SerialTransport
+from ..base import DriverBase
 from ...utils.si import si_to_value
-from ...cache import SimpleCache
 
-class OwonOEL:
-    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
-        # Accept either pre-configured transport or port/baudrate for backward compatibility
-        if transport is not None:
-            self.t = transport
-        else:
-            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
-        # Cache for INPUT and MODE to reduce queries during polling
-        # These values rarely change (only when user calls set_input/set_mode)
-        self.cache = SimpleCache()
-
+class OwonOEL(DriverBase):
     def query_identify(self):
         self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-    
-    def set_reset(self):
-        self.t.write_line('*RST')
         return self.t.read_until_reol(1024)
 
     def query_status(self, channel: int):
@@ -154,13 +139,4 @@ class OwonOEL:
     
     def query_pow(self, channel: int):
         self.t.write_line('POW?')
-        return self.t.read_until_reol(1024) 
-
-    def write(self, data: bytes):
-        self.t.write(data)
-
-    def read(self, size=1024):
-        return self.t.read(size)
-
-    def close(self):
-        self.t.close()
+        return self.t.read_until_reol(1024)

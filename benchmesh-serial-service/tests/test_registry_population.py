@@ -179,6 +179,7 @@ def test_all_drivers_have_query_identify():
     from benchmesh_service.drivers.owon_spm.driver import OWONSPM
     from benchmesh_service.drivers.owon_xdm.driver import OWONXDM
     from benchmesh_service.drivers.tenma_72.driver import TenmaPSU
+    from benchmesh_service.transport import SerialTransport
 
     drivers = {
         'OwonOEL': OwonOEL,
@@ -193,7 +194,8 @@ def test_all_drivers_have_query_identify():
 
         # Check it's a method
         with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
-            instance = driver_class('/dev/ttyFAKE', 115200, serial_mode='8N1', seol='\r', reol='\r')
+            transport = SerialTransport('/dev/ttyFAKE', 115200, serial_mode='8N1', seol='\r', reol='\r').open()
+            instance = driver_class(transport=transport)
             assert callable(getattr(instance, 'query_identify')), \
                 f"{name}.query_identify must be callable"
             instance.close()

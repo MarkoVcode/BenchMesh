@@ -338,10 +338,14 @@ BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node
 ## Adding a New Driver
 
 1. Create driver package: `benchmesh-serial-service/src/benchmesh_service/drivers/<driver_name>/`
-2. Create `driver.py` with a class exposing:
-   - `query_identify()` → returns IDN string
-   - `poll_status()` → returns status dict
-   - Device-specific control methods following naming convention:
+2. Create `driver.py` with a class that **inherits from DriverBase**:
+   - Import: `from ..base import DriverBase`
+   - Inherit: `class MyDriver(DriverBase):`
+   - **No `__init__` needed** - DriverBase handles transport and cache setup
+   - Implement required abstract methods:
+     - `query_identify()` → returns IDN string
+     - `poll_status(channel: int)` → returns status dict
+   - Add device-specific control methods following naming convention:
      - Read methods: `query_voltage()`, `query_current()`, `query_status()`, etc.
      - Write methods: `set_voltage()`, `set_current()`, `set_mode()`, etc.
 3. Create `manifest.json` defining models, classes, polling config, and EOL characters
@@ -349,22 +353,26 @@ BenchMesh stores all user data in `~/.benchmesh/` to ensure configurations, Node
    - Drivers default to enabled if flag is omitted
    - Example: `{"vendor": "OWON", "family": "DGE", "version": "1.0.0", "enabled": false, "models": {...}}`
 4. Update `drivers/classes.json` if adding new 3-letter class codes
-5. Add driver instantiation logic to `driver_factory.py` if needed
-6. Create tests in `tests/` using pytest and mock serial communication
+5. Create tests in `tests/` using pytest and mock serial communication
 
 **Driver Naming Convention:**
 - **Query methods** (read): prefix with `query_` (e.g., `query_voltage`, `query_current`)
 - **Setter methods** (write): prefix with `set_` (e.g., `set_voltage`, `set_current`)
 - This enables the API's smart resolution: GET `/voltage` → `query_voltage()`, POST `/current/2.5` → `set_current()`
 
-Driver should accept `transport: Transport` in constructor and use it for all communication. The Transport interface supports multiple physical transports (SerialTransport for RS232/USB-Serial, with USB TMC and TCP/IP support planned).
+**DriverBase Inheritance:**
+All drivers inherit from `DriverBase` which provides:
+- **Automatic transport management**: Access via `self.t` (no constructor needed)
+- **Built-in caching**: Use `self.cache` (SimpleCache instance automatically created)
+- **Common methods**: `close()`, `is_connected()`, `set_reset()` (with USB TMC auto-detection)
+- **Transport delegation**: `write()`, `read()`, `write_line()`, `read_until_reol()`
+- **Helper methods**: `_parse_numeric()`, `_clean_response()`, `_is_usb_tmc()`
 
-**Optional Caching:**
-Drivers can use `SimpleCache` to minimize redundant SCPI calls between polling and API requests:
-- Import: `from ...cache import SimpleCache`
-- Initialize in `__init__()`: `self.cache = SimpleCache()`
-- Use in `poll_status()`: Check `self.cache.get(key)` before querying, call `self.cache.set(key, value)` after query
-- Invalidate in `set_*` methods: Call `self.cache.invalidate(key)` when device state changes
+**Caching (Built-in):**
+Every driver automatically has `self.cache` (SimpleCache instance) available:
+- Use in `poll_status()`: `value = self.cache.get_or_set("key", self.query_method, channel)`
+- Invalidate in `set_*` methods: `self.cache.invalidate("key")` when device state changes
+- No initialization needed - handled by DriverBase
 - See `drivers/owon_oel/driver.py` for reference implementation
 - See `CACHE_DESIGN.md` for complete caching guide and migration steps
 - Typical performance gain: 3x speedup in polling (owon_oel measured)
@@ -376,6 +384,11 @@ Drivers can use `SimpleCache` to minimize redundant SCPI calls between polling a
 - `driver_factory.py`: Instantiates driver classes from string names and device configs
 - `poll_worker.py`: DeviceWorker runs per-device polling loop in dedicated thread
 - `registry.py`: DeviceRegistry thread-safe storage for device IDN and status
+- `drivers/base.py`: DriverBase abstract class - all drivers inherit from this
+  - Provides automatic transport management, built-in caching, USB TMC detection
+  - Common methods: `close()`, `is_connected()`, `set_reset()`, transport delegation
+  - Helper methods: `_parse_numeric()`, `_clean_response()`, `_is_usb_tmc()`
+  - Abstract methods drivers must implement: `query_identify()`, `poll_status()`
 - `transport/`: Abstract transport layer with multiple implementations
   - `transport/base.py`: Transport ABC defining interface for all transports
   - `transport/serial.py`: SerialTransport for RS232/USB-Serial with pyserial

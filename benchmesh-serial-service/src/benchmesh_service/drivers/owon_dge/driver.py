@@ -4,29 +4,17 @@ Supports DGE2070, DGE2035, DGE3032, DGE3062, DGE3031, DGE3061
 """
 import os
 from datetime import datetime
-from ...transport import SerialTransport
+from ..base import DriverBase
 from ...transport.utils import parse_ieee488_binary_block
 
 
-class OwonDGE:
+class OwonDGE(DriverBase):
     """Driver for OWON DGE series function generators"""
-
-    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
-        # Accept either pre-configured transport or port/baudrate for backward compatibility
-        if transport is not None:
-            self.t = transport
-        else:
-            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
 
     def query_identify(self):
         """Query device identification"""
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
-
-    def set_reset(self):
-        """Reset device to factory settings"""
-        # SCPI set commands don't return responses - just write, don't read
-        self.t.write_line('*RST')
 
     def poll_status(self, channel: int = 1):
         """Poll device status - simplified to prevent USB TMC buffer issues"""
@@ -64,14 +52,6 @@ class OwonDGE:
     def query_symmetry(self, channel: int):
         self.t.write_line(f'SOURce{channel}:FUNCtion:RAMP:SYMMetry?')
         return self.t.read_until_reol(1024)
-
-    def write(self, data: bytes):
-        """Write raw data to transport"""
-        self.t.write(data)
-
-    def read(self, size=1024):
-        """Read raw data from transport"""
-        return self.t.read(size)
 
     def query_screenshot(self, save_path: str = None, max_attempts: int = 3,
                         accept_partial: bool = True, min_completion: float = 0.75) -> bytes:
@@ -246,7 +226,3 @@ class OwonDGE:
             print(f"Warning: Could not save screenshot to {save_path}: {e}")
 
         return bmp_data
-
-    def close(self):
-        """Close transport connection"""
-        self.t.close()

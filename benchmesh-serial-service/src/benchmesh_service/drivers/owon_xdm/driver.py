@@ -1,21 +1,10 @@
-from ...transport import SerialTransport
+from ..base import DriverBase
 from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
 
-class OWONXDM:
-    def __init__(self, port=None, baudrate=115200, serial_mode='8N1', seol='\r', reol='\r', transport=None):
-        # Accept either pre-configured transport or port/baudrate for backward compatibility
-        if transport is not None:
-            self.t = transport
-        else:
-            self.t = SerialTransport(port, baudrate, serial_mode=serial_mode, seol=seol, reol=reol).open()
-
+class OWONXDM(DriverBase):
     def query_identify(self):
         self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-    
-    def set_reset(self):
-        self.t.write_line('*RST')
         return self.t.read_until_reol(1024)
 
     def poll_status(self, channel: int):
@@ -116,33 +105,5 @@ class OWONXDM:
         elif value == "TEMP":
             self.set_temperature(1, "KITS90")           
         elif value == "PER":
-            self.set_period(1)                
+            self.set_period(1)
         return
-
-    def write(self, data: bytes):
-        self.t.write(data)
-
-    def read(self, size=1024):
-        return self.t.read(size)
-
-    def close(self):
-        self.t.close()
-
-    def is_connected(self):
-        return self.t.is_open
-    
-    def _clean_response(self, raw):
-        """Normalize device response: bytes->str, strip whitespace and remove surrounding quotes."""
-        if raw is None:
-            return ""
-        if isinstance(raw, (bytes, bytearray)):
-            try:
-                s = raw.decode('utf-8', errors='ignore')
-            except Exception:
-                s = raw.decode('latin1', errors='ignore')
-        else:
-            s = str(raw)
-        s = s.strip()
-        if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
-            s = s[1:-1].strip()
-        return s
