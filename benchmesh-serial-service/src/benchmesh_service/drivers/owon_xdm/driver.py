@@ -2,13 +2,10 @@ from ..base import DriverBase
 from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
 
-class OWONXDM(DriverBase):
-    def query_identify(self):
-        self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-
+class OwonXDM(DriverBase):
     def poll_status(self, channel: int):
-        query_measurement = self.query_measurement(1)
+        query_measurement = self._query_measurement(1)
+        #print ("Measurement:", query_measurement)
         num_str, sym, n = format_scientific_to_si(query_measurement)
         function = self.query_function(1)
         raw = self.query_identify() or b""
@@ -73,9 +70,20 @@ class OWONXDM(DriverBase):
         self.t.write_line('TEMPerature:RTD:UNIT ' + str(unit))
         return self.t.read_until_reol(1024)
 
-    def query_measurement(self, channel: int):
+    def _query_measurement(self, channel: int):
         self.t.write_line('MEAS1?')
-        return self.t.read_until_reol(1024)    
+        mes = self.t.read_until_reol(1024)
+        #print("Queried measurement:", mes)
+        self.cache.set("measurement",  mes, 0.8)
+        return mes
+    
+    def query_measurement(self, channel: int):
+        measurement = self.cache.set("measurement")
+        #print("Cached measurement:", measurement)
+        if measurement is not None:
+            self.t.write_line('MEAS1?')
+            measurement = self.t.read_until_reol(1024)
+        return measurement
     
     def query_function(self, channel: int):
         self.t.write_line('FUNCtion?')

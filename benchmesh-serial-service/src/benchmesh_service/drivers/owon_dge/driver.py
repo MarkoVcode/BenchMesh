@@ -11,11 +11,6 @@ from ...transport.utils import parse_ieee488_binary_block
 class OwonDGE(DriverBase):
     """Driver for OWON DGE series function generators"""
 
-    def query_identify(self):
-        """Query device identification"""
-        self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-
     def poll_status(self, channel: int = 1):
         """Poll device status - simplified to prevent USB TMC buffer issues"""
         # For AWG, channel is typically not used (single-instrument status)

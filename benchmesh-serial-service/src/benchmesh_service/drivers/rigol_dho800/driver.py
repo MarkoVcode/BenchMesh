@@ -8,11 +8,6 @@ from ..base import DriverBase
 class RigolDHO800(DriverBase):
     """Driver for RIGOL DHO800 series oscilloscopes"""
 
-    def query_identify(self):
-        """Query device identification"""
-        self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-
     def poll_status(self, channel: int = 1):
         """Poll device status"""
         # Query basic oscilloscope parameters

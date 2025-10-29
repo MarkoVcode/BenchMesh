@@ -6,11 +6,7 @@ from ...utils.si import si_to_value
 
 logger = logging.getLogger(__name__)
 
-class OWONSPM(DriverBase):
-    def query_identify(self):
-        self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-
+class OwonSPM(DriverBase):
     def query_output_voltage(self, channel: int):
         self.t.write_line('MEAS:VOLT?')
         return self.t.read_until_reol(1024)

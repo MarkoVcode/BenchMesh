@@ -2,10 +2,6 @@ from ..base import DriverBase
 from ...utils.si import si_to_value
 
 class OwonOEL(DriverBase):
-    def query_identify(self):
-        self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-
     def query_status(self, channel: int):
         self.t.write_line('MEAS:ALL:INFO?')
         return self.t.read_until_reol(1024)

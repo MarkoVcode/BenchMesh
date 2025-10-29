@@ -53,20 +53,6 @@ class DriverBase(ABC):
         self.cache = SimpleCache()  # All drivers get automatic caching
 
     # ===== REQUIRED ABSTRACT METHODS =====
-
-    @abstractmethod
-    def query_identify(self) -> str:
-        """
-        Query device identification (*IDN? command).
-
-        Must be implemented by all drivers.
-        Called once on connection to identify device model.
-
-        Returns:
-            IDN string from device (e.g., "OWON,XDM1241,SN:123456,V1.0")
-        """
-        pass
-
     @abstractmethod
     def poll_status(self, channel: int) -> Dict[str, Any]:
         """
@@ -85,8 +71,7 @@ class DriverBase(ABC):
         """
         pass
 
-    # ===== COMMON IMPLEMENTED METHODS =====
-
+    # ===== COMMON IMPLEMENTED METHODS =====   
     def set_reset(self) -> Optional[str]:
         """
         Reset device to factory defaults (*RST command).
@@ -107,6 +92,10 @@ class DriverBase(ABC):
         if self._is_usb_tmc():
             return None
 
+        return self.t.read_until_reol(1024)
+
+    def query_identify(self):
+        self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
 
     def close(self) -> None:

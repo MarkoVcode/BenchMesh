@@ -2,10 +2,6 @@ from ..base import DriverBase
 from ...utils.si import si_to_value
 
 class TenmaPSU(DriverBase):
-    def query_identify(self):
-        self.t.write_line('*IDN?')
-        return self.t.read_until_reol(1024)
-
     def query_output_voltage(self, channel: int):
         self.t.write_line('VOUT1?')
         return self.t.read_until_reol(1024)
