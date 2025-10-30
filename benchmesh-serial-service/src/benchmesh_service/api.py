@@ -8,9 +8,10 @@ import hashlib
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect, Request
+from typing import Any, Dict, List, Optional
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect, Request, Query, Path, Body, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse, JSONResponse
 from .serial_manager import SerialManager, _load_manifest
@@ -21,6 +22,21 @@ from .api_recording import create_recording_router
 import benchmesh_service.services.recording_service as recording_service_module
 import serial.tools.list_ports
 from .transport import discover_usbtmc_devices
+from .models import (
+    StatusResponse,
+    VersionResponse,
+    DriversResponse,
+    SerialPortInfo,
+    USBTMCDeviceInfo,
+    ConfigResponse,
+    ConfigUpdateResponse,
+    ConfigUpdate,
+    InstrumentInfo,
+    ManifestFeaturesResponse,
+    MethodsResponse,
+    MetricsSummary,
+    InstrumentQueryResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +78,60 @@ async def lifespan(app: FastAPI):
         _frontend_proc = None
 
 
-app = FastAPI(title="BenchMesh Serial Service", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="BenchMesh Serial Service",
+    version="0.1.0",
+    description="""
+BenchMesh is a consistent, browser-based cockpit for lab instruments.
+
+## Features
+
+* **Multi-device support** - Connect and control multiple instruments simultaneously
+* **WebSocket streaming** - Real-time data updates via WebSocket
+* **Data recording** - Record multi-device data with pause/resume support
+* **AI integration** - AI-powered automation and assistance
+* **Modular drivers** - Extensible driver architecture
+
+## Authentication
+
+Currently no authentication is required (local development).
+    """,
+    openapi_tags=[
+        {
+            "name": "system",
+            "description": "System status, version information, and OpenAPI specifications"
+        },
+        {
+            "name": "configuration",
+            "description": "Device configuration, driver discovery, and port scanning"
+        },
+        {
+            "name": "instruments",
+            "description": "Instrument listing, capabilities, and method discovery"
+        },
+        {
+            "name": "instrument-control",
+            "description": "Direct instrument control operations (query and set methods)"
+        },
+        {
+            "name": "monitoring",
+            "description": "Performance metrics, health monitoring, and throttling statistics"
+        },
+        {
+            "name": "recordings",
+            "description": "Data recording, export, and playback"
+        },
+        {
+            "name": "ai-assistant",
+            "description": "AI assistant context generation and integration"
+        },
+        {
+            "name": "websockets",
+            "description": "Real-time data streaming via WebSocket connections"
+        }
+    ],
+    lifespan=lifespan
+)
 
 # Enable CORS for development (Vite on :52892)
 app.add_middleware(
@@ -248,35 +317,222 @@ def root():
     return RedirectResponse(url=f"http://{host}:{UI_DEV_PORT}")
 
 
-@app.get("/status", summary="Service status", response_model=dict)
+@app.get(
+    "/status",
+    tags=["system"],
+    response_model=StatusResponse,
+    summary="Get service status",
+    responses={
+        200: {
+            "description": "Service status with device connection counts",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "devices_total": 3,
+                        "connected": 2,
+                        "disconnected": 1
+                    }
+                }
+            }
+        }
+    }
+)
 def get_status():
+    """
+    Get current service status and device connection statistics.
+
+    Returns the total number of configured devices and how many are currently
+    connected vs disconnected. Useful for health monitoring and dashboards.
+
+    **Connection States:**
+    - **connected**: Device driver is active and responding
+    - **disconnected**: Device driver failed to connect or connection lost
+    """
     global _manager
     if not _manager:
-        return {"devices_total": 0, "connected": 0, "disconnected": 0}
+        return StatusResponse(devices_total=0, connected=0, disconnected=0)
     device_ids = [d.get('id') for d in _manager.devices if d.get('id')]
     total = len(device_ids)
     connected = sum(1 for did in device_ids if _manager.connections.get(did))
-    return {"devices_total": total, "connected": connected, "disconnected": total - connected}
+    return StatusResponse(
+        devices_total=total,
+        connected=connected,
+        disconnected=total - connected
+    )
 
-@app.get("/version", summary="Application version", response_model=dict)
+@app.get(
+    "/version",
+    tags=["system"],
+    response_model=VersionResponse,
+    summary="Get application version",
+    responses={
+        200: {
+            "description": "Application version information",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "version": "0.1.0",
+                        "name": "BenchMesh",
+                        "description": "Lab Instrument Control System"
+                    }
+                }
+            }
+        }
+    }
+)
 def get_version():
     """
-    Return application version information.
+    Get application version information.
+
+    Returns version number, application name, and description.
     Reads from version.json at the repository root.
+
+    **Version Format**: Semantic versioning (MAJOR.MINOR.PATCH)
     """
     version_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'version.json')
     try:
         with open(version_path, 'r') as f:
             import json
-            return json.load(f)
+            data = json.load(f)
+            return VersionResponse(**data)
     except Exception as e:
-        return {"version": "unknown", "name": "BenchMesh", "description": "Lab Instrument Control System", "error": str(e)}
+        return VersionResponse(
+            version="unknown",
+            name="BenchMesh",
+            description="Lab Instrument Control System",
+            error=str(e)
+        )
 
-@app.get("/drivers", summary="List available drivers", response_model=dict)
+@app.get(
+    "/openapi.json",
+    tags=["system"],
+    summary="Get OpenAPI specification (JSON)",
+    include_in_schema=False,
+    response_class=FileResponse
+)
+async def get_openapi_json():
+    """
+    Serve pre-generated OpenAPI specification in JSON format.
+
+    This endpoint serves the OpenAPI 3.0 specification that was generated
+    during the build process. The spec includes all API endpoints, request/response
+    models, and documentation.
+
+    **Generation**: Run `./start.sh --uibuild` to regenerate the spec.
+
+    **Use Cases:**
+    - Import into API testing tools (Postman, Insomnia)
+    - Generate API clients in various languages
+    - API documentation and exploration
+    """
+    spec_path = os.path.join(
+        os.path.dirname(__file__),
+        'static',
+        'openapi',
+        'openapi.json'
+    )
+    if not os.path.exists(spec_path):
+        raise HTTPException(
+            status_code=404,
+            detail="OpenAPI spec not generated. Run build with --uibuild flag to generate."
+        )
+    return FileResponse(
+        spec_path,
+        media_type="application/json",
+        filename="benchmesh-openapi.json"
+    )
+
+@app.get(
+    "/openapi.yaml",
+    tags=["system"],
+    summary="Get OpenAPI specification (YAML)",
+    include_in_schema=False,
+    response_class=FileResponse
+)
+async def get_openapi_yaml():
+    """
+    Serve pre-generated OpenAPI specification in YAML format.
+
+    This endpoint serves the OpenAPI 3.0 specification that was generated
+    during the build process. YAML format is often preferred for human readability.
+
+    **Generation**: Run `./start.sh --uibuild` to regenerate the spec.
+
+    **Use Cases:**
+    - Human-readable API documentation
+    - Version control and diff-friendly format
+    - Import into OpenAPI tools that prefer YAML
+    """
+    spec_path = os.path.join(
+        os.path.dirname(__file__),
+        'static',
+        'openapi',
+        'openapi.yaml'
+    )
+    if not os.path.exists(spec_path):
+        raise HTTPException(
+            status_code=404,
+            detail="OpenAPI spec not generated. Run build with --uibuild flag to generate."
+        )
+    return FileResponse(
+        spec_path,
+        media_type="application/x-yaml",
+        filename="benchmesh-openapi.yaml"
+    )
+
+@app.get(
+    "/drivers",
+    tags=["configuration"],
+    response_model=DriversResponse,
+    summary="List available instrument drivers",
+    responses={
+        200: {
+            "description": "Dictionary of available drivers with vendor, family, and transport information",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "tenma_72": {
+                            "vendor": "TENMA",
+                            "family": "72-SERIES",
+                            "supported_transports": ["serial"]
+                        },
+                        "owon_spm": {
+                            "vendor": "OWON",
+                            "family": "SPM",
+                            "supported_transports": ["serial", "usbtmc"]
+                        },
+                        "rigol_dho": {
+                            "vendor": "RIGOL",
+                            "family": "DHO",
+                            "supported_transports": ["usbtmc"]
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def list_drivers():
     """
-    Scan drivers folder and return available drivers with their vendor, family, and supported transports.
-    Returns a dict mapping driver_id (folder name) to {vendor, family, supported_transports} extracted from manifest.json
+    List all available instrument drivers in the system.
+
+    Scans the drivers directory and returns information about each enabled driver.
+    Each driver ID maps to vendor name, product family, and supported transport types.
+
+    **Driver Discovery:**
+    - Only enabled drivers with valid manifest.json files are returned
+    - Drivers can be disabled by setting `"enabled": false` in their manifest
+    - Each driver folder must contain a manifest.json with vendor/family info
+
+    **Supported Transports:**
+    - `serial`: RS232/USB-Serial communication
+    - `usbtmc`: USB Test & Measurement Class (IEEE 488.2 over USB)
+    - `tcpip`: Network/Ethernet communication (future)
+
+    **Use Cases:**
+    - Populate driver selection dropdowns in configuration UI
+    - Discover which instruments can be controlled
+    - Check transport compatibility before device configuration
     """
     drivers = {}
     drivers_dir = os.path.join(os.path.dirname(__file__), 'drivers')
@@ -314,7 +570,12 @@ def list_drivers():
 
     return drivers
 
-@app.get("/metrics", summary="Get performance and throttling metrics for all devices", response_model=dict)
+@app.get(
+    "/metrics",
+    tags=["monitoring"],
+    response_model=MetricsSummary,
+    summary="Get metrics for all devices"
+)
 def get_all_metrics():
     """
     Phase 4: Get performance and adaptive throttling metrics for all devices.
@@ -334,13 +595,20 @@ def get_all_metrics():
         return {"error": "Metrics collector not available"}
 
     summary = _manager.metrics_collector.get_utilization_summary()
-    return {
-        "summary": summary,
-        "timestamp": time.time()
-    }
+    return MetricsSummary(
+        summary=summary,
+        timestamp=time.time()
+    )
 
-@app.get("/metrics/{device_id}", summary="Get performance and throttling metrics for a specific device", response_model=dict)
-def get_device_metrics(device_id: str):
+@app.get(
+    "/metrics/{device_id}",
+    tags=["monitoring"],
+    response_model=dict,
+    summary="Get metrics for specific device"
+)
+def get_device_metrics(
+    device_id: str = Path(..., description="Device identifier")
+):
     """
     Phase 4: Get performance and adaptive throttling metrics for a specific device.
 
@@ -358,12 +626,33 @@ def get_device_metrics(device_id: str):
     metrics["timestamp"] = time.time()
     return metrics
 
-@app.get("/drivers/{driver_id}", summary="List models for a specific driver", response_model=list)
-def list_driver_models(driver_id: str):
+@app.get(
+    "/drivers/{driver_id}",
+    tags=["configuration"],
+    response_model=List[str],
+    summary="List models for specific driver",
+    responses={
+        200: {
+            "description": "List of supported model identifiers",
+            "content": {
+                "application/json": {
+                    "example": ["72-2540", "72-2530", "72-2535"]
+                }
+            }
+        },
+        404: {"description": "Driver not found"}
+    }
+)
+def list_driver_models(
+    driver_id: str = Path(..., description="Driver identifier", example="tenma_72")
+):
     """
     Get list of supported models for a specific driver.
-    Returns a list of model identifiers (keys from the manifest's models object).
-    Example: ["72-2540", "72-2530"]
+
+    Returns model identifiers from the driver's manifest.
+    The DEFAULT template model is excluded as it's not user-selectable.
+
+    **Example**: `tenma_72` returns `["72-2540", "72-2530"]`
     """
     drivers_dir = os.path.join(os.path.dirname(__file__), 'drivers')
     manifest_path = os.path.join(drivers_dir, driver_id, 'manifest.json')
@@ -382,25 +671,36 @@ def list_driver_models(driver_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read manifest: {str(e)}")
 
-@app.get("/serial-ports", summary="List available serial ports", response_model=list)
-def list_serial_ports(exclude: str = ""):
+@app.get(
+    "/serial-ports",
+    tags=["configuration"],
+    response_model=List[SerialPortInfo],
+    summary="List available serial ports",
+    responses={
+        200: {"description": "List of available serial ports with device information"},
+        500: {"description": "Failed to scan serial ports"}
+    }
+)
+def list_serial_ports(
+    exclude: str = Query(
+        "",
+        description="Comma-separated list of port paths to exclude",
+        example="/dev/ttyUSB0,/dev/ttyUSB1"
+    )
+):
     """
     List available serial ports on the system.
 
-    Query parameters:
-    - exclude: Comma-separated list of port paths to exclude (e.g., ports already in use)
+    Scans all available serial ports and returns detailed information including
+    device path, description, manufacturer, serial number, and hardware ID.
 
-    Returns a list of serial port information with:
-    - device: Port path (e.g., /dev/ttyUSB0, COM3, /dev/cu.usbserial-1420)
-    - description: Human-readable description of the device
-    - manufacturer: Manufacturer name (if available)
-    - serial_number: Device serial number (if available)
-    - hwid: Hardware ID string
+    **Cross-platform Support:**
+    - **Windows**: COM1, COM2, etc.
+    - **Linux**: /dev/ttyUSB*, /dev/ttyACM*, plus udev symlinks
+    - **macOS**: /dev/cu.*, /dev/tty.*
 
-    Cross-platform support:
-    - Windows: COM1, COM2, etc.
-    - Linux: /dev/ttyUSB*, /dev/ttyACM*, etc. plus udev symlinks
-    - macOS: /dev/cu.*, /dev/tty.*
+    **Excluding Ports**: Use the `exclude` parameter to filter out ports already
+    in use or not relevant for selection.
     """
     try:
         # Get list of all available serial ports
@@ -487,22 +787,37 @@ def list_serial_ports(exclude: str = ""):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list serial ports: {str(e)}")
 
-@app.get("/usbtmc-devices", summary="List available USB TMC devices", response_model=list)
-def list_usbtmc_devices(exclude: str = ""):
+@app.get(
+    "/usbtmc-devices",
+    tags=["configuration"],
+    response_model=List[USBTMCDeviceInfo],
+    summary="List available USB TMC devices",
+    responses={
+        200: {"description": "List of available USB TMC devices"},
+        500: {"description": "Failed to scan USB TMC devices"}
+    }
+)
+def list_usbtmc_devices(
+    exclude: str = Query(
+        "",
+        description="Comma-separated list of device paths to exclude",
+        example="/dev/usbtmc0,/dev/tmcDGE2070"
+    )
+):
     """
-    List available USB Test & Measurement Class (TMC) devices on the system.
+    List available USB Test & Measurement Class (TMC) devices.
 
-    Query parameters:
-    - exclude: Comma-separated list of device paths to exclude (e.g., devices already in use)
+    USB TMC is a standard protocol for test and measurement instruments
+    over USB. Devices appear as /dev/usbtmc* on Linux with proper kernel support.
 
-    Returns a list of USB TMC device information with:
-    - device: Device path (e.g., /dev/usbtmc0, /dev/tmcDGE2070)
-    - name: Device name (e.g., usbtmc0, tmcDGE2070)
-    - vendor_id: USB vendor ID (e.g., 0x1ab1)
-    - product_id: USB product ID (e.g., 0x04ce)
-    - manufacturer: Manufacturer name (if available)
-    - product: Product name (if available)
-    - serial: Device serial number (if available)
+    **Returned Information:**
+    - Device path (e.g., `/dev/usbtmc0`)
+    - USB vendor/product IDs
+    - Manufacturer and product names
+    - Serial numbers (if available)
+
+    **Excluding Devices**: Use the `exclude` parameter to filter out devices
+    already in use.
     """
     try:
         # Get list of all available USB TMC devices
@@ -524,31 +839,56 @@ def list_usbtmc_devices(exclude: str = ""):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list USB TMC devices: {str(e)}")
 
-@app.get("/config", summary="Get current configuration from serial_manager")
+@app.get(
+    "/config",
+    tags=["configuration"],
+    response_model=ConfigResponse,
+    summary="Get current configuration"
+)
 def get_config():
-    """Get the current runtime configuration from serial_manager.devices"""
+    """
+    Get the current runtime configuration.
+
+    Returns the active device configuration from the SerialManager.
+    This reflects the currently running configuration, which may differ
+    from the config file if modifications haven't been persisted.
+    """
     global _manager
     if not _manager:
-        return {"devices": []}
-    return {"devices": _manager.devices}
+        return ConfigResponse(devices=[])
+    return ConfigResponse(devices=_manager.devices)
 
-@app.post("/config", summary="Update configuration and restart connections")
-def update_config(config: Dict[str, List[Dict]]):
+@app.post(
+    "/config",
+    tags=["configuration"],
+    response_model=ConfigUpdateResponse,
+    summary="Update configuration",
+    responses={
+        200: {"description": "Configuration updated successfully"},
+        400: {"description": "Invalid configuration format or validation error"},
+        500: {"description": "Failed to save configuration to disk"}
+    }
+)
+def update_config(config: ConfigUpdate = Body(...)):
     """
-    Update the entire configuration and restart all connections.
-    The payload must contain a 'devices' key with a list of device configs.
-    This replaces the entire configuration - if you send 1 device, all others are removed.
+    Update the entire device configuration and restart all connections.
 
-    Changes are persisted to the config.yaml file.
+    **⚠️ Warning**: This replaces the entire configuration. If you send 1 device,
+    all others will be removed.
+
+    **Process:**
+    1. Validates the new configuration using Pydantic models
+    2. Persists changes to config.yaml file
+    3. Stops all existing device connections
+    4. Creates new SerialManager with updated config
+    5. Starts new device connections
+
+    **Configuration Persistence**: Changes are saved to the config file specified
+    by the `BENCHMESH_CONFIG` environment variable (default: `~/.benchmesh/config.yaml`).
     """
     global _manager
 
-    if not isinstance(config, dict) or 'devices' not in config:
-        raise HTTPException(status_code=400, detail="Config must contain 'devices' key")
-
-    devices = config.get('devices', [])
-    if not isinstance(devices, list):
-        raise HTTPException(status_code=400, detail="'devices' must be a list")
+    devices = [dev.model_dump() for dev in config.devices]
 
     # Persist configuration to file before applying
     cfg_path = os.getenv("BENCHMESH_CONFIG", "config.yaml")
@@ -568,11 +908,11 @@ def update_config(config: Dict[str, List[Dict]]):
     _manager = SerialManager(devices)
     _manager.start()
 
-    return {
-        "status": "success",
-        "message": f"Configuration updated with {len(devices)} device(s) and saved to {cfg_path}",
-        "devices": _manager.devices
-    }
+    return ConfigUpdateResponse(
+        status="success",
+        message=f"Configuration updated with {len(devices)} device(s) and saved to {cfg_path}",
+        devices=_manager.devices
+    )
 
 def _build_instruments_list(class_filter: str | None = None) -> List[Dict[str, Any]]:
     """
@@ -663,8 +1003,76 @@ def _build_instruments_list(class_filter: str | None = None) -> List[Dict[str, A
     return items
 
 
-@app.get("/instruments", summary="List instruments and last IDN", response_model=list)
-def list_instruments(request: Request):
+@app.get(
+    "/instruments",
+    tags=["instruments"],
+    response_model=List[InstrumentInfo],
+    summary="List all configured instruments",
+    responses={
+        200: {
+            "description": "List of all instruments with their classes, channels, and health status",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": "psu-1",
+                            "name": "TENMA PSU",
+                            "IDN": "TENMA,72-2540,SN12345,V1.0",
+                            "health": {
+                                "status": "healthy",
+                                "consecutive_failures": 0,
+                                "is_alive": True
+                            },
+                            "classes": [
+                                {
+                                    "class": "PSU",
+                                    "channels": [
+                                        "/instruments/PSU/psu-1/1",
+                                        "/instruments/PSU/psu-1/2",
+                                        "/instruments/PSU/psu-1/3"
+                                    ],
+                                    "ui_component": "psu_control"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        304: {"description": "Not modified (content matches ETag)"}
+    }
+)
+def list_instruments(
+    request: Request,
+    if_none_match: Optional[str] = Header(None, description="ETag for conditional requests (e.g., '\"abc123\"')")
+):
+    """
+    Get a complete list of all configured instruments with their capabilities.
+
+    Returns comprehensive information for each instrument including:
+    - Device ID and display name
+    - Identification string from *IDN? SCPI command
+    - Health status and connection state
+    - Available instrument classes (PSU, DMM, SPM, etc.)
+    - Channel endpoints for each class
+    - UI component recommendations
+
+    **ETag Support:**
+    This endpoint supports conditional requests via ETags for efficient polling.
+    Include the `If-None-Match` header with the previous ETag to receive 304 Not Modified
+    when content hasn't changed.
+
+    **Health Status:**
+    - `healthy`: No recent failures, fully operational
+    - `degraded`: Some failures but still attempting communication
+    - `unhealthy`: Consecutive failures exceed threshold
+
+    **Use Cases:**
+    - Build instrument dashboards and navigation
+    - Monitor device connection status
+    - Discover available instrument capabilities
+    - Generate dynamic UI based on connected devices
+    """
     items = _build_instruments_list()
 
     # Generate ETag from JSON content
@@ -680,11 +1088,66 @@ def list_instruments(request: Request):
     return JSONResponse(content=items, headers={"ETag": etag})
 
 
-@app.get("/instruments/{klass}", summary="List instruments filtered by class", response_model=list)
-def list_instruments_by_class(klass: str, request: Request):
+@app.get(
+    "/instruments/{klass}",
+    tags=["instruments"],
+    response_model=List[InstrumentInfo],
+    summary="List instruments filtered by class",
+    responses={
+        200: {
+            "description": "List of instruments that support the specified class",
+            "content": {
+                "application/json": {
+                    "example": [
+                        {
+                            "id": "psu-1",
+                            "name": "TENMA PSU",
+                            "IDN": "TENMA,72-2540,SN12345,V1.0",
+                            "health": {"status": "healthy", "consecutive_failures": 0, "is_alive": True},
+                            "classes": [
+                                {
+                                    "class": "PSU",
+                                    "channels": ["/instruments/PSU/psu-1/1", "/instruments/PSU/psu-1/2", "/instruments/PSU/psu-1/3"],
+                                    "ui_component": "psu_control"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        304: {"description": "Not modified (content matches ETag)"},
+        404: {"description": "Invalid instrument class code"}
+    }
+)
+def list_instruments_by_class(
+    klass: str = Path(..., description="3-letter instrument class code (e.g., PSU, DMM, SPM, OSC)", example="PSU", regex="^[A-Z]{3}$"),
+    request: Request = None,
+    if_none_match: Optional[str] = Header(None, description="ETag for conditional requests")
+):
     """
-    List instruments that have the specified instrument class.
-    
+    Filter instruments by instrument class type.
+
+    Returns only instruments that support the specified class. For each instrument,
+    only the matching class information is included (other classes are filtered out).
+
+    **Common Class Codes:**
+    - `PSU`: Power Supply Unit - voltage/current source control
+    - `DMM`: Digital Multimeter - voltage/current/resistance measurement
+    - `SPM`: Switching Power Module - electronic load/source mode
+    - `OSC`: Oscilloscope - waveform capture and analysis
+    - `FGN`: Function Generator - waveform generation
+    - `OEL`: DC Electronic Load - current sink control
+
+    **ETag Support:**
+    Supports conditional requests via ETags. Include `If-None-Match` header to avoid
+    redundant transfers when the instrument list hasn't changed.
+
+    **Use Cases:**
+    - Build UI pages specific to one instrument type (e.g., "All Power Supplies")
+    - Filter devices by capability for automation tasks
+    - Discover available channels for a specific instrument class
+
     Returns only instruments with the specified class, and for each instrument
     only includes the matching class in the classes array.
     
@@ -723,8 +1186,56 @@ def list_instruments_by_class(klass: str, request: Request):
     return JSONResponse(content=items, headers={"ETag": etag})
 
 
-@app.get("/instruments/{klass}/{device_id}", summary="Get manifest features for class on device", response_model=dict)
-def get_manifest_features(klass: str, device_id: str):
+@app.get(
+    "/instruments/{klass}/{device_id}",
+    tags=["instruments"],
+    response_model=ManifestFeaturesResponse,
+    summary="Get instrument class features",
+    responses={
+        200: {
+            "description": "Features dictionary for the specified class and device",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "channels": 3,
+                        "voltage_range": {"min": 0, "max": 30},
+                        "current_range": {"min": 0, "max": 5},
+                        "voltage_resolution": 0.01,
+                        "current_resolution": 0.001
+                    }
+                }
+            }
+        },
+        404: {"description": "Invalid class code, unknown device, or class not supported by device"}
+    }
+)
+def get_manifest_features(
+    klass: str = Path(..., description="3-letter instrument class code", example="PSU"),
+    device_id: str = Path(..., description="Unique device identifier from configuration", example="psu-1")
+):
+    """
+    Get the feature specifications for a specific instrument class on a device.
+
+    Returns the features dictionary from the driver's manifest for the specified
+    instrument class. This provides metadata about capabilities, ranges, and limits.
+
+    **Typical Features:**
+    - `channels`: Number of available channels (integer)
+    - `voltage_range`: Min/max voltage (dict with min/max keys)
+    - `current_range`: Min/max current
+    - `*_resolution`: Measurement or control resolution
+    - `*_accuracy`: Accuracy specifications
+    - Device-specific capabilities and limits
+
+    **Use Cases:**
+    - Validate user inputs before sending commands
+    - Display capability ranges in UI controls
+    - Generate appropriate control widgets (e.g., sliders with correct ranges)
+    - Check if device supports specific features before using them
+
+    **Note:** Features are defined in the driver's manifest.json file and vary by
+    instrument type and model.
+    """
     # Validate class and device id
     valid = _load_valid_classes()
     if klass not in valid:
@@ -772,8 +1283,16 @@ def get_manifest_features(klass: str, device_id: str):
     return features
 
 
-@app.get("/instruments/{klass}/{device_id}/methods", summary="List available methods for device with detailed metadata")
-def list_available_methods(klass: str, device_id: str):
+@app.get(
+    "/instruments/{klass}/{device_id}/methods",
+    tags=["instruments"],
+    response_model=MethodsResponse,
+    summary="List available methods"
+)
+def list_available_methods(
+    klass: str = Path(..., description="Instrument class code"),
+    device_id: str = Path(..., description="Device identifier")
+):
     """
     List all available methods for a device with rich metadata.
     
@@ -929,6 +1448,49 @@ async def get_ai_context(
 
 @app.websocket("/ws/registry")
 async def ws_registry(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time device registry updates.
+
+    Broadcasts the current device registry every 200ms (configurable via BM_WS_INTERVAL).
+    The registry contains IDN strings and polled status for all connected devices.
+
+    **Message Format:**
+    ```json
+    {
+        "psu-1": {
+            "IDN": "TENMA,72-2540,SN12345,V1.0",
+            "status": {
+                "channel_1_voltage": "12.503V",
+                "channel_1_current": "0.523A",
+                "channel_1_output": "ON"
+            }
+        },
+        "dmm-1": {
+            "IDN": "OWON,XDM1041,SN98765,V1.2",
+            "status": {
+                "measurement": "5.123V"
+            }
+        }
+    }
+    ```
+
+    **Update Frequency:** Every 200ms by default (5 updates/second)
+
+    **Use Cases:**
+    - Real-time instrument dashboards
+    - Live measurement displays
+    - Connection status monitoring
+    - Status change notifications
+
+    **Client Example:**
+    ```javascript
+    const ws = new WebSocket('ws://localhost:57666/ws/registry');
+    ws.onmessage = (event) => {
+        const registry = JSON.parse(event.data);
+        console.log('Device status:', registry);
+    };
+    ```
+    """
     await websocket.accept()
     try:
         while True:
@@ -944,7 +1506,66 @@ async def ws_registry(websocket: WebSocket):
 
 @app.websocket("/ws/metrics")
 async def ws_metrics(websocket: WebSocket):
-    """WebSocket endpoint for broadcasting serial port utilization metrics."""
+    """
+    WebSocket endpoint for real-time performance metrics streaming.
+
+    Broadcasts comprehensive performance and health metrics for all devices every 30 seconds.
+    Includes serial port utilization, API latency, queue depth, throttling stats, and quality scores.
+
+    **Message Format:**
+    ```json
+    {
+        "psu-1": {
+            "device_id": "psu-1",
+            "utilization_pct": 45.2,
+            "qps": 12.5,
+            "api_latency_p95_ms": 125.3,
+            "api_latency_p99_ms": 180.7,
+            "avg_queue_depth": 2.3,
+            "throttle_events": 0,
+            "skip_rate_pct": 0.0,
+            "backoff_multiplier": 1.0,
+            "quality_score": 0.95,
+            "quality_tier": "excellent",
+            "quality_trend": "stable",
+            "transport_type": "serial"
+        }
+    }
+    ```
+
+    **Metrics Included:**
+    - `utilization_pct`: Serial port utilization (0-100%)
+    - `qps`: Queries per second throughput
+    - `api_latency_p95_ms`: 95th percentile API latency
+    - `api_latency_p99_ms`: 99th percentile API latency
+    - `avg_queue_depth`: Average command queue depth
+    - `throttle_events`: Count of throttling events
+    - `quality_score`: Connection quality (0.0-1.0)
+    - `quality_tier`: excellent/good/fair/poor
+    - `quality_trend`: improving/stable/degrading
+
+    **Update Frequency:** Every 30 seconds
+
+    **Use Cases:**
+    - Real-time performance monitoring dashboards
+    - Connection quality tracking
+    - Throttling and queue depth visualization
+    - Performance degradation alerts
+    - Capacity planning and optimization
+
+    **Client Example:**
+    ```javascript
+    const ws = new WebSocket('ws://localhost:57666/ws/metrics');
+    ws.onmessage = (event) => {
+        const metrics = JSON.parse(event.data);
+        Object.entries(metrics).forEach(([deviceId, stats]) => {
+            console.log(`${deviceId}: ${stats.utilization_pct}% utilization, quality: ${stats.quality_tier}`);
+        });
+    };
+    ```
+
+    **See Also:** `GET /metrics` for one-time metrics retrieval
+    """
     await websocket.accept()
     try:
         while True:
@@ -963,8 +1584,91 @@ async def ws_metrics(websocket: WebSocket):
 
 
 
-@app.get("/instruments/{klass}/{device_id}/{channel}/{method}", summary="Call driver method (read-only)")
-def call_driver_get(klass: str, device_id: str, channel: str, method: str):
+@app.get(
+    "/instruments/{klass}/{device_id}/{channel}/{method}",
+    tags=["instrument-control"],
+    response_model=InstrumentQueryResponse,
+    summary="Query instrument measurement or status",
+    responses={
+        200: {
+            "description": "Successfully queried instrument, returns measured value",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "voltage": {
+                            "summary": "Query PSU output voltage",
+                            "value": {
+                                "path": "/instruments/PSU/psu-1/1/output_voltage",
+                                "value": "12.503V"
+                            }
+                        },
+                        "current": {
+                            "summary": "Query DMM current measurement",
+                            "value": {
+                                "path": "/instruments/DMM/dmm-1/1/current",
+                                "value": "0.523A"
+                            }
+                        },
+                        "status": {
+                            "summary": "Query PSU output status",
+                            "value": {
+                                "path": "/instruments/PSU/psu-1/2/output_status",
+                                "value": "ON"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        400: {"description": "Invalid parameters or method execution failed"},
+        404: {"description": "Invalid class, unknown device, or method not found"}
+    }
+)
+def call_driver_get(
+    klass: str = Path(..., description="3-letter instrument class code", example="PSU"),
+    device_id: str = Path(..., description="Unique device identifier from configuration", example="psu-1"),
+    channel: str = Path(..., regex="^[1-9]$", description="Channel number (1-9)", example="1"),
+    method: str = Path(..., description="Method name without 'query_' prefix (e.g., 'voltage', 'current')", example="output_voltage")
+):
+    """
+    Query a measurement or status from an instrument channel.
+
+    This is the primary endpoint for reading values from instruments. The method name
+    is automatically prefixed with `query_` and resolved to the driver method.
+
+    **Method Resolution:**
+    - Partial name `voltage` → resolves to `query_voltage()` driver method
+    - Partial name `current` → resolves to `query_current()` driver method
+    - Only methods with `query_` prefix can be called via GET (security feature)
+
+    **Common Query Methods:**
+    - `output_voltage`: Read actual output voltage
+    - `output_current`: Read actual output current
+    - `set_voltage`: Read voltage setpoint
+    - `set_current`: Read current setpoint
+    - `output_status`: Check if output is enabled (ON/OFF)
+    - `mode`: Read operating mode (e.g., CV/CC for PSU, CURR/VOLT for SPM)
+
+    **Priority Queue Execution:**
+    When unified polling is enabled, API requests are queued with HIGH priority,
+    ensuring they execute ahead of background polling for minimal latency.
+
+    **Example Requests:**
+    ```bash
+    # Query PSU channel 1 output voltage
+    GET /instruments/PSU/psu-1/1/output_voltage
+
+    # Query DMM channel 1 current measurement
+    GET /instruments/DMM/dmm-1/1/current
+
+    # Query electronic load mode on channel 2
+    GET /instruments/OEL/load-1/2/mode
+    ```
+
+    **Discovery:**
+    Use `GET /instruments/{klass}/{device_id}/methods` to discover all available
+    query methods for a specific device.
+    """
     # Validate class
     valid = _load_valid_classes()
     if klass not in valid:
@@ -1039,8 +1743,79 @@ def call_driver_get(klass: str, device_id: str, channel: str, method: str):
     return {"path": f"/instruments/{klass}/{device_id}/{channel}/{method}", "value": value}
 
 
-@app.post("/instruments/{klass}/{device_id}/{channel}/{method}/{param}", summary="Call driver method (write)")
-def call_driver_post(klass: str, device_id: str, channel: str, method: str, param: str):
+@app.post(
+    "/instruments/{klass}/{device_id}/{channel}/{method}/{param}",
+    tags=["instrument-control"],
+    summary="Set instrument parameter or control state",
+    status_code=204,
+    responses={
+        204: {"description": "Command executed successfully, no content returned"},
+        400: {"description": "Invalid parameters, type conversion failed, or method execution failed"},
+        404: {"description": "Invalid class, unknown device, or method not found"}
+    }
+)
+def call_driver_post(
+    klass: str = Path(..., description="3-letter instrument class code", example="PSU"),
+    device_id: str = Path(..., description="Unique device identifier from configuration", example="psu-1"),
+    channel: str = Path(..., regex="^[1-9]$", description="Channel number (1-9)", example="1"),
+    method: str = Path(..., description="Method name without 'set_' prefix (e.g., 'voltage', 'current', 'output')", example="voltage"),
+    param: str = Path(..., description="Value to set (auto-converted to int/float/bool/string)", example="12.5")
+):
+    """
+    Send a command to set an instrument parameter or control state.
+
+    This is the primary endpoint for controlling instruments. The method name is
+    automatically prefixed with `set_` and resolved to the driver method. The param
+    value is automatically converted to the appropriate type (int, float, bool, or string).
+
+    **Method Resolution:**
+    - Partial name `voltage` → resolves to `set_voltage()` driver method
+    - Partial name `current` → resolves to `set_current()` driver method
+    - Partial name `output` → resolves to `set_output()` driver method
+    - Only methods with `set_` prefix can be called via POST (security feature)
+
+    **Parameter Type Conversion:**
+    - `"12.5"` → `12.5` (float)
+    - `"5"` → `5` (integer)
+    - `"true"` or `"false"` → boolean
+    - `"CV"` or other text → string (passed as-is)
+
+    **Common Set Methods:**
+    - `voltage`: Set output voltage setpoint (e.g., `12.5` for 12.5V)
+    - `current`: Set output current limit (e.g., `2.5` for 2.5A)
+    - `output`: Enable/disable output (e.g., `true` or `false`)
+    - `mode`: Set operating mode (e.g., `"CV"`, `"CC"`, `"CURR"`, `"VOLT"`)
+    - `ovp`: Set over-voltage protection limit
+    - `ocp`: Set over-current protection limit
+
+    **Priority Queue Execution:**
+    When unified polling is enabled, API requests are queued with HIGH priority
+    for immediate execution ahead of background polling operations.
+
+    **Example Requests:**
+    ```bash
+    # Set PSU channel 1 voltage to 12.5V
+    POST /instruments/PSU/psu-1/1/voltage/12.5
+
+    # Set PSU channel 2 current limit to 2.5A
+    POST /instruments/PSU/psu-1/2/current/2.5
+
+    # Enable PSU channel 1 output
+    POST /instruments/PSU/psu-1/1/output/true
+
+    # Set electronic load mode to constant current
+    POST /instruments/OEL/load-1/1/mode/CURR
+
+    # Set function generator frequency to 1000 Hz
+    POST /instruments/FGN/gen-1/1/frequency/1000
+    ```
+
+    **Discovery:**
+    Use `GET /instruments/{klass}/{device_id}/methods` to discover all available
+    setter methods for a specific device.
+
+    **Note:** This endpoint returns 204 No Content on success. No response body is sent.
+    """
     # Validate class
     valid = _load_valid_classes()
     if klass not in valid:

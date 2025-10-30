@@ -1,0 +1,2 @@
+# This directory stores pre-generated OpenAPI specifications
+# Files are generated during build process (start.sh --uibuild)

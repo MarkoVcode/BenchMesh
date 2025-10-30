@@ -295,6 +295,190 @@ Drivers can optionally add a `methods` section to `manifest.json` for enhanced m
 - `/instruments/{class}/{device_id}/methods` endpoint in `api.py`
 - `test_method_inspector.py` - Comprehensive unit tests
 
+## API Documentation & OpenAPI Specification
+
+BenchMesh provides comprehensive OpenAPI 3.1 documentation with rich metadata, organized tag groups, and type-safe Pydantic models - similar to Java Spring Boot's annotation-based approach.
+
+### OpenAPI Specification Generation
+
+OpenAPI specs are generated during the build process and served as static files. The specifications are available in both JSON and YAML formats.
+
+**Generation Locations:**
+- **Automatic**: During `./start.sh --uibuild` (frontend build process)
+- **Manual**: Using the `gen_openapi.py` CLI tool
+
+**Generated Files:**
+- `benchmesh-serial-service/src/benchmesh_service/static/openapi/openapi.json`
+- `benchmesh-serial-service/src/benchmesh_service/static/openapi/openapi.yaml`
+
+### Accessing OpenAPI Specifications
+
+**Via Endpoints:**
+- `GET /openapi.json` - JSON format specification
+- `GET /openapi.yaml` - YAML format specification
+- `GET /docs` - Interactive Swagger UI (FastAPI default)
+- `GET /redoc` - ReDoc documentation (FastAPI default)
+
+**Direct File Access:**
+Both files are served statically and can be downloaded for use with code generators, testing tools, or API clients.
+
+### Using the OpenAPI Generator Tool
+
+The `gen_openapi.py` tool generates specifications from the FastAPI application:
+
+```bash
+# From benchmesh-serial-service directory
+PYTHONPATH=src python3 -m benchmesh_service.tools.gen_openapi \
+  --app benchmesh_service.api:app \
+  --out-dir src/benchmesh_service/static/openapi \
+  --formats both
+
+# Options:
+#   --app MODULE:VARIABLE      FastAPI app module path (required)
+#   --out-dir PATH             Output directory (default: ./openapi)
+#   --formats json|yaml|both   Output formats (default: both)
+```
+
+**Integration with Build Process:**
+The `start.sh --uibuild` flag automatically runs this tool after building the frontend, ensuring specs are always up-to-date with the code.
+
+### API Tag Groups
+
+The API is organized into 8 logical tag groups for better navigation and documentation:
+
+1. **system** - Service status, version, health checks
+2. **configuration** - Device config, driver discovery, port scanning
+3. **instruments** - Instrument listing, capabilities, manifest features
+4. **instrument-control** - Device control endpoints (query/set methods)
+5. **monitoring** - Performance metrics, utilization, quality scores
+6. **recordings** - Data recording management (future)
+7. **ai-assistant** - AI-powered assistant endpoints (future)
+8. **websockets** - Real-time WebSocket connections
+
+### Pydantic Models for Type Safety
+
+All API endpoints use Pydantic models for request/response validation and automatic OpenAPI schema generation.
+
+**Response Models Location:** `benchmesh-serial-service/src/benchmesh_service/models/api_responses.py`
+
+**Request Models Location:** `benchmesh-serial-service/src/benchmesh_service/models/api_requests.py`
+
+**Key Patterns:**
+
+1. **Standard Response Model:**
+```python
+class StatusResponse(BaseModel):
+    """Service status response with device connection statistics."""
+
+    devices_total: int = Field(
+        description="Total number of configured devices",
+        example=3
+    )
+    connected: int = Field(
+        description="Number of currently connected devices",
+        example=2
+    )
+```
+
+2. **Dictionary Response Model (Pydantic V2):**
+```python
+class DriversResponse(RootModel[Dict[str, DriverInfo]]):
+    """Map of available drivers and their information."""
+    root: Dict[str, DriverInfo] = Field(
+        description="Dictionary mapping driver ID to driver information",
+        examples=[{...}]
+    )
+```
+
+3. **Request Model with Validation:**
+```python
+class DeviceConfig(BaseModel):
+    id: str = Field(description="Unique device identifier")
+    baud: int = Field(description="Baud rate", example=9600)
+
+    @field_validator('baud')
+    @classmethod
+    def validate_baud(cls, v: int) -> int:
+        valid_bauds = [300, 1200, 2400, 4800, 9600, 19200, ...]
+        if v not in valid_bauds:
+            raise ValueError(f"Invalid baud rate: {v}")
+        return v
+```
+
+### Adding New Endpoints with Rich Documentation
+
+When adding new API endpoints, follow these patterns for comprehensive OpenAPI documentation:
+
+```python
+@app.get(
+    "/status",
+    tags=["system"],                    # Tag group for organization
+    response_model=StatusResponse,      # Type-safe response model
+    summary="Get service status",       # Short summary
+    responses={                         # Additional response documentation
+        200: {
+            "description": "Service status with device connection counts",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "devices_total": 3,
+                        "connected": 2,
+                        "disconnected": 1
+                    }
+                }
+            }
+        }
+    }
+)
+def get_status():
+    """
+    Get current service status and device connection statistics.
+
+    Returns the total number of configured devices and their connection states.
+    This endpoint is lightweight and suitable for health monitoring.
+
+    **Connection States:**
+    - **connected**: Device driver is active and responding
+    - **disconnected**: Device driver failed to connect or lost connection
+
+    **Use Cases:**
+    - System health monitoring
+    - Dashboard status displays
+    - Connection troubleshooting
+    """
+    # Implementation...
+```
+
+**Parameter Documentation:**
+```python
+@app.get("/instruments/{class_}/{device_id}/{channel}/methods")
+def get_methods(
+    class_: str = Path(..., description="3-letter instrument class code", example="PSU"),
+    device_id: str = Path(..., description="Unique device identifier", example="psu-1"),
+    channel: int = Path(..., description="Channel number", ge=1),
+    include_private: bool = Query(False, description="Include private methods")
+):
+    """Endpoint implementation..."""
+```
+
+### Best Practices
+
+1. **Always use Pydantic models** for requests and responses (enables automatic validation and OpenAPI schema generation)
+2. **Add descriptive docstrings** with markdown formatting for rich documentation
+3. **Use appropriate tags** from the 8 tag groups for organization
+4. **Provide examples** in Field() descriptions and response documentation
+5. **Document error cases** in the responses parameter
+6. **Regenerate specs after changes** using `./start.sh --uibuild` or manually with `gen_openapi.py`
+7. **Use RootModel[Type]** for dictionary responses (Pydantic V2 pattern)
+8. **Add field validators** for complex validation logic in request models
+
+### Implementation Files
+
+- `models/api_responses.py` - All response Pydantic models (20+ models)
+- `models/api_requests.py` - Request models with validation
+- `tools/gen_openapi.py` - OpenAPI specification generator CLI tool
+- `api.py` - FastAPI app with tag metadata and documented endpoints
+
 ## Configuration System
 
 Devices are defined in `config.yaml` (YAML v1 schema):

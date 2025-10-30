@@ -88,6 +88,16 @@ if [ "$BUILD_UI" = true ]; then
   npm run build
   cd "$SCRIPT_DIR"
   echo "✅ Frontend build complete"
+
+  # Generate OpenAPI specification
+  echo "📝 Generating OpenAPI specification..."
+  cd benchmesh-serial-service
+  PYTHONPATH=src python3 -m benchmesh_service.tools.gen_openapi \
+    --app benchmesh_service.api:app \
+    --out-dir src/benchmesh_service/static/openapi \
+    --formats both
+  cd "$SCRIPT_DIR"
+  echo "✅ OpenAPI spec generated (JSON + YAML)"
 else
   echo "⏭️  Skipping UI build (use --uibuild to rebuild)"
 fi

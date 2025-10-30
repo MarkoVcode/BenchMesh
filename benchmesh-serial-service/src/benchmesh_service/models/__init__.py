@@ -1,9 +1,56 @@
 """
-Database models for BenchMesh.
-
-This package contains SQLAlchemy model definitions.
+Pydantic models for API request/response validation and OpenAPI documentation.
 """
 
-from .recording import RecordingSeries, DataPoint
+# API Response Models
+from .api_responses import (
+    StatusResponse,
+    VersionResponse,
+    DriverInfo,
+    DriversResponse,
+    SerialPortInfo,
+    USBTMCDeviceInfo,
+    InstrumentClass,
+    HealthStatus,
+    InstrumentInfo,
+    DeviceMetrics,
+    MetricsSummary,
+    MethodParameter,
+    MethodInfo,
+    MethodsResponse,
+    InstrumentQueryResponse,
+    ManifestFeaturesResponse,
+    ConfigResponse,
+    ConfigUpdateResponse,
+)
 
-__all__ = ["RecordingSeries", "DataPoint"]
+# API Request Models
+from .api_requests import (
+    DeviceConfig,
+    ConfigUpdate,
+)
+
+__all__ = [
+    # Response models
+    "StatusResponse",
+    "VersionResponse",
+    "DriverInfo",
+    "DriversResponse",
+    "SerialPortInfo",
+    "USBTMCDeviceInfo",
+    "InstrumentClass",
+    "HealthStatus",
+    "InstrumentInfo",
+    "DeviceMetrics",
+    "MetricsSummary",
+    "MethodParameter",
+    "MethodInfo",
+    "MethodsResponse",
+    "InstrumentQueryResponse",
+    "ManifestFeaturesResponse",
+    "ConfigResponse",
+    "ConfigUpdateResponse",
+    # Request models
+    "DeviceConfig",
+    "ConfigUpdate",
+]
