@@ -1,45 +1,64 @@
 from ..base import DriverBase
-from ...utils.si import format_scientific_to_si
-from ...utils.si import trim_digits_to
+from ...utils.si import si_to_value
 
 class OwonXDM(DriverBase):
     def poll_status(self, channel: int):
         query_measurement = self._query_measurement(1)
-        #print ("Measurement:", query_measurement)
-        num_str, sym, n = format_scientific_to_si(query_measurement)
-        function = self.query_function(1)
+        func = self._query_function(1)
         raw = self.query_identify() or b""
         if not raw:
             return None
-      #  print(num_str)
-        return {"measurement1_sci": query_measurement, "measurement1_si": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
+        return {"MEAS": si_to_value(query_measurement), "MODE": function, "RANGE": self.cache.get(func + ":RANGE")}
+
+    def set_remote(self, channel: int, value):
+        if str(value).upper() == "ON":
+            self.t.write_line('SYSTem:REMote')
+            return self.t.read_until_reol(1024)
+        elif str(value).upper() == "OFF":
+            self.t.write_line('SYSTem:LOCal')
+            return self.t.read_until_reol(1024)
+
+    def set_rate(self, channel: int, value):
+        self.t.write_line('RATE ' + str(value))
+        return self.t.read_until_reol(1024)
+
+    def query_rate(self, channel: int):
+        self.t.write_line('RATE?')
+        return self.t.read_until_reol(1024)
 
     def set_current_dc_range(self, channel: int, value):
-        self.t.write_line('CONF:CURR:DC ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:CURR:DC ' + range)
         return self.t.read_until_reol(1024)
 
     def set_current_ac_range(self, channel: int, value):
-        self.t.write_line('CONF:CURR:AC ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:CURR:AC ' + range)
         return self.t.read_until_reol(1024)    
 
     def set_voltage_dc_range(self, channel: int, value):
-        self.t.write_line('CONF:VOLT:DC ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:VOLT:DC ' + range)
         return self.t.read_until_reol(1024)
 
     def set_voltage_ac_range(self, channel: int, value):
-        self.t.write_line('CONF:VOLT:AC ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:VOLT:AC ' + range)
         return self.t.read_until_reol(1024)
     
     def set_resistance_range(self, channel: int, value):
-        self.t.write_line('CONF:RES ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:RES ' + range)
         return self.t.read_until_reol(1024)
 
     def set_fresistance_range(self, channel: int, value):
-        self.t.write_line('CONF:FRES ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:FRES ' + range)
         return self.t.read_until_reol(1024)   
 
     def set_capacitance_range(self, channel: int, value):
-        self.t.write_line('CONF:CAP ' + str(value))
+        self._preserve_range(value)
+        self.t.write_line('CONF:CAP ' + range)
         return self.t.read_until_reol(1024)
 
     def set_frequency(self, channel: int):
@@ -73,21 +92,28 @@ class OwonXDM(DriverBase):
     def _query_measurement(self, channel: int):
         self.t.write_line('MEAS1?')
         mes = self.t.read_until_reol(1024)
-        #print("Queried measurement:", mes)
-        self.cache.set("measurement",  mes, 0.8)
+        self.cache.set("measurement",  mes, 0.6)
         return mes
     
     def query_measurement(self, channel: int):
-        measurement = self.cache.set("measurement")
-        #print("Cached measurement:", measurement)
+        measurement = self.cache.get("measurement")
         if measurement is not None:
             self.t.write_line('MEAS1?')
             measurement = self.t.read_until_reol(1024)
-        return measurement
+        return si_to_value(measurement)
     
-    def query_function(self, channel: int):
+    def _query_function(self, channel: int):
         self.t.write_line('FUNCtion?')
-        return self._clean_response(self.t.read_until_reol(1024))
+        funct = self._clean_response(self.t.read_until_reol(1024))
+        self.cache.set("function",  funct)
+        return funct
+
+    def query_function(self, channel: int):
+        funct = self.cache.get("function")
+        if funct is not None:
+            self.t.write_line('FUNCtion?')
+            funct = self._clean_response(self.t.read_until_reol(1024))
+        return funct
     
     def set_mode(self, channel: int, value):
         if value == "CURR":
@@ -115,3 +141,8 @@ class OwonXDM(DriverBase):
         elif value == "PER":
             self.set_period(1)
         return
+    
+    def _preserve_range(self, value):
+        range = str(value)
+        func = self.cache.get("function")
+        self.cache.set(func + ":RANGE",  func)

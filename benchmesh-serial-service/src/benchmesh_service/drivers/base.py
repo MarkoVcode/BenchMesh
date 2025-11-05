@@ -98,6 +98,9 @@ class DriverBase(ABC):
         self.t.write_line('*IDN?')
         return self.t.read_until_reol(1024)
 
+    def query_cache_stats(self):
+        return self.cache.get_stats()
+
     def close(self) -> None:
         """
         Close transport and cleanup resources.

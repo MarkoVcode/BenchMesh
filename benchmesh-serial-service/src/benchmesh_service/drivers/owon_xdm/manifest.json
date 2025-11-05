@@ -24,6 +24,8 @@
         "DMM": {
           "ui_component": "GenericDMM",
           "features": {
+            "lock": true,
+            "compulsory_lock": false,
             "channels": 1,
             "modes": {
               "VOLT": {"unit": "V", "symbol": "U", "note": "DC", "techname": "VOLT", "ui_name": "Voltage DC", "ui_component": "GenericRange"},
@@ -43,7 +45,7 @@
             "delta": true,
             "DB:REFerence": [50, 75, 93, 110, 124, 125, 135, 150, 250, 300, 500, 600, 800, 900, 1000, 1200, 8000],
             "DBM:REFerence": [50, 75, 93, 110, 124, 125, 135, 150, 250, 300, 500, 600, 800, 900, 1000, 1200, 8000],
-            "speed": [
+            "rate": [
               {"value": "F", "display": "fast"},
               {"value": "M", "display": "normal"},
               {"value": "L", "display": "slow"}

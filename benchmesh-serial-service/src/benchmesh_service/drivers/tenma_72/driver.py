@@ -2,13 +2,31 @@ from ..base import DriverBase
 from ...utils.si import si_to_value
 
 class TenmaPSU(DriverBase):
+    def _query_output_voltage(self, channel: int):
+        self.t.write_line('VOUT'+str(channel)+'?')
+        output_voltage = self.t.read_until_reol(1024)
+        self.cache.set("output_voltage",  output_voltage, 2)
+        return output_voltage
+    
+    def _query_output_current(self, channel: int):
+        self.t.write_line('IOUT'+str(channel)+'?')
+        output_current = self.t.read_until_reol(1024)
+        self.cache.set("output_current",  output_current, 2)
+        return output_current
+
     def query_output_voltage(self, channel: int):
-        self.t.write_line('VOUT1?')
-        return self.t.read_until_reol(1024)
+        output_voltage = self.cache.get("output_voltage")
+        if output_voltage is not None:
+            self.t.write_line('VOUT'+str(channel)+'?')
+            output_voltage = self.t.read_until_reol(1024)
+        return si_to_value(output_voltage)
     
     def query_output_current(self, channel: int):
-        self.t.write_line('IOUT1?')
-        return self.t.read_until_reol(1024)
+        output_current = self.cache.get("output_current")
+        if output_current is not None:
+            self.t.write_line('IOUT'+str(channel)+'?')
+            output_current = self.t.read_until_reol(1024)
+        return si_to_value(output_current)
 
     def query_output_power(self, channel: int):
         v = self.query_output_voltage(channel)
@@ -17,22 +35,24 @@ class TenmaPSU(DriverBase):
         fi = self._parse_numeric(i)
         if fv is None or fi is None:
             return None
-        return fv * fi
+        return si_to_value(fv * fi)
 
     def query_voltage(self, channel: int):
-        self.t.write_line('VSET1?')
-        return self.t.read_until_reol(1024)
+        self.t.write_line('VSET'+str(channel)+'?')
+        voltage = self.t.read_until_reol(1024)
+        return si_to_value(voltage)
     
     def query_current(self, channel: int):
-        self.t.write_line('ISET1?')
-        return self.t.read_until_reol(1024)
+        self.t.write_line('ISET'+str(channel)+'?')
+        current = self.t.read_until_reol(1024)
+        return si_to_value(current)
 
     def set_voltage(self, channel: int, value):  #volts
-        self.t.write_line('VSET1:' + str(value))
+        self.t.write_line('VSET'+str(channel)+':' + str(value))
         return self.t.read_until_reol(1024)
     
     def set_current(self, channel: int, value):  #amps
-        self.t.write_line('ISET1:' + str(value))
+        self.t.write_line('ISET'+str(channel)+':' + str(value))
         return self.t.read_until_reol(1024)
 
     def query_status(self, channel: int):
@@ -105,15 +125,15 @@ class TenmaPSU(DriverBase):
     def poll_status(self, channel: int):
        # print ("Polling status for channel", channel)
        # p = None
-        v = self.query_output_voltage(channel)
-        i = self.query_output_current(channel)
-        fv = self._parse_numeric(v)
-        fi = self._parse_numeric(i)
-        if fv is None or fi is None:
-            p = None
-        p = fv * fi
+        v = self._query_output_voltage(channel)
+        i = self._query_output_current(channel)
+        #fv = self._parse_numeric(v)
+        #fi = self._parse_numeric(i)
+        #if fv is None or fi is None:
+        #    p = None
+        p = self.query_output_power(channel)
         s = self.query_status(channel)
-        result = {"VOUT": si_to_value(v), "IOUT": si_to_value(i), "POUT": si_to_value(p)}
+        result = {"VOUT": si_to_value(v), "IOUT": si_to_value(i), "POUT": p}
         if isinstance(s, dict):
             result.update(s)
         return result   
