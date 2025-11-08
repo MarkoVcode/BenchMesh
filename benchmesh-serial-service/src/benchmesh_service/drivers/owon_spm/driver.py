@@ -3,6 +3,7 @@ from ..base import DriverBase
 from ...utils.si import format_scientific_to_si
 from ...utils.si import trim_digits_to
 from ...utils.si import si_to_value
+from ...utils.si import sci_to_value
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,32 @@ class OwonSPM(DriverBase):
         self.t.write_line('MEASure:ALL?')
         return self.t.read_until_reol(1024)
     
-    def query_measurement(self, channel: int):
+    def _query_measurement(self, channel: int):
         self.t.write_line('CONFigure?')
-        return self.t.read_until_reol(1024)
+        raw = self.t.read_until_reol(1024)
+        parts = raw.strip().split(' ')
+        #VOLT:DC -1.2000E-03
+        self.cache.set("measurement",  parts[1], 0.6)
+        self.cache.set("function",  parts[0], 5)
+        return parts[1]
+
+    def query_measurement(self, channel: int):
+        measurement = self.cache.get("measurement")
+        print("measurement: " + str(measurement))
+        if measurement is None:
+            self.t.write_line('CONFigure?')
+            raw = self.t.read_until_reol(1024)
+            print("raw: " + str(raw))
+            parts = raw.strip().split(' ')
+            measurement = parts[1]
+        return sci_to_value(measurement)
+
+    def query_function(self, channel: int):
+        funct = self.cache.get("function")
+        if funct is None:
+            self.t.write_line('FUNCtion?')
+            funct = self._clean_response(self.t.read_until_reol(1024))
+        return self.normalize_spaces(funct)
 
     def poll_status_psu(self, channel: int):
         raw = self.query_status(channel) or ""
@@ -78,14 +102,9 @@ class OwonSPM(DriverBase):
         return result
 
     def poll_status_dmm(self, channel: int):
-        raw = self.query_measurement(channel) or ""
-        parts = raw.strip().split(' ')
-        num_str, sym, n = format_scientific_to_si(parts[1])
-        function = parts[0]
-        if not raw:
-            return None
-      #  print(num_str)
-        return {"measurement1_sci": parts[1], "measurement1_si": trim_digits_to(num_str, 5), "measurement1_symbol": sym, "measurement1_function": function}
+        query_measurement = self._query_measurement(channel)
+        func = self.query_function(channel)
+        return {"MEAS": sci_to_value(query_measurement), "MODE": func, "RANGE": self.cache.get(func + ":RANGE")}
 
     def poll_status(self, channel: int):
         """
@@ -123,7 +142,6 @@ class OwonSPM(DriverBase):
         
         return result
 
-
     def set_output(self, channel: int, value):  # ON / OFF
         self.t.write_line('OUTP ' + str(value))
         return self.t.read_until_reol(1024)
@@ -134,11 +152,23 @@ class OwonSPM(DriverBase):
 
     def query_voltage(self, channel: int):
         self.t.write_line('VOLT?')
-        return self.t.read_until_reol(1024)
+        voltage = self.t.read_until_reol(1024)
+        return si_to_value(voltage)
     
     def query_current(self, channel: int):
         self.t.write_line('CURR?')
-        return self.t.read_until_reol(1024)
+        current = self.t.read_until_reol(1024)
+        return si_to_value(current)
+
+    def query_voltage_limit(self, channel: int):
+        self.t.write_line('VOLT:LIM?')
+        voltage = self.t.read_until_reol(1024)
+        return si_to_value(voltage)
+    
+    def query_current_limit(self, channel: int):
+        self.t.write_line('CURR:LIM?')
+        current = self.t.read_until_reol(1024)
+        return si_to_value(current)
 
     def set_voltage(self, channel: int, value):  #volts
         self.t.write_line('VOLT ' + str(value))
@@ -147,74 +177,134 @@ class OwonSPM(DriverBase):
     def set_current(self, channel: int, value):  #amps
         self.t.write_line('CURR ' + str(value))
         return self.t.read_until_reol(1024)
+    
+    def set_voltage_limit(self, channel: int, value):  #volts
+        self.set_ovp_value(channel, value)
+    
+    def set_current_limit(self, channel: int, value):  #amps
+        self.set_ocp_value(channel, value)
+
+    def query_current_limit(self, channel: int):
+        return self.query_ocp_value(channel)
+
+    def query_voltage_limit(self, channel: int):
+        return self.query_ovp_value(channel)
 
     def set_ocp_value(self, channel: int, value):
         self.t.write_line('CURR:LIM ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def query_ocp(self, channel: int):
+    def query_ocp_value(self, channel: int):
         self.t.write_line('CURR:LIM?')
-        return self.t.read_until_reol(1024)
+        value = self.t.read_until_reol(1024)
+        return si_to_value(value)
 
     def set_ovp_value(self, channel: int, value):
         self.t.write_line('VOLT:LIM ' + str(value))
         return self.t.read_until_reol(1024)
     
-    def query_ovp(self, channel: int):
+    def query_ovp_value(self, channel: int):
         self.t.write_line('VOLT:LIM?')
-        return self.t.read_until_reol(1024)
+        value = self.t.read_until_reol(1024)
+        return si_to_value(value)
+
+#
+#   Range Settings
+#
 
     def set_current_dc_range(self, channel: int, value):
-        self.t.write_line('FUNCtion:CURR:DC')
+        funct = self.cache.get("function")
+        self.cache.set(funct + ":RANGE", str(value))
+        self.t.write_line('CURRent:DC:RANGe '+str(value))
         return self.t.read_until_reol(1024)
 
     def set_current_ac_range(self, channel: int, value):
-        self.t.write_line('FUNCtion:CURR:AC')
+        funct = self.cache.get("function")
+        self.cache.set(funct + ":RANGE", str(value))
+        self.t.write_line('CURRent:AC:RANGe '+str(value))
         return self.t.read_until_reol(1024)    
 
     def set_voltage_dc_range(self, channel: int, value):
-        self.t.write_line('FUNCtion:VOLTage:DC')
-     #   self.t.read_until_reol(1024)
-      #  self.t.write_line('VOLTage:DC:RANGe:AUTO ON')
+        funct = self.cache.get("function")
+        self.cache.set(funct + ":RANGE", str(value))
+        self.t.write_line('VOLTage:DC:RANGe '+str(value))
         return self.t.read_until_reol(1024)
 
     def set_voltage_ac_range(self, channel: int, value):
-        self.t.write_line('FUNCtion:VOLTage:AC')
-     #   self.t.read_until_reol(1024)
-     #   self.t.write_line('VOLTage:AC:RANGe:AUTO ON')
+        funct = self.cache.get("function")
+        self.cache.set(funct + ":RANGE", str(value))
+        self.t.write_line('VOLTage:AC:RANGe '+str(value))
         return self.t.read_until_reol(1024)
 
     def set_resistance_range(self, channel: int, value):
-        self.t.write_line('FUNCtion:RESistance')
+        funct = self.cache.get("function")
+        self.cache.set(funct + ":RANGE", str(value))
+        self.t.write_line('RESistance:RANGe '+str(value))
         return self.t.read_until_reol(1024)
 
     def set_capacitance_range(self, channel: int, value):
+        funct = self.cache.get("function")
+        self.cache.set(funct + ":RANGE", str(value))
+        self.t.write_line('CAPacitance:RANGe '+str(value))
+        return self.t.read_until_reol(1024)
+    
+#
+#   Mode Settings
+#
+
+    def set_current_dc_mode(self, channel: int):
+        self.t.write_line('FUNCtion:CURR:DC')
+        return self.t.read_until_reol(1024)
+
+    def set_current_ac_mode(self, channel: int):
+        self.t.write_line('FUNCtion:CURR:AC')
+        return self.t.read_until_reol(1024)    
+
+    def set_voltage_dc_mode(self, channel: int):
+        self.t.write_line('FUNCtion:VOLTage:DC')
+        return self.t.read_until_reol(1024)
+
+    def set_voltage_ac_mode(self, channel: int):
+        self.t.write_line('FUNCtion:VOLTage:AC')
+        return self.t.read_until_reol(1024)
+
+    def set_resistance_mode(self, channel: int):
+        self.t.write_line('FUNCtion:RESistance')
+        return self.t.read_until_reol(1024)
+
+    def set_capacitance_mode(self, channel: int):
         self.t.write_line('FUNCtion:CAPacitance')
         return self.t.read_until_reol(1024)
     
-    def set_diode(self, channel: int):
+    def set_diode_mode(self, channel: int):
         self.t.write_line('FUNCtion:DIODe')
         return self.t.read_until_reol(1024)
 
-    def set_continuity(self, channel: int):
+    def set_continuity_mode(self, channel: int):
         self.t.write_line('FUNCtion:CONTinuity')
         return self.t.read_until_reol(1024)    
 
     def set_mode(self, channel: int, value):
         if value == "CURR_DC":
-            self.set_current_dc_range(1, "AUTO")
+            self.set_current_dc_mode(1)
         elif value == "CURR_AC":
-            self.set_current_ac_range(1, "AUTO")
+            self.set_current_ac_mode(1)
         elif value == "VOLT_DC":
-            self.set_voltage_dc_range(1, "AUTO")
+            self.set_voltage_dc_mode(1)
         elif value == "VOLT_AC":
-            self.set_voltage_ac_range(1, "AUTO")
+            self.set_voltage_ac_mode(1)
         elif value == "RES":
-            self.set_resistance_range(1, "AUTO")
+            self.set_resistance_mode(1)
         elif value == "CAP":
-            self.set_capacitance_range(1, "AUTO")
+            self.set_capacitance_mode(1)
         elif value == "DIOD":
-            self.set_diode(1)
+            self.set_diode_mode(1)
         elif value == "CONT":
-            self.set_continuity(1)
+            self.set_continuity_mode(1)
         return
+    
+    def normalize_spaces(self, s: str, search: str = ':', replacement: str = '_') -> str:
+        """Replace all whitespace characters with replacement character (default '_')."""
+        if not isinstance(s, str):
+            return ''
+        return ' '.join(s.split()).replace(search, replacement)

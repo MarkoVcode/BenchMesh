@@ -37,9 +37,11 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
       return { measurementValue: '00000', unitPrefix: '' }
     }
 
-    // New format uses measurement1_si (decimal format like "2.995")
-    // Old format used measurement1_num (with prefix applied like "-100.85")
-    const rawValue = String(channelData.measurement1_si || channelData.measurement1_num || '0')
+    // New format:
+    // channelData.MEAS.si.number = "-22.5337"
+    // channelData.MEAS.si.symbol = "m"
+    const rawValue = String(channelData.MEAS?.si?.number || '0')
+    const prefix = channelData.MEAS?.si?.symbol || ''
 
     // Ensure 5 numerical digits (excluding decimal point and sign)
     const isNegative = rawValue.startsWith('-') || rawValue.startsWith('+')
@@ -54,7 +56,6 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     const paddedInteger = '0'.repeat(zerosNeeded) + parts[0]
     const formattedValue = parts.length > 1 ? `${paddedInteger}.${parts[1]}` : paddedInteger
     const value = rawValue.startsWith('-') ? `-${formattedValue}` : formattedValue
-    const prefix = channelData.measurement1_symbol || ''
 
     return { measurementValue: value, unitPrefix: prefix }
   }, [registry, deviceId, klass, channel])

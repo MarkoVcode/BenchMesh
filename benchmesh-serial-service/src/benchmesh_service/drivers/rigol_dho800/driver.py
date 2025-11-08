@@ -3,6 +3,7 @@ RIGOL DHO800 Series Oscilloscope Driver
 Supports DHO804, DHO802, DHO814, DHO812, and other DHO800 series models
 """
 from ..base import DriverBase
+from ...utils.si import sci_to_value
 
 
 class RigolDHO800(DriverBase):
@@ -30,10 +31,10 @@ class RigolDHO800(DriverBase):
             
             return {
                 "CHANNEL": channel,
-                "SCALE": scale,
-                "OFFSET": offset,
+                "SCALE": sci_to_value(scale),
+                "OFFSET": sci_to_value(offset),
                 "COUPLING": coupling,
-                "TIMEBASE": timebase
+                "TIMEBASE": sci_to_value(timebase)
             }
         except Exception as e:
             return {"ERROR": str(e)}

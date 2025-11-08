@@ -87,12 +87,14 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
         if (!cancelled) {
           if (rv.ok) {
             const jv = await rv.json().catch(() => null as any)
-            const v = (jv && jv.value != null) ? String(jv.value).trim() : '0'
+            // New format: value is an object with {si, sci, val}
+            const v = (jv && jv.value?.val != null) ? String(jv.value.val).trim() : '0'
             setVoltage(limitDigits(sanitizeNumber(v), 5) || '0')
           }
           if (rc.ok) {
             const ja = await rc.json().catch(() => null as any)
-            const a = (ja && ja.value != null) ? String(ja.value).trim() : '0'
+            // New format: value is an object with {si, sci, val}
+            const a = (ja && ja.value?.val != null) ? String(ja.value.val).trim() : '0'
             setCurrent(limitDigits(sanitizeNumber(a), 5) || '0')
           }
         }
@@ -149,42 +151,23 @@ export function GenericPSU({ channelPath, registry }: { channelPath?: string, re
     if (!status) return
 
     // Update readings from registry
-    // New format: VOUT, IOUT, POUT with nested structure {si: {number, symbol?}, sci}
-    // Old format: VOUT, IOUT, POUT as direct numbers
-    if (status.VOUT) {
-      if (status.VOUT.si?.number) {
-        const num = parseFloat(status.VOUT.si.number)
-        if (!isNaN(num)) setReadVoltage(num)
-        setVoltageSymbol(status.VOUT.si.symbol || '')
-      } else if (typeof status.VOUT === 'number') {
-        // Fallback to old format
-        setReadVoltage(status.VOUT)
-        setVoltageSymbol('')
-      }
+    // New format: VOUT, IOUT, POUT with nested structure {si: {number, symbol?}, sci, val}
+    if (status.VOUT?.si?.number) {
+      const num = parseFloat(status.VOUT.si.number)
+      if (!isNaN(num)) setReadVoltage(num)
+      setVoltageSymbol(status.VOUT.si.symbol || '')
     }
 
-    if (status.IOUT) {
-      if (status.IOUT.si?.number) {
-        const num = parseFloat(status.IOUT.si.number)
-        if (!isNaN(num)) setReadCurrent(num)
-        setCurrentSymbol(status.IOUT.si.symbol || '')
-      } else if (typeof status.IOUT === 'number') {
-        // Fallback to old format
-        setReadCurrent(status.IOUT)
-        setCurrentSymbol('')
-      }
+    if (status.IOUT?.si?.number) {
+      const num = parseFloat(status.IOUT.si.number)
+      if (!isNaN(num)) setReadCurrent(num)
+      setCurrentSymbol(status.IOUT.si.symbol || '')
     }
 
-    if (status.POUT) {
-      if (status.POUT.si?.number) {
-        const num = parseFloat(status.POUT.si.number)
-        if (!isNaN(num)) setReadPower(num)
-        setPowerSymbol(status.POUT.si.symbol || '')
-      } else if (typeof status.POUT === 'number') {
-        // Fallback to old format
-        setReadPower(status.POUT)
-        setPowerSymbol('')
-      }
+    if (status.POUT?.si?.number) {
+      const num = parseFloat(status.POUT.si.number)
+      if (!isNaN(num)) setReadPower(num)
+      setPowerSymbol(status.POUT.si.symbol || '')
     }
 
     // Update output enabled status

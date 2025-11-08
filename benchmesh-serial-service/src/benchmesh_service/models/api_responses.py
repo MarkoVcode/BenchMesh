@@ -32,16 +32,32 @@ class StatusResponse(BaseModel):
 class VersionResponse(BaseModel):
     """Application version information."""
 
-    version: str = Field(
-        description="Application version string",
-        example="0.1.0"
+    releaseVersion: str = Field(
+        description="Git release tag (e.g., v0.0.51-87-g6125be0)",
+        example="v0.0.51"
     )
-    name: str = Field(
+    applicationName: str = Field(
         description="Application name",
         example="BenchMesh"
     )
-    description: str = Field(
-        description="Application description",
+    displayVersion: str = Field(
+        description="Human-readable version string",
+        example="BenchMesh v0.0.51"
+    )
+    # Legacy fields for backward compatibility
+    version: Optional[str] = Field(
+        None,
+        description="Semantic version string (legacy)",
+        example="0.0.51"
+    )
+    name: Optional[str] = Field(
+        None,
+        description="Application name (legacy)",
+        example="BenchMesh"
+    )
+    description: Optional[str] = Field(
+        None,
+        description="Application description (legacy)",
         example="Lab Instrument Control System"
     )
     error: Optional[str] = Field(

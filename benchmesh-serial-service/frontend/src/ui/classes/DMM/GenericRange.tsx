@@ -53,7 +53,7 @@ export function GenericRange({ mode, ranges, channelPath, klass, deviceId, chann
     setBusy(true)
     try {
       const ch = channel || '1'
-      const endpoint = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_range/${encodeURIComponent(newRange)}`
+      const endpoint = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/range/${encodeURIComponent(newRange)}`
       await fetch(endpoint, { method: 'POST' })
     } catch (err) {
       console.debug('Range change failed', err)
@@ -71,7 +71,7 @@ export function GenericRange({ mode, ranges, channelPath, klass, deviceId, chann
     return null
   }
 
-  const endpointTemplate = `/instruments/${klass || 'DMM'}/${deviceId || '{id}'}/${channel || '1'}/set_range/{value}`
+  const endpointTemplate = `/instruments/${klass || 'DMM'}/${deviceId || '{id}'}/${channel || '1'}/range/{value}`
 
   return (
     <div className="psu-block" style={{ gridTemplateColumns: 'auto 1fr auto auto', width: '100%' }}>

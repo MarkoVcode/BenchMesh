@@ -371,7 +371,10 @@ def get_status():
             "content": {
                 "application/json": {
                     "example": {
-                        "version": "0.1.0",
+                        "releaseVersion": "v0.0.51",
+                        "applicationName": "BenchMesh",
+                        "displayVersion": "BenchMesh v0.0.51",
+                        "version": "0.0.51",
                         "name": "BenchMesh",
                         "description": "Lab Instrument Control System"
                     }
@@ -384,24 +387,53 @@ def get_version():
     """
     Get application version information.
 
-    Returns version number, application name, and description.
-    Reads from version.json at the repository root.
-
-    **Version Format**: Semantic versioning (MAJOR.MINOR.PATCH)
+    Returns version number, application name, and display string.
+    The version information includes:
+    - **releaseVersion**: Git release tag (e.g., v0.0.51-87-g6125be0)
+    - **applicationName**: Always "BenchMesh"
+    - **displayVersion**: Combined display string (e.g., "BenchMesh v0.0.51")
+    
+    Legacy fields (version, name, description) are also included for backward compatibility.
     """
+    import subprocess
+    import json
+    
+    # Get git tag
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--always"],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        release_tag = result.stdout.strip() if result.returncode == 0 else "unknown"
+    except Exception:
+        release_tag = "unknown"
+    
+    # Read version.json for legacy fields
     version_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'version.json')
+    legacy_version = "unknown"
+    legacy_description = "Lab Instrument Control System"
+    
     try:
         with open(version_path, 'r') as f:
-            import json
             data = json.load(f)
-            return VersionResponse(**data)
-    except Exception as e:
-        return VersionResponse(
-            version="unknown",
-            name="BenchMesh",
-            description="Lab Instrument Control System",
-            error=str(e)
-        )
+            legacy_version = data.get("version", "unknown")
+            legacy_description = data.get("description", "Lab Instrument Control System")
+    except Exception:
+        pass
+    
+    application_name = "BenchMesh"
+    display_version = f"{application_name} {release_tag}"
+    
+    return VersionResponse(
+        releaseVersion=release_tag,
+        applicationName=application_name,
+        displayVersion=display_version,
+        version=legacy_version,
+        name=application_name,
+        description=legacy_description
+    )
 
 @app.get(
     "/openapi.json",

@@ -288,7 +288,7 @@ def sci_to_value(sci: str, sig_figs: int = 5) -> dict:
         return {
             'si': si_obj,
             'sci': sci_norm,
-            'val': str(s),
+            'val': str(sci),
         }
 
 

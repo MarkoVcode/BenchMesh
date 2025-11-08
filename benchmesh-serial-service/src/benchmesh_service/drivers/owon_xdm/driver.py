@@ -1,4 +1,5 @@
 from ..base import DriverBase
+from ...utils.si import sci_to_value
 from ...utils.si import si_to_value
 
 class OwonXDM(DriverBase):
@@ -8,7 +9,7 @@ class OwonXDM(DriverBase):
         raw = self.query_identify() or b""
         if not raw:
             return None
-        return {"MEAS": si_to_value(query_measurement), "MODE": function, "RANGE": self.cache.get(func + ":RANGE")}
+        return {"MEAS": sci_to_value(query_measurement), "MODE": func, "RANGE": self.cache.get(func + ":RANGE")}
 
     def set_remote(self, channel: int, value):
         if str(value).upper() == "ON":
@@ -28,37 +29,37 @@ class OwonXDM(DriverBase):
 
     def set_current_dc_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:CURR:DC ' + range)
+        self.t.write_line('CONF:CURR:DC ' + str(value))
         return self.t.read_until_reol(1024)
 
     def set_current_ac_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:CURR:AC ' + range)
+        self.t.write_line('CONF:CURR:AC ' + str(value))
         return self.t.read_until_reol(1024)    
 
     def set_voltage_dc_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:VOLT:DC ' + range)
+        self.t.write_line('CONF:VOLT:DC ' + str(value))
         return self.t.read_until_reol(1024)
 
     def set_voltage_ac_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:VOLT:AC ' + range)
+        self.t.write_line('CONF:VOLT:AC ' + str(value))
         return self.t.read_until_reol(1024)
     
     def set_resistance_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:RES ' + range)
+        self.t.write_line('CONF:RES ' + str(value))
         return self.t.read_until_reol(1024)
 
     def set_fresistance_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:FRES ' + range)
+        self.t.write_line('CONF:FRES ' + str(value))
         return self.t.read_until_reol(1024)   
 
     def set_capacitance_range(self, channel: int, value):
         self._preserve_range(value)
-        self.t.write_line('CONF:CAP ' + range)
+        self.t.write_line('CONF:CAP ' + str(value))
         return self.t.read_until_reol(1024)
 
     def set_frequency(self, channel: int):
@@ -105,6 +106,7 @@ class OwonXDM(DriverBase):
     def _query_function(self, channel: int):
         self.t.write_line('FUNCtion?')
         funct = self._clean_response(self.t.read_until_reol(1024))
+        funct = self.normalize_spaces(funct)
         self.cache.set("function",  funct)
         return funct
 
@@ -113,6 +115,7 @@ class OwonXDM(DriverBase):
         if funct is not None:
             self.t.write_line('FUNCtion?')
             funct = self._clean_response(self.t.read_until_reol(1024))
+            funct = self.normalize_spaces(funct)
         return funct
     
     def set_mode(self, channel: int, value):
@@ -145,4 +148,10 @@ class OwonXDM(DriverBase):
     def _preserve_range(self, value):
         range = str(value)
         func = self.cache.get("function")
-        self.cache.set(func + ":RANGE",  func)
+        self.cache.set(str(func) + ":RANGE",  str(range))
+
+    def normalize_spaces(self, s: str, replacement: str = '_') -> str:
+        """Replace all whitespace characters with replacement character (default '_')."""
+        if not isinstance(s, str):
+            return ''
+        return ' '.join(s.split()).replace(' ', replacement)
