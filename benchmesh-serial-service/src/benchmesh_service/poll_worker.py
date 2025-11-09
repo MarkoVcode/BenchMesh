@@ -88,9 +88,9 @@ class DeviceWorker:
                 if self.metrics:
                     self.metrics.inc_poll_failed(dev_id, 'unified')
                 self.registry.clear_disconnected(dev_id)
-                # Health: empty poll response = failure
+                # Health: empty poll response = failure (generic error)
                 if self.connection:
-                    self.connection.record_failure()
+                    self.connection.record_failure(is_timeout=False)
 
                 # Notify scheduler of failure (for adaptive throttling)
                 if self.unified_scheduler:
@@ -108,7 +108,7 @@ class DeviceWorker:
             # Health: successful poll
             if self.connection:
                 self.connection.record_success()
-            
+
             # Notify scheduler of success (for adaptive throttling)
             if self.unified_scheduler:
                 self.unified_scheduler.notify_poll_success(dev_id)
@@ -116,21 +116,32 @@ class DeviceWorker:
             # Update last poll time
             self.last_probe_class['unified'] = now
 
+        except TimeoutError as e:
+            logger.warning(f"Multi-class polling for {dev_id} timed out: {e}")
+            if self.metrics:
+                self.metrics.inc_poll_failed(dev_id, 'unified')
+            # Health: timeout = failure with timeout flag
+            if self.connection:
+                self.connection.record_failure(is_timeout=True)
+
+            # Notify scheduler of failure (for adaptive throttling)
+            if self.unified_scheduler:
+                self.unified_scheduler.notify_poll_failure(dev_id)
         except RuntimeError as e:
             if str(e) == 'poll_empty':
                 raise
             logger.error(f"Multi-class polling for {dev_id} failed: {e}")
-            # Health: poll exception = failure
+            # Health: poll exception = failure (generic error)
             if self.connection:
-                self.connection.record_failure()
+                self.connection.record_failure(is_timeout=False)
         except Exception as e:
             logger.warning(f"Multi-class polling for {dev_id} failed: {e}")
             if self.metrics:
                 self.metrics.inc_poll_failed(dev_id, 'unified')
-            # Health: poll exception = failure
+            # Health: poll exception = failure (generic error)
             if self.connection:
-                self.connection.record_failure()
-            
+                self.connection.record_failure(is_timeout=False)
+
             # Notify scheduler of failure (for adaptive throttling)
             if self.unified_scheduler:
                 self.unified_scheduler.notify_poll_failure(dev_id)
@@ -159,15 +170,29 @@ class DeviceWorker:
             for ch in range(1, max(1, ch_count)+1):
                 if self.metrics:
                     self.metrics.inc_poll_total(dev_id, klass)
+
+                exception_occurred = False  # Track if exception was caught
                 try:
                     st = meth(ch)
+                except TimeoutError as e:
+                    logger.warning("Polling %s[%s] timed out: %s", dev_id, klass, e)
+                    st = {}
+                    exception_occurred = True
+                    # Health: timeout = failure with timeout flag
+                    if self.connection:
+                        self.connection.record_failure(is_timeout=True)
+
+                    # Notify scheduler of failure (for adaptive throttling)
+                    if self.unified_scheduler:
+                        self.unified_scheduler.notify_poll_failure(dev_id)
                 except Exception as e:
                     logger.warning("Polling %s[%s] failed: %s", dev_id, klass, e)
                     st = {}
-                    # Health: poll exception = failure
+                    exception_occurred = True
+                    # Health: poll exception = failure (generic error)
                     if self.connection:
-                        self.connection.record_failure()
-                    
+                        self.connection.record_failure(is_timeout=False)
+
                     # Notify scheduler of failure (for adaptive throttling)
                     if self.unified_scheduler:
                         self.unified_scheduler.notify_poll_failure(dev_id)
@@ -177,14 +202,14 @@ class DeviceWorker:
                     # On empty/error poll, clear IDN and per-class status and drop connection by caller
                     self.registry.clear_disconnected(dev_id)
                     polled_any = False
-                    # Health: empty poll response = failure
-                    if self.connection:
-                        self.connection.record_failure()
+                    # Health: empty poll response = failure (only if not already recorded via exception)
+                    if self.connection and not exception_occurred:
+                        self.connection.record_failure(is_timeout=False)
 
                     # Notify scheduler of failure (for adaptive throttling)
                     if self.unified_scheduler:
                         self.unified_scheduler.notify_poll_failure(dev_id)
-                        
+
                     # signal caller to drop connection by raising a sentinel exception
                     raise RuntimeError('poll_empty')
                 key = f"status_ch{ch}"

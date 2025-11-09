@@ -56,12 +56,21 @@ class OwonSPM(DriverBase):
         return self.normalize_spaces(funct)
 
     def poll_status_psu(self, channel: int):
+        """
+        Poll PSU status data.
+
+        Exceptions propagate naturally for health monitoring.
+        Returns empty dict {} if device is off/not responding.
+        """
         raw = self.query_status(channel) or ""
+
+        # Device off or not responding - return empty dict
         if raw is None or raw == "":
-            # Return a minimal but truthy structure to avoid dropping the connection
-            return {"VOUT": None, "IOUT": None, "POUT": None}
+            return {}
+
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
+
         parts = raw.strip().split(',')
         result = {}
         keys = ["VOUT", "IOUT", "POUT", "OVP", "OCP", "OTP", "OM"]
@@ -109,38 +118,27 @@ class OwonSPM(DriverBase):
     def poll_status(self, channel: int):
         """
         Unified polling method for multi-class device.
-        
+
         Polls both PSU and DMM data in a single operation to avoid
         double serial port access for devices with multiple classes
         on a single serial port.
-        
+
+        Uses _poll_multi_class() helper for partial success handling.
+        Exceptions propagate naturally for health monitoring.
+
         Returns dict with class-keyed data:
         {
             "PSU": {psu status data},
             "DMM": {dmm status data}
         }
+
+        Returns empty dict {} if device is off/not responding.
+        Raises exception on communication errors.
         """
-        result = {}
-        
-        # Get PSU data
-        try:
-            psu_data = self.poll_status_psu(channel)
-            if psu_data:
-                result["PSU"] = psu_data
-        except Exception as e:
-            logger.warning(f"Failed to poll PSU status: {e}")
-            result["PSU"] = {"VOUT": None, "IOUT": None, "POUT": None}
-        
-        # Get DMM data  
-        try:
-            dmm_data = self.poll_status_dmm(channel)
-            if dmm_data:
-                result["DMM"] = dmm_data
-        except Exception as e:
-            logger.warning(f"Failed to poll DMM status: {e}")
-            result["DMM"] = None
-        
-        return result
+        return self._poll_multi_class(channel, {
+            "PSU": self.poll_status_psu,
+            "DMM": self.poll_status_dmm
+        })
 
     def set_output(self, channel: int, value):  # ON / OFF
         self.t.write_line('OUTP ' + str(value))

@@ -8,8 +8,8 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 from benchmesh_service.drivers.owon_oel.driver import OwonOEL
-from benchmesh_service.drivers.owon_spm.driver import OWONSPM
-from benchmesh_service.drivers.owon_xdm.driver import OWONXDM
+from benchmesh_service.drivers.owon_spm.driver import OwonSPM
+from benchmesh_service.drivers.owon_xdm.driver import OwonXDM
 from benchmesh_service.drivers.tenma_72.driver import TenmaPSU
 from benchmesh_service.transport import SerialTransport
 
@@ -54,7 +54,7 @@ def test_identify_owon_oel_uses_cr_eol():
 def test_identify_owon_spm_uses_cr_eol():
     with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         transport = SerialTransport('/dev/ttyFAKE2', 115200, serial_mode='8N1', seol='\r', reol='\r').open()
-        d = OWONSPM(transport=transport)
+        d = OwonSPM(transport=transport)
         idn = d.query_identify()
     assert 'VENDOR' in idn
 
@@ -62,7 +62,7 @@ def test_identify_owon_spm_uses_cr_eol():
 def test_identify_owon_xdm_uses_cr_eol():
     with patch('serial.Serial', side_effect=lambda **kw: FakeSerial(**kw)):
         transport = SerialTransport('/dev/ttyFAKE3', 115200, serial_mode='8N1', seol='\r', reol='\r').open()
-        d = OWONXDM(transport=transport)
+        d = OwonXDM(transport=transport)
         idn = d.query_identify()
     assert 'VENDOR' in idn
 

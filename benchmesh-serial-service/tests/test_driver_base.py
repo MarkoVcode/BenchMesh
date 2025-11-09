@@ -344,3 +344,193 @@ class TestCacheIntegration:
         result2 = driver_with_serial.cache.get_or_set("key", expensive_query)
         assert result2 == "computed_value"
         assert call_count[0] == 1  # Not called again
+
+
+# ===== POLL_MULTI_CLASS HELPER TESTS =====
+
+class TestPollMultiClass:
+    """Test _poll_multi_class() helper method for multi-class devices."""
+
+    @pytest.fixture
+    def multi_class_driver(self, mock_serial_transport):
+        """ConcreteDriver with mock methods for multi-class polling."""
+
+        class MultiClassDriver(ConcreteDriver):
+            def __init__(self, transport):
+                super().__init__(transport)
+                self.psu_poll_called = False
+                self.dmm_poll_called = False
+
+            def poll_status_psu(self, channel: int):
+                self.psu_poll_called = True
+                return {"VOUT": 12.5, "IOUT": 1.2}
+
+            def poll_status_dmm(self, channel: int):
+                self.dmm_poll_called = True
+                return {"MEAS": 3.14, "MODE": "VOLT"}
+
+        return MultiClassDriver(transport=mock_serial_transport)
+
+    def test_both_classes_succeed(self, multi_class_driver):
+        """Test _poll_multi_class when both classes succeed."""
+        result = multi_class_driver._poll_multi_class(1, {
+            "PSU": multi_class_driver.poll_status_psu,
+            "DMM": multi_class_driver.poll_status_dmm
+        })
+
+        assert result == {
+            "PSU": {"VOUT": 12.5, "IOUT": 1.2},
+            "DMM": {"MEAS": 3.14, "MODE": "VOLT"}
+        }
+        assert multi_class_driver.psu_poll_called
+        assert multi_class_driver.dmm_poll_called
+
+    def test_partial_success_psu_succeeds_dmm_fails(self, multi_class_driver):
+        """Test partial success - PSU succeeds, DMM fails."""
+
+        def failing_dmm_poll(channel):
+            raise TimeoutError("DMM timed out")
+
+        result = multi_class_driver._poll_multi_class(1, {
+            "PSU": multi_class_driver.poll_status_psu,
+            "DMM": failing_dmm_poll
+        })
+
+        # Should return partial data
+        assert result == {
+            "PSU": {"VOUT": 12.5, "IOUT": 1.2},
+            "DMM": None
+        }
+
+    def test_partial_success_psu_fails_dmm_succeeds(self, multi_class_driver):
+        """Test partial success - PSU fails, DMM succeeds."""
+
+        def failing_psu_poll(channel):
+            raise RuntimeError("PSU communication error")
+
+        result = multi_class_driver._poll_multi_class(1, {
+            "PSU": failing_psu_poll,
+            "DMM": multi_class_driver.poll_status_dmm
+        })
+
+        # Should return partial data
+        assert result == {
+            "PSU": None,
+            "DMM": {"MEAS": 3.14, "MODE": "VOLT"}
+        }
+
+    def test_all_classes_fail_raises_exception(self, multi_class_driver):
+        """Test that all classes failing raises RuntimeError."""
+
+        def failing_psu_poll(channel):
+            raise TimeoutError("PSU timed out")
+
+        def failing_dmm_poll(channel):
+            raise TimeoutError("DMM timed out")
+
+        with pytest.raises(RuntimeError, match="All classes .* failed to poll"):
+            multi_class_driver._poll_multi_class(1, {
+                "PSU": failing_psu_poll,
+                "DMM": failing_dmm_poll
+            })
+
+    def test_empty_dict_response_treated_as_failure(self, multi_class_driver):
+        """Test that empty dict {} response is treated as failure."""
+
+        def empty_psu_poll(channel):
+            return {}  # Device off
+
+        result = multi_class_driver._poll_multi_class(1, {
+            "PSU": empty_psu_poll,
+            "DMM": multi_class_driver.poll_status_dmm
+        })
+
+        # PSU returned empty dict, DMM succeeded
+        assert result == {
+            "PSU": None,
+            "DMM": {"MEAS": 3.14, "MODE": "VOLT"}
+        }
+
+    def test_all_empty_dicts_raises_exception(self, multi_class_driver):
+        """Test that all classes returning empty dict raises RuntimeError."""
+
+        def empty_psu_poll(channel):
+            return {}
+
+        def empty_dmm_poll(channel):
+            return {}
+
+        with pytest.raises(RuntimeError, match="All classes .* failed to poll"):
+            multi_class_driver._poll_multi_class(1, {
+                "PSU": empty_psu_poll,
+                "DMM": empty_dmm_poll
+            })
+
+    def test_mixed_failure_types(self, multi_class_driver):
+        """Test mixed failure types (exception + empty dict)."""
+
+        def empty_psu_poll(channel):
+            return {}  # Device off
+
+        def failing_dmm_poll(channel):
+            raise TimeoutError("DMM timeout")
+
+        def ok_oel_poll(channel):
+            return {"VIN": 5.0, "IIN": 2.0}
+
+        result = multi_class_driver._poll_multi_class(1, {
+            "PSU": empty_psu_poll,
+            "DMM": failing_dmm_poll,
+            "OEL": ok_oel_poll
+        })
+
+        # Only OEL succeeded
+        assert result == {
+            "PSU": None,
+            "DMM": None,
+            "OEL": {"VIN": 5.0, "IIN": 2.0}
+        }
+
+    def test_channel_parameter_passed_to_poll_methods(self, mock_serial_transport):
+        """Test that channel parameter is correctly passed to poll methods."""
+        channel_received = [None, None]
+
+        class ChannelTestDriver(ConcreteDriver):
+            def poll_status_psu(self, channel: int):
+                channel_received[0] = channel
+                return {"VOUT": 12.5}
+
+            def poll_status_dmm(self, channel: int):
+                channel_received[1] = channel
+                return {"MEAS": 3.14}
+
+        driver = ChannelTestDriver(transport=mock_serial_transport)
+
+        driver._poll_multi_class(2, {
+            "PSU": driver.poll_status_psu,
+            "DMM": driver.poll_status_dmm
+        })
+
+        assert channel_received[0] == 2
+        assert channel_received[1] == 2
+
+    def test_single_class_device_success(self, multi_class_driver):
+        """Test _poll_multi_class with single class (edge case)."""
+        result = multi_class_driver._poll_multi_class(1, {
+            "PSU": multi_class_driver.poll_status_psu
+        })
+
+        assert result == {
+            "PSU": {"VOUT": 12.5, "IOUT": 1.2}
+        }
+
+    def test_single_class_device_failure(self, multi_class_driver):
+        """Test _poll_multi_class with single class failing."""
+
+        def failing_poll(channel):
+            raise TimeoutError("Timeout")
+
+        with pytest.raises(RuntimeError, match="All classes .* failed to poll"):
+            multi_class_driver._poll_multi_class(1, {
+                "PSU": failing_poll
+            })

@@ -16,6 +16,10 @@ class FakeDeviceConnection:
         """Match real DeviceConnection.is_healthy() - True for healthy/degraded, False for dead/unknown"""
         return self.health_status in ("healthy", "degraded")
 
+    def get_quality_multiplier(self):
+        """Mock quality multiplier - return 1.0 (no adjustment)"""
+        return 1.0
+
 
 def test_circuit_breaker_skips_dead_device():
     """Test that circuit breaker prevents polling for dead devices"""

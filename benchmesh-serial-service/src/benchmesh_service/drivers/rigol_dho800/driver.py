@@ -10,34 +10,38 @@ class RigolDHO800(DriverBase):
     """Driver for RIGOL DHO800 series oscilloscopes"""
 
     def poll_status(self, channel: int = 1):
-        """Poll device status"""
+        """
+        Poll oscilloscope status.
+
+        Exceptions propagate naturally for health monitoring.
+
+        Note: Oscilloscopes don't have an "off" state over USB TMC - they either
+        respond successfully or timeout. No need to check for empty response.
+        """
         # Query basic oscilloscope parameters
-        try:
-            # Get channel scale (V/div)
-            self.t.write_line(f':CHANnel{channel}:SCALe?')
-            scale = self.t.read_until_reol(1024)
-            
-            # Get channel offset
-            self.t.write_line(f':CHANnel{channel}:OFFSet?')
-            offset = self.t.read_until_reol(1024)
-            
-            # Get channel coupling
-            self.t.write_line(f':CHANnel{channel}:COUPling?')
-            coupling = self.t.read_until_reol(1024)
-            
-            # Get timebase scale
-            self.t.write_line(':TIMebase:MAIN:SCALe?')
-            timebase = self.t.read_until_reol(1024)
-            
-            return {
-                "CHANNEL": channel,
-                "SCALE": sci_to_value(scale),
-                "OFFSET": sci_to_value(offset),
-                "COUPLING": coupling,
-                "TIMEBASE": sci_to_value(timebase)
-            }
-        except Exception as e:
-            return {"ERROR": str(e)}
+        # Get channel scale (V/div)
+        self.t.write_line(f':CHANnel{channel}:SCALe?')
+        scale = self.t.read_until_reol(1024)
+
+        # Get channel offset
+        self.t.write_line(f':CHANnel{channel}:OFFSet?')
+        offset = self.t.read_until_reol(1024)
+
+        # Get channel coupling
+        self.t.write_line(f':CHANnel{channel}:COUPling?')
+        coupling = self.t.read_until_reol(1024)
+
+        # Get timebase scale
+        self.t.write_line(':TIMebase:MAIN:SCALe?')
+        timebase = self.t.read_until_reol(1024)
+
+        return {
+            "CHANNEL": channel,
+            "SCALE": sci_to_value(scale),
+            "OFFSET": sci_to_value(offset),
+            "COUPLING": coupling,
+            "TIMEBASE": sci_to_value(timebase)
+        }
 
     def set_output(self, channel: int, state: str):
         """Enable/disable oscilloscope channel display

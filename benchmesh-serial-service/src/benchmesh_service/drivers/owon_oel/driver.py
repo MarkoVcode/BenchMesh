@@ -7,12 +7,21 @@ class OwonOEL(DriverBase):
         return self.t.read_until_reol(1024)
 
     def poll_status(self, channel: int):
+        """
+        Poll electronic load status.
+
+        Exceptions propagate naturally for health monitoring.
+        Returns empty dict {} if device is off/not responding.
+        """
         raw = self.query_status(channel) or ""
+
+        # Device off or not responding - return empty dict
         if raw is None or raw == "":
-            # Return a minimal but truthy structure to avoid dropping the connection
-            return {"VIN": si_to_value(0), "IIN": si_to_value(0), "PIN": si_to_value(0), "OVP": "OFF", "OCP": "OFF", "OTP": "OFF", "REMOTE": "OFF", "INPUT": "OFF", "MODE": "CURR"}
+            return {}
+
         if isinstance(raw, bytes):
             raw = raw.decode(errors='ignore')
+
         parts = raw.strip().split(',')
         result = {}
         keys = ["VIN", "IIN", "PIN", "OVP", "OCP", "OTP"]

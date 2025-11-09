@@ -4,11 +4,20 @@ from ...utils.si import si_to_value
 
 class OwonXDM(DriverBase):
     def poll_status(self, channel: int):
+        """
+        Poll multimeter status.
+
+        Exceptions propagate naturally for health monitoring.
+        Returns empty dict {} if device is off/not responding.
+        """
         query_measurement = self._query_measurement(1)
         func = self._query_function(1)
         raw = self.query_identify() or b""
+
+        # Device off or not responding - return empty dict
         if not raw:
-            return None
+            return {}
+
         return {"MEAS": sci_to_value(query_measurement), "MODE": func, "RANGE": self.cache.get(func + ":RANGE")}
 
     def set_remote(self, channel: int, value):

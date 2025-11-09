@@ -61,6 +61,88 @@ class DriverBase(ABC):
         Must be implemented by all drivers.
         Called periodically by polling worker thread (every 2-3 seconds typically).
 
+        **RETURN VALUE CONTRACT:**
+
+        - **Success**: Return dictionary with status data
+        - **Device off/not responding**: Return empty dict {}
+        - **Communication error**: Raise exception (TimeoutError, SerialException, etc.)
+
+        **IMPORTANT - Connection Monitoring:**
+
+        This method serves dual purposes:
+        1. **Data collection**: Returns device measurements/status
+        2. **Health monitoring**: Signals connection health to worker
+
+        The worker uses the return value to determine connection health:
+        - Non-empty dict → Connection healthy, data recorded
+        - Empty dict {} → Device not responding, connection dropped
+        - Exception raised → Communication failure, connection dropped
+
+        **DO NOT:**
+        - ❌ Catch exceptions and return fake data (defeats health monitoring)
+        - ❌ Return {"VOUT": None, "IOUT": None} on timeout
+        - ❌ Return {"ERROR": str(e)} on exception
+        - ❌ Return None instead of {} or raising
+
+        **DO:**
+        - ✅ Let transport exceptions propagate naturally
+        - ✅ Return empty dict {} only for valid "device off" states
+        - ✅ Return meaningful data for standby/off states when possible
+
+        **Examples:**
+
+        CORRECT - Let exceptions propagate (tenma_72 pattern):
+            def poll_status(self, channel: int):
+                # No try/except - transport errors bubble up
+                v = self.query_voltage(channel)  # May raise TimeoutError
+                i = self.query_current(channel)  # May raise TimeoutError
+                return {"VOUT": v, "IOUT": i}
+
+        CORRECT - Empty dict for device powered off:
+            def poll_status(self, channel: int):
+                raw = self.query_status(channel)
+                if not raw or raw.strip() == "":
+                    return {}  # Device powered off, no data available
+                return self._parse_status(raw)
+
+        CORRECT - Standby state returns valid data:
+            def poll_status(self, channel: int):
+                v = self.query_voltage(channel)
+                i = self.query_current(channel)
+                output_on = self.query_output_state(channel)
+                return {
+                    "VOUT": v,
+                    "IOUT": i,
+                    "OUTPUT": "ON" if output_on else "OFF",
+                    "SBY": not output_on  # Standby flag
+                }
+
+        WRONG - Fake data on communication error:
+            def poll_status(self, channel: int):
+                try:
+                    v = self.query_voltage(channel)
+                except TimeoutError:
+                    return {"VOUT": None}  # ❌ WRONG! Worker thinks success!
+
+        WRONG - Catching and hiding errors:
+            def poll_status(self, channel: int):
+                try:
+                    return {"DATA": self.query_data(channel)}
+                except Exception as e:
+                    return {"ERROR": str(e)}  # ❌ WRONG! Truthy dict!
+
+        **Multi-Class Devices:**
+
+        Use _poll_multi_class() helper for devices with multiple classes:
+
+            def poll_status(self, channel: int):
+                return self._poll_multi_class(channel, {
+                    "PSU": self.poll_status_psu,
+                    "DMM": self.poll_status_dmm
+                })
+
+        The helper handles partial success gracefully (some classes succeed, some fail).
+
         Args:
             channel: Channel number (1-based, may be ignored for single-channel devices)
 
@@ -68,6 +150,18 @@ class DriverBase(ABC):
             Dictionary with device status. Keys depend on device type/class.
             For multi-class devices (e.g., OWONSPM), return nested dict:
                 {"PSU": {...}, "DMM": {...}}
+            Empty dict {} if device powered off or not responding.
+
+        Raises:
+            TimeoutError: Serial read timeout (device not responding to query)
+            SerialException: Physical connection error (cable disconnected, port closed)
+            ValueError: Invalid/unparseable response from device
+
+            Exceptions are caught by worker and trigger health monitoring + reconnection.
+
+        See Also:
+            - tenma_72 driver for reference implementation
+            - _poll_multi_class() helper for multi-class devices
         """
         pass
 
@@ -117,6 +211,85 @@ class DriverBase(ABC):
             True if transport is open, False otherwise
         """
         return self.t.is_open
+
+    def _poll_multi_class(
+        self,
+        channel: int,
+        poll_methods: Dict[str, callable]
+    ) -> Dict[str, Any]:
+        """
+        Helper for multi-class devices with partial success support.
+
+        Simplifies polling for devices that combine multiple instrument classes
+        (e.g., OWON SPM has both PSU and DMM functionality).
+
+        Attempts to poll each class independently. If at least one class
+        succeeds, returns partial data with successful classes. If ALL classes
+        fail, raises exception to trigger connection drop and reconnection.
+
+        This allows graceful degradation - if DMM fails but PSU works, PSU data
+        is still usable while DMM reconnection is attempted.
+
+        Args:
+            channel: Channel number to pass to poll methods
+            poll_methods: Dict mapping class name to poll method callable
+                         e.g., {"PSU": self.poll_status_psu, "DMM": self.poll_status_dmm}
+
+        Returns:
+            Dict with class-keyed data. Successful classes have data,
+            failed classes have None value.
+
+        Raises:
+            RuntimeError: If all classes failed to poll (device completely unresponsive)
+
+        Example:
+            def poll_status(self, channel: int):
+                return self._poll_multi_class(channel, {
+                    "PSU": self.poll_status_psu,
+                    "DMM": self.poll_status_dmm
+                })
+
+        Example output (partial success):
+            {
+                "PSU": {"VOUT": 12.5, "IOUT": 1.2},  # Success
+                "DMM": None                            # Failed
+            }
+
+        Example behavior:
+            - If PSU and DMM both succeed: Returns both data dicts
+            - If PSU succeeds, DMM fails: Returns PSU data, DMM=None (partial success)
+            - If both fail: Raises RuntimeError (triggers reconnection)
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        result = {}
+        any_success = False
+
+        for class_name, poll_method in poll_methods.items():
+            try:
+                data = poll_method(channel)
+                if data:
+                    result[class_name] = data
+                    any_success = True
+                else:
+                    # Poll method returned empty dict
+                    logger.warning(f"{class_name} poll returned empty data for channel {channel}")
+                    result[class_name] = None
+
+            except Exception as e:
+                # Poll method raised exception (timeout, serial error, etc.)
+                logger.warning(f"Failed to poll {class_name} channel {channel}: {e}")
+                result[class_name] = None
+
+        # If all classes failed, raise to trigger reconnection
+        if not any_success:
+            class_names = list(poll_methods.keys())
+            raise RuntimeError(
+                f"All classes {class_names} failed to poll channel {channel} - device not responding"
+            )
+
+        return result
 
     # ===== TRANSPORT DELEGATION METHODS =====
 
