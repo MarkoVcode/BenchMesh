@@ -285,16 +285,20 @@ class DriverREPL(cmd.Cmd):
 
         stats = self.driver.cache.get_stats()
 
+        # Calculate hit rate
+        total_requests = stats['hit_count'] + stats['miss_count']
+        hit_rate = stats['hit_count'] / total_requests if total_requests > 0 else 0.0
+
         print("\nCache Statistics:")
         print("-" * 60)
-        print(f"  Total entries: {stats['total_entries']}")
-        print(f"  Hits: {stats['hits']}")
-        print(f"  Misses: {stats['misses']}")
-        print(f"  Hit rate: {stats['hit_rate']:.1%}")
-        print(f"  Evictions: {stats['evictions']}")
+        print(f"  Total entries: {stats['size']}")
+        print(f"  Hits: {stats['hit_count']}")
+        print(f"  Misses: {stats['miss_count']}")
+        print(f"  Hit rate: {hit_rate:.1%}")
+        print(f"  Evictions: {stats['eviction_count']}")
         print()
 
-        if stats['total_entries'] > 0:
+        if stats['size'] > 0:
             print("Cache contents:")
             for key in sorted(self.driver.cache._cache.keys()):
                 entry = self.driver.cache._cache[key]
