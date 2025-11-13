@@ -272,11 +272,12 @@ export async function setupWebSocketMock(page: Page) {
 }
 
 /**
- * Wait for instruments to load
+ * Wait for instruments to load (in new workbench UI sidebar)
  */
 export async function waitForInstruments(page: Page, count: number = 1) {
-  await page.waitForSelector('.card', { timeout: 10000 });
-  const instruments = await page.locator('.card').count();
+  // Wait for sidebar instrument list to appear
+  await page.waitForSelector('.instrument-list__item', { timeout: 10000 });
+  const instruments = await page.locator('.instrument-list__item').count();
   if (instruments < count) {
     throw new Error(`Expected at least ${count} instruments, found ${instruments}`);
   }

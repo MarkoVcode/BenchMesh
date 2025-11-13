@@ -27,7 +27,11 @@
           "features": {
             "lock": false,
             "compulsory_lock": false,
-            "channels": 2
+            "channels": 2,
+            "channel_colors": {
+              "1": "#FFD700",
+              "2": "#4169E1"
+            }
           }
         }
       }

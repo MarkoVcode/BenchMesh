@@ -15,6 +15,12 @@ interface ElectronAPI {
   version: string
   /** Application name */
   appName: string
+  /** Minimize window */
+  minimize?: () => void
+  /** Maximize/restore window */
+  maximize?: () => void
+  /** Close window */
+  close?: () => void
 }
 
 declare global {

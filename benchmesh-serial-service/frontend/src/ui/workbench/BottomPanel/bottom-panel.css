@@ -1,0 +1,76 @@
+/**
+ * Bottom Panel Styles
+ */
+
+.bottom-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--panel-background);
+  color: var(--panel-foreground);
+  height: 100%;
+  border-top: 1px solid var(--panel-border);
+  overflow: hidden;
+}
+
+.bottom-panel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--panel-background);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 0 8px;
+}
+
+.bottom-panel__tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background-color: var(--panel-tab-inactive);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bottom-panel__tab:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.bottom-panel__tab--active {
+  background-color: var(--panel-tab-active);
+  border-bottom-color: var(--activity-bar-active);
+}
+
+.bottom-panel__spacer {
+  flex: 1;
+}
+
+.bottom-panel__close {
+  padding: 8px;
+  margin-left: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.bottom-panel__close:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.bottom-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--editor-background);
+}
+
+.bottom-panel__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+  opacity: 0.7;
+}

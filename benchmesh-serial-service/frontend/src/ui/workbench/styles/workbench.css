@@ -1,0 +1,344 @@
+/**
+ * BenchMesh Workbench Theming System
+ *
+ * VS Code-inspired color palette with light and dark mode support.
+ * Colors follow system preference via prefers-color-scheme.
+ */
+
+:root {
+  /* Light theme (default) */
+  --workbench-background: #ffffff;
+  --workbench-foreground: #333333;
+  --workbench-border: #e5e5e5;
+
+  /* Activity Bar */
+  --activity-bar-background: #2c2c2c;
+  --activity-bar-foreground: #ffffff;
+  --activity-bar-active: #007acc;
+  --activity-bar-hover: #3c3c3c;
+
+  /* Sidebar */
+  --sidebar-background: #f3f3f3;
+  --sidebar-foreground: #333333;
+  --sidebar-border: #e5e5e5;
+
+  /* Editor */
+  --editor-background: #ffffff;
+  --editor-foreground: #333333;
+  --editor-border: #e5e5e5;
+
+  /* Bottom Panel */
+  --panel-background: #f3f3f3;
+  --panel-foreground: #333333;
+  --panel-border: #e5e5e5;
+  --panel-tab-active: #ffffff;
+  --panel-tab-inactive: transparent;
+
+  /* Status Bar */
+  --status-bar-background: #007acc;
+  --status-bar-foreground: #ffffff;
+  --status-bar-hover: #005a9e;
+
+  /* LED Indicators */
+  --led-connected: #4ec9b0;
+  --led-degraded: #dcdcaa;
+  --led-disconnected: #6c6c6c;
+  --led-dead: #f48771;
+
+  /* Status indicators (for topbar) */
+  --good: #4ec9b0;
+  --bad: #f48771;
+
+  /* Resize Handles */
+  --resize-handle-color: #e5e5e5;
+  --resize-handle-hover: #007acc;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark theme */
+    --workbench-background: #1e1e1e;
+    --workbench-foreground: #cccccc;
+    --workbench-border: #3c3c3c;
+
+    /* Activity Bar */
+    --activity-bar-background: #333333;
+    --activity-bar-foreground: #ffffff;
+    --activity-bar-active: #007acc;
+    --activity-bar-hover: #404040;
+
+    /* Sidebar */
+    --sidebar-background: #252526;
+    --sidebar-foreground: #cccccc;
+    --sidebar-border: #3c3c3c;
+
+    /* Editor */
+    --editor-background: #1e1e1e;
+    --editor-foreground: #cccccc;
+    --editor-border: #3c3c3c;
+
+    /* Bottom Panel */
+    --panel-background: #252526;
+    --panel-foreground: #cccccc;
+    --panel-border: #3c3c3c;
+    --panel-tab-active: #1e1e1e;
+    --panel-tab-inactive: transparent;
+
+    /* Status Bar */
+    --status-bar-background: #007acc;
+    --status-bar-foreground: #ffffff;
+    --status-bar-hover: #005a9e;
+
+    /* Resize Handles */
+    --resize-handle-color: #3c3c3c;
+    --resize-handle-hover: #007acc;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Workbench Layout */
+.workbench {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--workbench-background);
+  color: var(--workbench-foreground);
+  overflow: hidden;
+}
+
+.workbench-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Topbar Styles */
+.topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  padding-right: 146px;
+  background-color: var(--panel-background);
+  border-bottom: 1px solid #000000;
+  height: 36px;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--panel-foreground);
+}
+
+.topbar-center {
+  display: flex;
+  gap: 8px;
+}
+
+.config-button {
+  padding: 6px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background-color: var(--panel-background);
+  color: var(--panel-foreground);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.config-button:hover {
+  background-color: var(--activity-bar-hover);
+  border-color: var(--activity-bar-active);
+}
+
+.statusbar {
+  display: flex;
+  gap: 12px;
+}
+
+.statuspill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--editor-background);
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Panel Toggle Controls */
+.panel-controls {
+  display: flex;
+  gap: 2px;
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+.panel-toggle-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--panel-foreground);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.panel-toggle-button:hover:not(:disabled) {
+  background-color: var(--activity-bar-hover);
+  border-color: var(--activity-bar-active);
+}
+
+.panel-toggle-button:disabled {
+  cursor: not-allowed;
+}
+
+/* Window Controls */
+.window-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 0;
+  height: 36px;
+}
+
+.window-control-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  color: var(--panel-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.window-control-button:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.window-control-button.window-control-close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+/* Reset panel group styles */
+[data-panel-group] {
+  display: flex;
+}
+
+[data-panel-group][data-panel-group-direction="horizontal"] {
+  flex-direction: row;
+}
+
+[data-panel-group][data-panel-group-direction="vertical"] {
+  flex-direction: column;
+}
+
+[data-panel] {
+  overflow: hidden;
+}
+
+/* Resize handles */
+[data-panel-resize-handle] {
+  background-color: var(--resize-handle-color);
+  transition: background-color 0.2s ease;
+}
+
+[data-panel-resize-handle]:hover,
+[data-panel-resize-handle]:active {
+  background-color: var(--resize-handle-hover);
+}
+
+[data-panel-resize-handle][data-panel-resize-handle-active] {
+  background-color: var(--resize-handle-hover);
+}
+
+/* Horizontal resize handle */
+[data-panel-resize-handle][data-resize-handle-active="pointer"]
+[data-panel-resize-handle-id][data-panel-group-direction="horizontal"] {
+  cursor: col-resize;
+  width: 4px;
+}
+
+/* Vertical resize handle */
+[data-panel-resize-handle][data-resize-handle-active="pointer"]
+[data-panel-resize-handle-id][data-panel-group-direction="vertical"] {
+  cursor: row-resize;
+  height: 4px;
+}
+
+/* Typography */
+.workbench {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--workbench-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--resize-handle-color);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--resize-handle-hover);
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--activity-bar-active);
+  outline-offset: 2px;
+}
+
+/* Button reset */
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--activity-bar-active);
+  outline-offset: 2px;
+}

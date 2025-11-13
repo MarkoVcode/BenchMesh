@@ -1,0 +1,247 @@
+/**
+ * Editor Area Styles
+ */
+
+.editor {
+  height: 100%;
+  background-color: var(--editor-background);
+  color: var(--editor-foreground);
+  overflow: hidden;
+}
+
+.editor__mosaic {
+  height: 100%;
+}
+
+/* Mosaic customization */
+.mosaic .mosaic-window {
+  box-shadow: none;
+  border: 1px solid var(--editor-border);
+}
+
+.mosaic .mosaic-window .mosaic-window-title {
+  background-color: var(--panel-background);
+  color: var(--panel-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 12px 8px 12px;
+  border-bottom: 1px solid var(--editor-border);
+  white-space: nowrap;
+}
+
+/* Wrapper for instrument window with custom title overlay */
+.mosaic-instrument-wrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mosaic-instrument-wrapper > .mosaic-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Resource path overlay below title */
+.instrument-resource-path {
+  position: absolute;
+  top: 25px;
+  left: 12px;
+  right: 50px;
+  font-size: 10px;
+  font-weight: 400;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--editor-foreground);
+  opacity: 0.6;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Class description overlay in title bar */
+.instrument-class-overlay {
+  position: absolute;
+  top: 4px;
+  right: 50px;
+  left: 180px;
+  font-size: 11px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--editor-foreground);
+  opacity: 0.5;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.mosaic .mosaic-window .mosaic-window-body {
+  background-color: var(--editor-background);
+  overflow: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mosaic .mosaic-window .mosaic-window-toolbar {
+  background-color: var(--panel-background);
+  padding: 4px;
+}
+
+.mosaic .mosaic-window .mosaic-preview {
+  background-color: var(--activity-bar-active);
+  opacity: 0.3;
+}
+
+.mosaic .mosaic-split {
+  background-color: var(--resize-handle-color);
+}
+
+.mosaic .mosaic-split:hover {
+  background-color: var(--resize-handle-hover);
+}
+
+/* Empty state */
+.editor--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.editor__empty-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.editor__empty-icon {
+  color: var(--led-disconnected);
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.editor__empty-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+  opacity: 0.9;
+}
+
+.editor__empty-description {
+  font-size: 13px;
+  opacity: 0.7;
+  margin: 0;
+}
+
+/* Mosaic Instrument Window */
+.mosaic-instrument__close {
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.mosaic-instrument__close:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.mosaic-instrument__content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mosaic-instrument__body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.mosaic-instrument__class-section {
+  margin-bottom: 16px;
+}
+
+/* Channel grid layout */
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.channel-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Channel sub-header */
+.channel-subheader {
+  margin-bottom: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.channel-label {
+  font-size: 12.6px; /* 14px * 0.9 = 12.6px (10% smaller than header) */
+  font-weight: 500;
+  padding: 0px;
+  color: var(--panel-foreground);
+}
+
+.channel-resource-path {
+  font-size: 10px;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--editor-foreground);
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0px;
+}
+
+.mosaic-instrument__footer {
+  flex-shrink: 0;
+  padding: 4px 16px;
+  background-color: var(--panel-background);
+  border-top: 1px solid var(--editor-border);
+  font-size: 10px;
+  color: var(--text-3);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: ltr;
+}
+
+.mosaic-instrument__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.mosaic-instrument__note {
+  margin-top: 16px;
+  font-size: 12px;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.editor__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--led-dead);
+  padding: 16px;
+  text-align: center;
+}

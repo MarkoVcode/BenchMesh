@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react'
-import { InstrumentPod, Instrument } from './InstrumentPod'
+import { Instrument } from './InstrumentPod'
 import { MeasurementProvider } from './MeasurementContext'
-import { MeasurementStatusBar } from './MeasurementStatusBar'
+import { WorkbenchLayout } from './workbench/WorkbenchLayout'
+import { ClassicLayout } from './ClassicLayout'
 
 // Lazy load modal components to reduce initial bundle size
 const ConfigModal = lazy(() => import('./ConfigModal').then(m => ({ default: m.ConfigModal })))
@@ -141,6 +142,12 @@ export default function App() {
   // Check if running in Electron - use state to ensure preload script has time to run
   const [isElectron, setIsElectron] = useState(false)
 
+  // Interface mode: 'classic' or 'workbench' (default: workbench)
+  const [interfaceMode, setInterfaceMode] = useState<'classic' | 'workbench'>(() => {
+    const saved = localStorage.getItem('benchmesh-interface-mode')
+    return (saved === 'classic' || saved === 'workbench') ? saved : 'workbench'
+  })
+
   // Check for Electron context after mount
   useEffect(() => {
     const checkElectron = () => {
@@ -185,105 +192,81 @@ export default function App() {
     setRefreshTrigger(prev => prev + 1)
   }
 
+  function toggleInterface() {
+    const newMode = interfaceMode === 'classic' ? 'workbench' : 'classic'
+    setInterfaceMode(newMode)
+    localStorage.setItem('benchmesh-interface-mode', newMode)
+  }
+
   return (
     <MeasurementProvider registry={registry}>
-      <div style={{ paddingBottom: '48px' }}>
-        <div className="topbar">
-          <div className="brand">BenchMesh</div>
-          <div className="topbar-center">
-            <button
-              className="config-button"
-              onClick={() => setConfigModalOpen(true)}
-              title="Configure Instruments"
-            >
-              ⚙️ Configuration
-            </button>
-            <button
-              className="config-button"
-              onClick={() => setRecordingModalOpen(true)}
-              title="Data Recording"
-            >
-              📊 Recording
-            </button>
-            {/* Hide Documentation button in Electron (accessible via Help menu) */}
-            {!isElectron && (
-              <button
-                className="config-button"
-                onClick={() => setDocsModalOpen(true)}
-                title="View Documentation"
-              >
-                📚 Documentation
-              </button>
-            )}
-            {!(window as any).electron?.isElectron && (
-              <button
-                className="config-button"
-                onClick={() => setMetricsModalOpen(true)}
-                title="View Performance Metrics"
-              >
-                📈 Metrics
-              </button>
-            )}
-          </div>
-          <div className="statusbar">
-            <div className="statuspill" title="WebSocket data flow">
-              <span className="dot" style={{ background: wsDiag.ok ? 'var(--good)' : 'var(--bad)' }} />
-              <span>{wsDiag.msg}</span>
-            </div>
-            <div className="statuspill" title="API connectivity">
-              <span className="dot" style={{ background: apiOk ? 'var(--good)' : 'var(--bad)' }} />
-              <span>{apiOk ? 'API ok' : error ? 'API unreachable' : 'Loading...'}</span>
-            </div>
-          </div>
-        </div>
+      {interfaceMode === 'classic' ? (
+        <ClassicLayout
+          instruments={instruments || []}
+          registry={registry}
+          apiBase={apiBase}
+          loading={loading}
+          error={error}
+          wsDiag={wsDiag}
+          onOpenConfig={() => setConfigModalOpen(true)}
+          onOpenRecording={() => setRecordingModalOpen(true)}
+          onOpenDocs={() => setDocsModalOpen(true)}
+          onOpenMetrics={() => setMetricsModalOpen(true)}
+          onSwitchToWorkbench={toggleInterface}
+          isElectron={isElectron}
+        />
+      ) : (
+        <WorkbenchLayout
+          instruments={instruments || []}
+          registry={registry}
+          apiBase={apiBase}
+          loading={loading}
+          error={error}
+          wsDiag={wsDiag}
+          onOpenConfig={() => setConfigModalOpen(true)}
+          onOpenRecording={() => setRecordingModalOpen(true)}
+          onOpenDocs={() => setDocsModalOpen(true)}
+          onOpenMetrics={() => setMetricsModalOpen(true)}
+          onSwitchToClassic={toggleInterface}
+          isElectron={isElectron}
+        />
+      )}
 
+      <Suspense fallback={<div className="modal-loading">Loading...</div>}>
+        <ConfigModal
+          isOpen={configModalOpen}
+          onClose={() => setConfigModalOpen(false)}
+          apiBase={apiBase}
+          onConfigUpdated={handleConfigUpdated}
+        />
+      </Suspense>
+
+      <Suspense fallback={<div className="modal-loading">Loading...</div>}>
+        <RecordingModal
+          isOpen={recordingModalOpen}
+          onClose={() => setRecordingModalOpen(false)}
+          apiBase={apiBase}
+          instruments={instruments || []}
+        />
+      </Suspense>
+
+      {docsModalOpen && (
         <Suspense fallback={<div className="modal-loading">Loading...</div>}>
-          <ConfigModal
-            isOpen={configModalOpen}
-            onClose={() => setConfigModalOpen(false)}
+          <DocsViewer
+            onClose={() => setDocsModalOpen(false)}
             apiBase={apiBase}
-            onConfigUpdated={handleConfigUpdated}
           />
         </Suspense>
+      )}
 
+      {metricsModalOpen && (
         <Suspense fallback={<div className="modal-loading">Loading...</div>}>
-          <RecordingModal
-            isOpen={recordingModalOpen}
-            onClose={() => setRecordingModalOpen(false)}
+          <MetricsViewer
+            onClose={() => setMetricsModalOpen(false)}
             apiBase={apiBase}
-            instruments={instruments || []}
           />
         </Suspense>
-
-        {docsModalOpen && (
-          <Suspense fallback={<div className="modal-loading">Loading...</div>}>
-            <DocsViewer
-              onClose={() => setDocsModalOpen(false)}
-              apiBase={apiBase}
-            />
-          </Suspense>
-        )}
-
-        {metricsModalOpen && (
-          <Suspense fallback={<div className="modal-loading">Loading...</div>}>
-            <MetricsViewer
-              onClose={() => setMetricsModalOpen(false)}
-              apiBase={apiBase}
-            />
-          </Suspense>
-        )}
-
-        {hasInstruments && instruments && (
-          <div className="container">
-            <div className="grid">
-              {instruments.map((ins) => (
-                <InstrumentPod key={ins.id} instrument={ins} registry={registry} />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      <MeasurementStatusBar />
+      )}
     </MeasurementProvider>
   )
 }

@@ -1,0 +1,135 @@
+/**
+ * Activity Bar Styles
+ */
+
+.activity-bar {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--activity-bar-background);
+  color: var(--activity-bar-foreground);
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.activity-bar__instruments,
+.activity-bar__views {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.activity-bar__separator {
+  height: 1px;
+  background-color: var(--resize-handle-color);
+  margin: 8px 4px;
+}
+
+/* Activity Bar Item */
+.activity-bar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px;
+  color: var(--activity-bar-foreground);
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activity-bar-item:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.activity-bar-item--active {
+  border-left-color: var(--activity-bar-active);
+  background-color: var(--activity-bar-hover);
+}
+
+/* Parent item - non-clickable, shows connection status */
+.activity-bar-item--parent {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.activity-bar-item--parent:hover {
+  background-color: transparent;
+}
+
+/* Child item - indented, smaller, clickable */
+.activity-bar-item--child {
+  min-height: 40px;
+  padding-left: 16px;
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  opacity: 0.9;
+}
+
+/* Child item when active */
+.activity-bar-item--child.activity-bar-item--active {
+  border-left-color: var(--activity-bar-active);
+}
+
+.activity-bar-item__icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* LED Badge */
+.led-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--activity-bar-background);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.led-badge--healthy {
+  background-color: var(--led-connected);
+  box-shadow: 0 0 6px var(--led-connected);
+}
+
+.led-badge--degraded {
+  background-color: var(--led-degraded);
+  box-shadow: 0 0 6px var(--led-degraded);
+}
+
+.led-badge--dead {
+  background-color: var(--led-dead);
+  box-shadow: 0 0 6px var(--led-dead);
+}
+
+.led-badge--unknown {
+  background-color: var(--led-disconnected);
+}
+
+/* Pulsing animation for degraded */
+.led-badge--degraded {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Focus styles */
+.activity-bar-item:focus-visible {
+  outline: 2px solid var(--activity-bar-active);
+  outline-offset: -2px;
+}

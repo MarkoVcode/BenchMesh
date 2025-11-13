@@ -1,0 +1,46 @@
+/**
+ * Status Bar Styles
+ */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--status-bar-background);
+  color: var(--status-bar-foreground);
+  height: 30px;
+  padding: 0 12px;
+  font-size: 16px;
+  border-top: 1px solid #000000;
+}
+
+.status-bar__left,
+.status-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-bar__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 100%;
+  white-space: nowrap;
+}
+
+.status-bar__item--clickable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.status-bar__item--clickable:hover {
+  background-color: var(--status-bar-hover);
+}
+
+.status-bar__separator {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.3);
+}
