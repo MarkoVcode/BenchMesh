@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { MosaicWindow, MosaicBranch } from 'react-mosaic-component';
-import { VscClose } from 'react-icons/vsc';
+import { VscClose, VscChevronDown, VscChevronUp } from 'react-icons/vsc';
 import { ChannelPod } from '../../ClassPods';
 import { getClassDescription } from '../../instrumentClasses';
 import './editor.css';
@@ -29,6 +29,7 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
   onClose,
 }) => {
   const [classFeatures, setClassFeatures] = useState<Record<string, any>>({});
+  const [collapsedChannels, setCollapsedChannels] = useState<Set<string>>(new Set());
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`;
 
   // Get IDN from registry
@@ -83,6 +84,19 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
     ? `/instruments/${classesToDisplay[0].class}/${instrument.id}`
     : '';
 
+  // Toggle channel collapse state
+  const toggleChannelCollapse = (channelPath: string) => {
+    setCollapsedChannels(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(channelPath)) {
+        newSet.delete(channelPath);
+      } else {
+        newSet.add(channelPath);
+      }
+      return newSet;
+    });
+  };
+
   const renderInstrumentContent = () => {
     return (
       <div className="mosaic-instrument__content">
@@ -91,6 +105,7 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
             // Get channel colors from fetched features, fallback to gray
             const features = classFeatures[c.class] || {};
             const channelColors = features.channel_colors || {};
+            const hasMultipleChannels = c.channels.length > 1;
 
             return (
               <div key={idx} className="mosaic-instrument__class-section">
@@ -101,23 +116,40 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
                     const channelNum = parts[parts.length - 1];
                     const channelResourcePath = `/instruments/${c.class}/${instrument.id}/${channelNum}`;
                     const channelColor = channelColors[channelNum] || '#808080'; // Gray fallback
+                    const isCollapsed = collapsedChannels.has(channelPath);
 
                     return (
-                      <div key={channelPath} className="channel-column">
+                      <div
+                        key={channelPath}
+                        className={`channel-column ${isCollapsed ? 'channel-column--collapsed' : ''}`}
+                      >
                         <div className="channel-subheader">
-                          <div className="channel-label" style={{ color: channelColor }}>
-                            CHANNEL {channelNum}
+                          <div className="channel-subheader-content">
+                            <div className="channel-label" style={{ color: channelColor }}>
+                              CHANNEL {channelNum}
+                            </div>
+                            <div className="channel-resource-path" title={channelResourcePath}>
+                              {channelResourcePath}
+                            </div>
                           </div>
-                          <div className="channel-resource-path" title={channelResourcePath}>
-                            {channelResourcePath}
-                          </div>
+                          {hasMultipleChannels && (
+                            <button
+                              className="channel-collapse-toggle"
+                              onClick={() => toggleChannelCollapse(channelPath)}
+                              title={isCollapsed ? 'Expand channel' : 'Collapse channel'}
+                            >
+                              {isCollapsed ? <VscChevronDown size={16} /> : <VscChevronUp size={16} />}
+                            </button>
+                          )}
                         </div>
-                        <ChannelPod
-                          path={channelPath}
-                          klass={c.class}
-                          uiComponent={c.ui_component}
-                          registry={registry}
-                        />
+                        {!isCollapsed && (
+                          <ChannelPod
+                            path={channelPath}
+                            klass={c.class}
+                            uiComponent={c.ui_component}
+                            registry={registry}
+                          />
+                        )}
                       </div>
                     );
                   })}
