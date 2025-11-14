@@ -241,9 +241,14 @@
   transition: all 0.2s ease;
 }
 
-.channel-collapse-toggle:hover {
+.channel-collapse-toggle:hover:not(:disabled) {
   opacity: 1;
   background-color: var(--activity-bar-hover);
+}
+
+.channel-collapse-toggle:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 /* Collapsed channel state */

@@ -88,9 +88,19 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
   const toggleChannelCollapse = (channelPath: string) => {
     setCollapsedChannels(prev => {
       const newSet = new Set(prev);
+
+      // Calculate total number of channels across all classes
+      const totalChannels = classesToDisplay.reduce((sum: number, c: any) => sum + c.channels.length, 0);
+
       if (newSet.has(channelPath)) {
+        // Expanding - always allow
         newSet.delete(channelPath);
       } else {
+        // Collapsing - prevent if this is the last expanded channel
+        if (newSet.size >= totalChannels - 1) {
+          // Would collapse all channels - prevent this
+          return prev;
+        }
         newSet.add(channelPath);
       }
       return newSet;
@@ -118,6 +128,10 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
                     const channelColor = channelColors[channelNum] || '#808080'; // Gray fallback
                     const isCollapsed = collapsedChannels.has(channelPath);
 
+                    // Calculate if this is the last expanded channel
+                    const totalChannels = classesToDisplay.reduce((sum: number, cls: any) => sum + cls.channels.length, 0);
+                    const isLastExpanded = !isCollapsed && collapsedChannels.size >= totalChannels - 1;
+
                     return (
                       <div
                         key={channelPath}
@@ -136,7 +150,14 @@ export const MosaicInstrumentWindow: React.FC<MosaicInstrumentWindowProps> = ({
                             <button
                               className="channel-collapse-toggle"
                               onClick={() => toggleChannelCollapse(channelPath)}
-                              title={isCollapsed ? 'Expand channel' : 'Collapse channel'}
+                              disabled={isLastExpanded}
+                              title={
+                                isCollapsed
+                                  ? 'Expand channel'
+                                  : isLastExpanded
+                                  ? 'Cannot collapse last channel'
+                                  : 'Collapse channel'
+                              }
                             >
                               {isCollapsed ? <VscChevronDown size={16} /> : <VscChevronUp size={16} />}
                             </button>
