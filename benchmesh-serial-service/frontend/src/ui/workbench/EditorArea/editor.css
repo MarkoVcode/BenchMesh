@@ -171,14 +171,18 @@
 
 /* Channel grid layout */
 .channels-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: stretch;
 }
 
 .channel-column {
   display: flex;
   flex-direction: column;
+  flex: 1 1 300px;
+  min-width: 300px;
+  max-width: 100%;
 }
 
 /* Channel sub-header */
@@ -240,32 +244,39 @@
 
 /* Collapsed channel state */
 .channel-column--collapsed {
-  flex: 0 0 auto !important;
-  min-width: 40px;
-  max-width: 40px;
+  flex: 0 0 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
 }
 
 .channel-column--collapsed .channel-subheader {
   writing-mode: vertical-lr;
   transform: rotate(180deg);
   height: 100%;
-  width: 40px;
+  width: 100%;
   border-bottom: none;
   border-right: 1px solid var(--editor-border);
   margin-bottom: 0;
   padding-bottom: 0;
   padding-right: 3px;
+  padding-left: 3px;
   flex-direction: row-reverse;
+  overflow: hidden;
 }
 
 .channel-column--collapsed .channel-subheader-content {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 .channel-column--collapsed .channel-label {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .channel-column--collapsed .channel-resource-path {
@@ -274,6 +285,7 @@
 
 .channel-column--collapsed .channel-collapse-toggle {
   transform: rotate(90deg);
+  flex-shrink: 0;
 }
 
 .mosaic-instrument__footer {
