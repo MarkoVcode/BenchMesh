@@ -34,7 +34,28 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   React.useEffect(() => {
     if (activeInstruments.length === 0) {
       setMosaicLayout(null);
+      localStorage.removeItem('benchmesh:mosaicLayout');
       return;
+    }
+
+    // Try to restore saved layout if it matches current instruments
+    try {
+      const savedLayout = localStorage.getItem('benchmesh:mosaicLayout');
+      if (savedLayout) {
+        const parsed = JSON.parse(savedLayout);
+        // Verify saved layout contains only current active instruments
+        const layoutIds = extractLayoutIds(parsed);
+        const sameInstruments =
+          layoutIds.length === activeInstruments.length &&
+          layoutIds.every((id: string) => activeInstruments.includes(id));
+
+        if (sameInstruments) {
+          setMosaicLayout(parsed);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore mosaic layout:', e);
     }
 
     if (activeInstruments.length === 1) {
@@ -65,6 +86,26 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
 
     setMosaicLayout(buildLayout(activeInstruments));
   }, [activeInstruments]);
+
+  // Persist mosaic layout when it changes (user rearranges windows)
+  const handleMosaicChange = React.useCallback((newLayout: MosaicNode<string> | null) => {
+    setMosaicLayout(newLayout);
+    if (newLayout) {
+      try {
+        localStorage.setItem('benchmesh:mosaicLayout', JSON.stringify(newLayout));
+      } catch (e) {
+        console.error('Failed to save mosaic layout:', e);
+      }
+    }
+  }, []);
+
+  // Helper to extract all instrument IDs from a mosaic layout
+  const extractLayoutIds = (node: MosaicNode<string>): string[] => {
+    if (typeof node === 'string') {
+      return [node];
+    }
+    return [...extractLayoutIds(node.first), ...extractLayoutIds(node.second)];
+  };
 
   const renderTile = (id: string, path: MosaicBranch[]) => {
     // Parse class-specific ID format: ${instrument.id}:${classCode}
@@ -110,7 +151,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
       <Mosaic<string>
         renderTile={renderTile}
         value={mosaicLayout}
-        onChange={setMosaicLayout}
+        onChange={handleMosaicChange}
         className="editor__mosaic"
       />
     </div>

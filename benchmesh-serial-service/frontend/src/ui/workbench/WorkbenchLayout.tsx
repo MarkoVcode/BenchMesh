@@ -67,7 +67,26 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
   const [bottomPanelCollapsed, setBottomPanelCollapsed] = useState(true);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true); // Right panel not yet implemented
   const [activeView, setActiveView] = useState<ViewType>('instruments');
-  const [activeInstruments, setActiveInstruments] = useState<string[]>([]);
+
+  // Initialize activeInstruments from localStorage
+  const [activeInstruments, setActiveInstruments] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('benchmesh:activeInstruments');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to load active instruments from localStorage:', e);
+      return [];
+    }
+  });
+
+  // Persist activeInstruments to localStorage whenever it changes
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('benchmesh:activeInstruments', JSON.stringify(activeInstruments));
+    } catch (e) {
+      console.error('Failed to save active instruments to localStorage:', e);
+    }
+  }, [activeInstruments]);
 
   const handleInstrumentClick = (instrumentId: string) => {
     setActiveInstruments((prev) => {
