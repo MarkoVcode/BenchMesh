@@ -157,3 +157,182 @@
 .instrument-list__item-status--disconnected {
   color: var(--led-disconnected);
 }
+
+/* Recording View */
+.recording-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.recording-view__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--sidebar-border);
+  background-color: var(--sidebar-background);
+}
+
+.recording-view__tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+  opacity: 0.7;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recording-view__tab:hover {
+  opacity: 1;
+  background-color: var(--activity-bar-hover);
+}
+
+.recording-view__tab--active {
+  opacity: 1;
+  border-bottom-color: var(--activity-bar-active);
+}
+
+.recording-view__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.recording-view__new,
+.recording-view__all {
+  padding: 16px;
+}
+
+.recording-view__section {
+  margin-bottom: 24px;
+}
+
+.recording-view__section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+  color: var(--sidebar-foreground);
+  opacity: 0.8;
+}
+
+.recording-view__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recording-view__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recording-view__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+  opacity: 0.9;
+}
+
+.recording-view__input,
+.recording-view__select {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--sidebar-foreground);
+  background-color: var(--editor-background);
+  border: 1px solid var(--editor-border);
+  border-radius: 3px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.recording-view__input:focus,
+.recording-view__select:focus {
+  border-color: var(--activity-bar-active);
+}
+
+.recording-view__input::placeholder {
+  color: var(--sidebar-foreground);
+  opacity: 0.4;
+}
+
+.recording-view__placeholder-text {
+  padding: 8px;
+  font-size: 11px;
+  color: var(--sidebar-foreground);
+  opacity: 0.5;
+  font-style: italic;
+  text-align: center;
+  border: 1px dashed var(--editor-border);
+  border-radius: 3px;
+}
+
+.recording-view__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.recording-view__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--editor-border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recording-view__button--primary {
+  background-color: var(--activity-bar-active);
+  color: var(--workbench-background);
+  border-color: var(--activity-bar-active);
+}
+
+.recording-view__button--primary:hover {
+  opacity: 0.9;
+}
+
+.recording-view__list {
+  min-height: 200px;
+}
+
+.recording-view__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--sidebar-foreground);
+  opacity: 0.6;
+}
+
+.recording-view__empty svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.recording-view__empty p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.recording-view__hint {
+  font-size: 11px;
+  opacity: 0.7;
+}

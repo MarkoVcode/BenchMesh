@@ -12,6 +12,7 @@ import React from 'react';
 import { VscClose } from 'react-icons/vsc';
 import { ViewType } from '../WorkbenchLayout';
 import { InstrumentListView } from './InstrumentListView';
+import { RecordingView } from './RecordingView';
 import './sidebar.css';
 
 interface SidebarProps {
@@ -60,11 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <p>Settings view - Config migration pending</p>
           </div>
         )}
-        {activeView === 'recording' && (
-          <div className="sidebar__placeholder">
-            <p>Recording view - Migration pending</p>
-          </div>
-        )}
+        {activeView === 'recording' && <RecordingView />}
         {activeView === 'metrics' && (
           <div className="sidebar__placeholder">
             <p>Metrics view - Migration pending</p>
