@@ -167,6 +167,7 @@
 
 .mosaic-instrument__class-section {
   margin-bottom: 16px;
+  min-height: 0;
 }
 
 /* Channel grid layout */
@@ -175,6 +176,8 @@
   flex-wrap: wrap;
   gap: 16px;
   align-items: stretch;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .channel-column {
@@ -183,6 +186,7 @@
   flex: 1 1 300px;
   min-width: 300px;
   max-width: 100%;
+  min-height: 0;
 }
 
 /* Channel sub-header */
@@ -247,12 +251,15 @@
   flex: 0 0 40px !important;
   min-width: 40px !important;
   max-width: 40px !important;
+  align-self: stretch;
+  min-height: 0;
 }
 
 .channel-column--collapsed .channel-subheader {
   writing-mode: vertical-lr;
   transform: rotate(180deg);
   height: 100%;
+  max-height: 100%;
   width: 100%;
   border-bottom: none;
   border-right: 1px solid var(--editor-border);
