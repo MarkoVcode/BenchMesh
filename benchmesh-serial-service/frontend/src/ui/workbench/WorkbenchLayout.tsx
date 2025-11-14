@@ -79,12 +79,6 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
         return [...prev, instrumentId];
       }
     });
-
-    // Always show instruments view in sidebar when clicking instrument
-    setActiveView('instruments');
-    if (sidebarCollapsed) {
-      setSidebarCollapsed(false);
-    }
   };
 
   const handleViewChange = (view: ViewType) => {
