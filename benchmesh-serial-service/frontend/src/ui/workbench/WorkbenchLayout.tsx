@@ -63,8 +63,8 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
   onSwitchToClassic,
   isElectron
 }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [bottomPanelCollapsed, setBottomPanelCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [bottomPanelCollapsed, setBottomPanelCollapsed] = useState(true);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true); // Right panel not yet implemented
   const [activeView, setActiveView] = useState<ViewType>('instruments');
   const [activeInstruments, setActiveInstruments] = useState<string[]>([]);
