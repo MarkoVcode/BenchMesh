@@ -3,6 +3,7 @@ import { Instrument } from './InstrumentPod'
 import { MeasurementProvider } from './MeasurementContext'
 import { WorkbenchLayout } from './workbench/WorkbenchLayout'
 import { ClassicLayout } from './ClassicLayout'
+import { DisclaimerModal } from './DisclaimerModal'
 
 // Lazy load modal components to reduce initial bundle size
 const ConfigModal = lazy(() => import('./ConfigModal').then(m => ({ default: m.ConfigModal })))
@@ -148,6 +149,12 @@ export default function App() {
     return (saved === 'classic' || saved === 'workbench') ? saved : 'workbench'
   })
 
+  // Disclaimer modal state - shows on first app load if not previously accepted
+  const [disclaimerOpen, setDisclaimerOpen] = useState(() => {
+    const accepted = localStorage.getItem('benchmesh:disclaimer-accepted')
+    return accepted !== 'true' // Show if not accepted
+  })
+
   // Check for Electron context after mount
   useEffect(() => {
     const checkElectron = () => {
@@ -196,6 +203,13 @@ export default function App() {
     const newMode = interfaceMode === 'classic' ? 'workbench' : 'classic'
     setInterfaceMode(newMode)
     localStorage.setItem('benchmesh-interface-mode', newMode)
+  }
+
+  function handleDisclaimerAccept(dontShowAgain: boolean) {
+    setDisclaimerOpen(false)
+    if (dontShowAgain) {
+      localStorage.setItem('benchmesh:disclaimer-accepted', 'true')
+    }
   }
 
   return (
@@ -267,6 +281,12 @@ export default function App() {
           />
         </Suspense>
       )}
+
+      {/* Disclaimer modal - highest priority, shown on first app load */}
+      <DisclaimerModal
+        isOpen={disclaimerOpen}
+        onAccept={handleDisclaimerAccept}
+      />
     </MeasurementProvider>
   )
 }
