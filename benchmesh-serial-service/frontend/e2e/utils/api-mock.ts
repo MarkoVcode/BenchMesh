@@ -106,28 +106,35 @@ export async function setupApiMocks(page: Page) {
   // Mock config endpoint
   await page.route('**/config', async (route: Route) => {
     if (route.request().method() === 'GET') {
-      // Return YAML format as expected by the backend
-      const yamlConfig = `version: 1
-devices:
-  - id: test-psu-1
-    name: "TENMA PSU"
-    driver: tenma_72
-    port: /dev/ttyUSB0
-    baud: 9600
-    serial: 8N1
-    model: 72-2540
-  - id: test-dmm-1
-    name: "OWON DMM"
-    driver: owon_xdm
-    port: /dev/ttyUSB1
-    baud: 115200
-    serial: 8N1
-    model: XDM1041`;
+      // Return JSON format for frontend consumption
+      const config = {
+        version: 1,
+        devices: [
+          {
+            id: 'test-psu-1',
+            name: 'TENMA PSU',
+            driver: 'tenma_72',
+            port: '/dev/ttyUSB0',
+            baud: 9600,
+            serial: '8N1',
+            model: '72-2540'
+          },
+          {
+            id: 'test-dmm-1',
+            name: 'OWON DMM',
+            driver: 'owon_xdm',
+            port: '/dev/ttyUSB1',
+            baud: 115200,
+            serial: '8N1',
+            model: 'XDM1041'
+          }
+        ]
+      };
 
       await route.fulfill({
         status: 200,
-        contentType: 'text/plain',
-        body: yamlConfig
+        contentType: 'application/json',
+        body: JSON.stringify(config)
       });
     } else {
       await route.fulfill({
@@ -184,6 +191,83 @@ devices:
 
   // Mock recordings endpoint
   await page.route('**/recordings', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([])
+    });
+  });
+
+  // Mock drivers endpoint
+  await page.route('**/drivers', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        'tenma_72': {
+          vendor: 'TENMA',
+          family: '72-Series',
+          supported_transports: ['serial']
+        },
+        'owon_xdm': {
+          vendor: 'OWON',
+          family: 'XDM',
+          supported_transports: ['serial', 'usbtmc']
+        }
+      })
+    });
+  });
+
+  // Mock drivers/:driver/models endpoint
+  await page.route('**/drivers/*/models', async (route: Route) => {
+    const url = route.request().url();
+    if (url.includes('tenma_72')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(['72-2540', '72-2545', '72-2550'])
+      });
+    } else if (url.includes('owon_xdm')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(['XDM1041', 'XDM1241'])
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([])
+      });
+    }
+  });
+
+  // Mock ports endpoint (serial ports)
+  await page.route('**/ports', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          device: '/dev/ttyUSB0',
+          description: 'USB Serial Port 0',
+          manufacturer: 'FTDI',
+          serial_number: '12345',
+          hwid: 'USB VID:PID=0403:6001'
+        },
+        {
+          device: '/dev/ttyUSB1',
+          description: 'USB Serial Port 1',
+          manufacturer: 'CH340',
+          serial_number: '67890',
+          hwid: 'USB VID:PID=1a86:7523'
+        }
+      ])
+    });
+  });
+
+  // Mock USB TMC devices endpoint
+  await page.route('**/usbtmc/devices', async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
