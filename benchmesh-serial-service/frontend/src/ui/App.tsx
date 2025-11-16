@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react'
 import { Instrument } from './InstrumentPod'
 import { MeasurementProvider } from './MeasurementContext'
+import { RequestLogProvider } from './RequestLogContext'
 import { WorkbenchLayout } from './workbench/WorkbenchLayout'
 import { ClassicLayout } from './ClassicLayout'
 import { DisclaimerModal } from './DisclaimerModal'
@@ -19,7 +20,7 @@ function useApiBase() {
   }, [])
 }
 
-function useInstruments(apiBase: string) {
+function useInstruments(apiBase: string, refreshTrigger: number) {
   const [data, setData] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -79,7 +80,7 @@ function useInstruments(apiBase: string) {
     }
     load()
     return () => { cancelled = true; if (timer) clearTimeout(timer) }
-  }, [apiBase])
+  }, [apiBase, refreshTrigger])
 
   return { data, loading, error }
 }
@@ -131,13 +132,13 @@ function useRegistrySocket(apiBase: string) {
 
 export default function App() {
   const apiBase = useApiBase()
-  const { data: instruments, loading, error } = useInstruments(apiBase)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const { data: instruments, loading, error } = useInstruments(apiBase, refreshTrigger)
   const { registry, wsDiag } = useRegistrySocket(apiBase)
   const [configModalOpen, setConfigModalOpen] = useState(false)
   const [docsModalOpen, setDocsModalOpen] = useState(false)
   const [metricsModalOpen, setMetricsModalOpen] = useState(false)
   const [recordingModalOpen, setRecordingModalOpen] = useState(false)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [autoOpenedConfig, setAutoOpenedConfig] = useState(false)
 
   // Check if running in Electron - use state to ensure preload script has time to run
@@ -183,17 +184,16 @@ export default function App() {
     }
   }, [])
 
-  // Auto-open config modal if registry is active but no instruments configured
-  useEffect(() => {
-    // Only auto-open after initial load completes
-    if (!autoOpenedConfig && !loading && !error && instruments !== null && instruments.length === 0) {
-      const timer = setTimeout(() => {
-        setConfigModalOpen(true)
-        setAutoOpenedConfig(true)
-      }, 500) // Small delay to ensure everything is rendered
-      return () => clearTimeout(timer)
-    }
-  }, [autoOpenedConfig, loading, error, instruments])
+  // Auto-open config modal disabled - replaced with tutorial tooltip in workbench
+  // useEffect(() => {
+  //   if (!autoOpenedConfig && !loading && !error && instruments !== null && instruments.length === 0) {
+  //     const timer = setTimeout(() => {
+  //       setConfigModalOpen(true)
+  //       setAutoOpenedConfig(true)
+  //     }, 500)
+  //     return () => clearTimeout(timer)
+  //   }
+  // }, [autoOpenedConfig, loading, error, instruments])
 
   function handleConfigUpdated() {
     setRefreshTrigger(prev => prev + 1)
@@ -213,8 +213,9 @@ export default function App() {
   }
 
   return (
-    <MeasurementProvider registry={registry}>
-      {interfaceMode === 'classic' ? (
+    <RequestLogProvider>
+      <MeasurementProvider registry={registry}>
+        {interfaceMode === 'classic' ? (
         <ClassicLayout
           instruments={instruments || []}
           registry={registry}
@@ -237,9 +238,8 @@ export default function App() {
           loading={loading}
           error={error}
           wsDiag={wsDiag}
-          onOpenConfig={() => setConfigModalOpen(true)}
+          onConfigUpdated={handleConfigUpdated}
           onOpenRecording={() => setRecordingModalOpen(true)}
-          onOpenDocs={() => setDocsModalOpen(true)}
           onOpenMetrics={() => setMetricsModalOpen(true)}
           onSwitchToClassic={toggleInterface}
           isElectron={isElectron}
@@ -282,11 +282,12 @@ export default function App() {
         </Suspense>
       )}
 
-      {/* Disclaimer modal - highest priority, shown on first app load */}
-      <DisclaimerModal
-        isOpen={disclaimerOpen}
-        onAccept={handleDisclaimerAccept}
-      />
-    </MeasurementProvider>
+        {/* Disclaimer modal - highest priority, shown on first app load */}
+        <DisclaimerModal
+          isOpen={disclaimerOpen}
+          onAccept={handleDisclaimerAccept}
+        />
+      </MeasurementProvider>
+    </RequestLogProvider>
   )
 }

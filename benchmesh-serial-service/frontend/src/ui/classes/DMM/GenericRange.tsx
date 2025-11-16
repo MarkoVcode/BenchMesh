@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 interface RangeOption {
   value: string
@@ -16,6 +17,7 @@ interface GenericRangeProps {
 
 export function GenericRange({ mode, ranges, channelPath, klass, deviceId, channel }: GenericRangeProps) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
+  const { addLog } = useRequestLog()
   const [selectedRange, setSelectedRange] = useState<string>('AUTO')
   const [isOpen, setIsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -54,7 +56,14 @@ export function GenericRange({ mode, ranges, channelPath, klass, deviceId, chann
     try {
       const ch = channel || '1'
       const endpoint = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/range/${encodeURIComponent(newRange)}`
-      await fetch(endpoint, { method: 'POST' })
+      await loggedFetch(endpoint, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: 'Set Range',
+        parameters: { range: newRange },
+        addLog,
+      })
     } catch (err) {
       console.debug('Range change failed', err)
     } finally {

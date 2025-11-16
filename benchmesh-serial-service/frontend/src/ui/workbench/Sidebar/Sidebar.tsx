@@ -13,20 +13,29 @@ import { VscClose } from 'react-icons/vsc';
 import { ViewType } from '../WorkbenchLayout';
 import { InstrumentListView } from './InstrumentListView';
 import { RecordingView } from './RecordingView';
+import { SettingsView } from './SettingsView';
 import './sidebar.css';
 
 interface SidebarProps {
   activeView: ViewType;
   instruments?: any[];
   registry?: any;
+  apiBase: string;
+  onConfigUpdated: () => void;
   onClose: () => void;
+  autoAddInstrument?: boolean;
+  onAutoAddComplete?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
   instruments = [],
   registry = {},
+  apiBase,
+  onConfigUpdated,
   onClose,
+  autoAddInstrument,
+  onAutoAddComplete,
 }) => {
   const viewTitles: Record<ViewType, string> = {
     instruments: 'Instruments',
@@ -57,9 +66,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
         )}
         {activeView === 'settings' && (
-          <div className="sidebar__placeholder">
-            <p>Settings view - Config migration pending</p>
-          </div>
+          <SettingsView
+            apiBase={apiBase}
+            onConfigUpdated={onConfigUpdated}
+            autoAddInstrument={autoAddInstrument}
+            onAutoAddComplete={onAutoAddComplete}
+          />
         )}
         {activeView === 'recording' && <RecordingView />}
         {activeView === 'metrics' && (

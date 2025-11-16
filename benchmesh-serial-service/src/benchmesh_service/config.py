@@ -91,3 +91,93 @@ def save_config(path, devices):
         except OSError:
             pass
         raise
+
+
+def add_device_to_config(path, device):
+    """
+    Add a new device to the config file.
+
+    Args:
+        path: Path to config.yaml file
+        device: Device configuration dictionary
+
+    Raises:
+        ValueError: If device with same ID already exists
+        OSError: If unable to write to the file
+    """
+    # Load current config
+    cfg = load_config(path)
+    devices = cfg.get('devices', [])
+
+    # Check for duplicate
+    if any(d.get('id') == device.get('id') for d in devices):
+        raise ValueError(f"Device {device.get('id')} already exists in config")
+
+    # Add device
+    devices.append(device)
+
+    # Save atomically
+    save_config(path, devices)
+
+
+def update_device_in_config(path, device_id, new_device):
+    """
+    Update an existing device in the config file.
+
+    Args:
+        path: Path to config.yaml file
+        device_id: ID of device to update
+        new_device: New device configuration dictionary
+
+    Raises:
+        ValueError: If device not found or new_device ID doesn't match
+        OSError: If unable to write to the file
+    """
+    # Validate IDs match
+    if new_device.get('id') != device_id:
+        raise ValueError(f"Device ID mismatch: {device_id} != {new_device.get('id')}")
+
+    # Load current config
+    cfg = load_config(path)
+    devices = cfg.get('devices', [])
+
+    # Find and update device
+    found = False
+    for i, dev in enumerate(devices):
+        if dev.get('id') == device_id:
+            devices[i] = new_device
+            found = True
+            break
+
+    if not found:
+        raise ValueError(f"Device {device_id} not found in config")
+
+    # Save atomically
+    save_config(path, devices)
+
+
+def remove_device_from_config(path, device_id):
+    """
+    Remove a device from the config file.
+
+    Args:
+        path: Path to config.yaml file
+        device_id: ID of device to remove
+
+    Raises:
+        ValueError: If device not found
+        OSError: If unable to write to the file
+    """
+    # Load current config
+    cfg = load_config(path)
+    devices = cfg.get('devices', [])
+
+    # Remove device
+    original_len = len(devices)
+    devices = [d for d in devices if d.get('id') != device_id]
+
+    if len(devices) == original_len:
+        raise ValueError(f"Device {device_id} not found in config")
+
+    # Save atomically
+    save_config(path, devices)

@@ -1,0 +1,291 @@
+/**
+ * Right Panel Styles - Overlays main content from the right
+ */
+
+.right-panel {
+  position: fixed;
+  top: 50px; /* Below topbar with clearance */
+  right: 0;
+  bottom: 50px; /* Above status bar with clearance */
+  width: 40vw; /* 40% of screen width */
+  max-width: 90vw;
+  min-width: 400px; /* Ensure readability on small screens */
+  display: flex;
+  flex-direction: column;
+  background-color: var(--panel-background);
+  color: var(--panel-foreground);
+  border-left: 1px solid var(--panel-border);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  animation: slide-in-right 0.2s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.right-panel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--panel-background);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.right-panel__tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background-color: var(--panel-tab-inactive);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--panel-foreground);
+}
+
+.right-panel__tab:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.right-panel__tab--active {
+  background-color: var(--panel-tab-active);
+  border-bottom-color: var(--activity-bar-active);
+}
+
+.right-panel__spacer {
+  flex: 1;
+}
+
+.right-panel__close {
+  padding: 8px;
+  margin-left: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  color: var(--panel-foreground);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right-panel__close:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.right-panel__content {
+  flex: 1;
+  overflow: hidden;
+  background-color: var(--editor-background);
+}
+
+/* Documentation Tab */
+.right-panel__docs {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.right-panel__docs-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background-color: var(--panel-background);
+  border-right: 1px solid var(--panel-border);
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.right-panel__docs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.right-panel__docs-nav-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  font-size: 13px;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--panel-foreground);
+}
+
+.right-panel__docs-nav-item:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.right-panel__docs-nav-item--active {
+  background-color: var(--panel-tab-active);
+  border-left-color: var(--activity-bar-active);
+  font-weight: 600;
+}
+
+.right-panel__docs-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+}
+
+.right-panel__loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-1);
+  opacity: 0.7;
+}
+
+.right-panel__markdown {
+  max-width: 800px;
+  color: var(--text-1);
+  line-height: 1.6;
+}
+
+.right-panel__markdown h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-1);
+}
+
+.right-panel__markdown h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 24px 0 12px 0;
+  color: var(--text-1);
+}
+
+.right-panel__markdown h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 20px 0 10px 0;
+  color: var(--text-1);
+}
+
+.right-panel__markdown p {
+  margin: 0 0 12px 0;
+  color: var(--text-2);
+}
+
+.right-panel__markdown ul,
+.right-panel__markdown ol {
+  margin: 0 0 12px 0;
+  padding-left: 24px;
+  color: var(--text-2);
+}
+
+.right-panel__markdown li {
+  margin: 4px 0;
+}
+
+.right-panel__markdown a {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.right-panel__markdown a:hover {
+  border-bottom-color: var(--primary);
+}
+
+.right-panel__markdown code.inline-code {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+.right-panel__markdown pre {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0 0 12px 0;
+  border: 1px solid var(--border);
+}
+
+.right-panel__markdown pre code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+.right-panel__markdown .table-wrapper {
+  overflow-x: auto;
+  margin: 0 0 12px 0;
+}
+
+.right-panel__markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.right-panel__markdown th,
+.right-panel__markdown td {
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.right-panel__markdown th {
+  background-color: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.right-panel__markdown td {
+  color: var(--text-2);
+}
+
+.right-panel__markdown blockquote {
+  margin: 0 0 12px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--warn);
+  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--text-2);
+}
+
+.right-panel__markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+/* API Reference Tab */
+.right-panel__api {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Swagger UI overrides for dark theme */
+.right-panel__api .swagger-ui {
+  filter: invert(0.88) hue-rotate(180deg);
+}
+
+.right-panel__api .swagger-ui .microlight,
+.right-panel__api .swagger-ui .renderedMarkdown {
+  filter: invert(0.88) hue-rotate(180deg);
+}

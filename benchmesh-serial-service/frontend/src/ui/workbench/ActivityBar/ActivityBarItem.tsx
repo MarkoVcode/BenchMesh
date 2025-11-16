@@ -43,6 +43,7 @@ export const ActivityBarItem: React.FC<ActivityBarItemProps> = ({
       onClick={onClick}
       title={label}
       aria-label={label}
+      data-id={id}
       data-testid={`activity-bar-item-${id}`}
       disabled={isParent}
     >

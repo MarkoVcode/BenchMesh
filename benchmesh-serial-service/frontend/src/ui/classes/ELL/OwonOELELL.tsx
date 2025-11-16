@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
 import { RemoteLockWarning } from '../../components/RemoteLockWarning'
 import { TestingInstrumentGrid } from '../../TestingInstrumentGrid'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 // OWON OEL Electronic Load component
 // - Settings: Mode dropdown (like DMM) populated from /instruments/ELL/{device_id}
@@ -9,6 +10,7 @@ import { TestingInstrumentGrid } from '../../TestingInstrumentGrid'
 export function OwonOELELL({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
+  const { addLog } = useRequestLog()
 
   // Parse class, device id, and channel from channelPath
   const { klass, deviceId, channel } = useMemo(() => parsePath(channelPath), [channelPath])
@@ -40,7 +42,13 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       const modeKeyLower = modeKey.toLowerCase()
       // Use partial name - API will resolve to query_{mode}
       const url = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/${modeKeyLower}`
-      const resp = await fetch(url)
+      const resp = await loggedFetch(url, {
+        method: 'GET',
+        instrument: deviceId,
+        channel: ch,
+        action: `Query ${modeKey}`,
+        addLog,
+      })
       if (!resp.ok) return
 
       // Response comes as JSON with "value" field
@@ -169,8 +177,16 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     async function loadFeatures() {
       if (!deviceId || !klass) return
       const url = `${apiBase}/instruments/${klass}/${deviceId}`
+      const ch = channel || '1'
       try {
-        const r = await fetch(url, { cache: 'no-store' })
+        const r = await loggedFetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          instrument: deviceId,
+          channel: ch,
+          action: 'Query Features',
+          addLog,
+        })
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
@@ -194,7 +210,7 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     }
     loadFeatures()
     return () => { cancelled = true }
-  }, [apiBase, deviceId, klass, channelPath, mode])
+  }, [apiBase, deviceId, klass, channelPath, mode, channel, addLog])
 
   const endpointTemplate = useMemo(() => {
     const k = klass || 'ELL'
@@ -211,7 +227,14 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
     try {
       const ch = channel || '1'
       // Use partial name - API will resolve to set_mode
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: 'Set Mode',
+        parameters: { mode: newMode },
+        addLog,
+      })
 
       // After mode change, fetch the current setpoint value for this mode
       // Only fetch if the new mode has a setpoint definition (not DYN)
@@ -233,7 +256,13 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       const next = !inputEnabled
       const cmd = next ? 'ON' : 'OFF'
       // Use partial name - API will resolve to set_input
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/input/${cmd}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/input/${cmd}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: next ? 'Enable Input' : 'Disable Input',
+        addLog,
+      })
       // Don't optimistically set state - wait for WebSocket update
     } catch (err) {
       console.debug('Input toggle failed', err)
@@ -250,7 +279,13 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       const next = !remoteMode
       const cmd = next ? 'ON' : 'OFF'
       // Use partial name - API will resolve to set_remote
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/remote/${cmd}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/remote/${cmd}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: next ? 'Enable Remote Mode' : 'Disable Remote Mode',
+        addLog,
+      })
       // Don't optimistically set state - wait for WebSocket update
     } catch (err) {
       console.debug('Remote toggle failed', err)
@@ -276,7 +311,14 @@ export function OwonOELELL({ channelPath, registry }: { channelPath?: string, re
       // Convert mode to lowercase (CURR -> curr, VOLT -> volt, RES -> res, POW -> pow)
       // Use partial name - API will resolve to set_{mode}
       const modeKey = mode.toLowerCase()
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/${modeKey}/${numVal}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/${modeKey}/${numVal}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: `Set ${mode}`,
+        parameters: { [modeKey]: numVal },
+        addLog,
+      })
     } catch (err) {
       console.debug('Setpoint set failed', err)
     } finally {

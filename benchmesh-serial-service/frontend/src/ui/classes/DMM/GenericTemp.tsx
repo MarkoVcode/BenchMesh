@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 interface TempOption {
   value?: string
@@ -23,6 +24,7 @@ interface GenericTempProps {
 
 export function GenericTemp({ mode, channelPath, tempConfig, klass, deviceId, channel }: GenericTempProps) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
+  const { addLog } = useRequestLog()
   const [selectedSensor, setSelectedSensor] = useState<string>('')
   const [selectedScale, setSelectedScale] = useState<string>('')
   const [busySensor, setBusySensor] = useState(false)
@@ -47,7 +49,14 @@ export function GenericTemp({ mode, channelPath, tempConfig, klass, deviceId, ch
     try {
       const ch = channel || '1'
       const endpoint = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_temp_sensor/${encodeURIComponent(newSensor)}`
-      await fetch(endpoint, { method: 'POST' })
+      await loggedFetch(endpoint, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: 'Set Temperature Sensor',
+        parameters: { sensor: newSensor },
+        addLog,
+      })
     } catch (err) {
       console.debug('Sensor change failed', err)
     } finally {
@@ -64,7 +73,14 @@ export function GenericTemp({ mode, channelPath, tempConfig, klass, deviceId, ch
     try {
       const ch = channel || '1'
       const endpoint = `${apiBase}/instruments/${klass}/${deviceId}/${ch}/set_temp_scale/${encodeURIComponent(newScale)}`
-      await fetch(endpoint, { method: 'POST' })
+      await loggedFetch(endpoint, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: 'Set Temperature Scale',
+        parameters: { scale: newScale },
+        addLog,
+      })
     } catch (err) {
       console.debug('Scale change failed', err)
     } finally {

@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 // Minimal generic Spectrum Analyzer UI placeholder
 export function GenericSAL({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
+  const { addLog } = useRequestLog()
   const { klass, deviceId } = useMemo(() => parsePath(channelPath), [channelPath])
   const [features, setFeatures] = useState<any>({})
 
@@ -11,13 +13,19 @@ export function GenericSAL({ channelPath, registry }: { channelPath?: string, re
     async function loadFeatures() {
       if (!klass || !deviceId) return
       try {
-        const r = await fetch(`${apiBase}/instruments/${klass}/${deviceId}`)
+        const r = await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}`, {
+          method: 'GET',
+          instrument: deviceId,
+          channel: '1',
+          action: 'Query Features',
+          addLog,
+        })
         if (!cancelled && r.ok) setFeatures(await r.json().catch(() => ({})))
       } catch {}
     }
     loadFeatures();
     return () => { cancelled = true }
-  }, [apiBase, klass, deviceId])
+  }, [apiBase, klass, deviceId, addLog])
 
   return (
     <div className="sal-face">

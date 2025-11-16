@@ -1,18 +1,20 @@
 /**
- * BottomPanel - Tabbed panel for graphs, recordings, logs, etc.
+ * BottomPanel - Tabbed panel for graphs, recordings, history, etc.
  *
  * Tabs:
  * - Graphs: Live measurement charts
  * - Records: Measurement table
- * - Logs: System logs
- * - NodeRED: Automation status
+ * - History: Request history
+ * - NodeRED: Embedded Node-RED editor
  */
 
 import React, { useState } from 'react';
-import { VscClose, VscGraph, VscTable, VscOutput, VscSymbolEvent } from 'react-icons/vsc';
+import { VscClose, VscGraph, VscTable, VscHistory, VscExtensions, VscLinkExternal } from 'react-icons/vsc';
+import { LogsPanel } from './LogsPanel';
+import { NodeRedPanel } from './NodeRedPanel';
 import './bottom-panel.css';
 
-type TabType = 'graphs' | 'records' | 'logs' | 'nodered';
+type TabType = 'graphs' | 'records' | 'history' | 'nodered';
 
 interface BottomPanelProps {
   instruments?: any[];
@@ -30,8 +32,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   const tabs = [
     { id: 'graphs', label: 'Graphs', icon: VscGraph },
     { id: 'records', label: 'Records', icon: VscTable },
-    { id: 'logs', label: 'Logs', icon: VscOutput },
-    { id: 'nodered', label: 'Node-RED', icon: VscSymbolEvent },
+    { id: 'history', label: 'History', icon: VscHistory },
+    { id: 'nodered', label: 'Automation', icon: VscExtensions },
   ] as const;
 
   return (
@@ -73,16 +75,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             <p>Records Panel - RecordPanel migration pending</p>
           </div>
         )}
-        {activeTab === 'logs' && (
-          <div className="bottom-panel__placeholder">
-            <p>Logs Panel - Implementation pending</p>
-          </div>
-        )}
-        {activeTab === 'nodered' && (
-          <div className="bottom-panel__placeholder">
-            <p>Node-RED Panel - Implementation pending</p>
-          </div>
-        )}
+        {activeTab === 'history' && <LogsPanel />}
+        {activeTab === 'nodered' && <NodeRedPanel />}
       </div>
     </div>
   );

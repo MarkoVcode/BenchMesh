@@ -336,3 +336,484 @@
   font-size: 11px;
   opacity: 0.7;
 }
+
+/* Settings View */
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.settings-view__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--sidebar-border);
+  background-color: var(--sidebar-background);
+}
+
+.settings-view__tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+  opacity: 0.7;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-view__tab:hover {
+  opacity: 1;
+  background-color: var(--activity-bar-hover);
+}
+
+.settings-view__tab--active {
+  opacity: 1;
+  border-bottom-color: var(--activity-bar-active);
+}
+
+.settings-view__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.settings-view__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--sidebar-foreground);
+  opacity: 0.6;
+}
+
+.settings-view__placeholder p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.settings-view__placeholder-hint {
+  font-size: 11px;
+  opacity: 0.8;
+  line-height: 1.5;
+}
+
+.settings-view__sections {
+  padding: 16px;
+}
+
+.settings-view__section {
+  margin-bottom: 24px;
+}
+
+.settings-view__section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-view__section-title {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sidebar-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.settings-view__setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.settings-view__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+}
+
+.settings-view__label-hint {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.settings-view__dropdown {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--sidebar-foreground);
+  background-color: var(--editor-background);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.settings-view__dropdown:hover {
+  border-color: var(--activity-bar-active);
+}
+
+.settings-view__dropdown:focus {
+  outline: none;
+  border-color: var(--activity-bar-active);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.settings-view__section-description {
+  margin: 8px 0 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--sidebar-foreground);
+  opacity: 0.6;
+}
+
+/* Accordion Component */
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accordion-item {
+  border: 1px solid var(--sidebar-border);
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--sidebar-background);
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.accordion-header:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.accordion-header--expanded {
+  background-color: var(--panel-tab-active);
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.accordion-header__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.accordion-header__title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accordion-header__error-badge {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--error);
+}
+
+.accordion-content {
+  padding: 16px 12px;
+  background-color: var(--editor-background);
+  animation: accordion-expand 0.15s ease-out;
+}
+
+@keyframes accordion-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Instrument Config View */
+.instrument-config {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.instrument-config__content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+}
+
+.instrument-config__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--sidebar-foreground);
+  opacity: 0.6;
+}
+
+.instrument-config__empty svg {
+  opacity: 0.5;
+  margin-bottom: 8px;
+}
+
+.instrument-config__empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.instrument-config__footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background-color: var(--sidebar-background);
+  border-top: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+}
+
+.instrument-config__footer button {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--button-border);
+}
+
+.instrument-config__footer button:hover:not(:disabled) {
+  background-color: var(--button-hover-background);
+}
+
+.instrument-config__footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.instrument-config__btn-add {
+  background-color: var(--sidebar-background);
+  color: var(--sidebar-foreground);
+}
+
+.instrument-config__btn-save {
+  background-color: var(--activity-bar-active);
+  color: white;
+  border-color: var(--activity-bar-active);
+}
+
+.instrument-config__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.instrument-config__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.instrument-config__field label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+  opacity: 0.9;
+}
+
+.instrument-config__field input,
+.instrument-config__field select {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--sidebar-foreground);
+  background-color: var(--editor-background);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.instrument-config__field input:focus,
+.instrument-config__field select:focus {
+  outline: none;
+  border-color: var(--activity-bar-active);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.instrument-config__field input:disabled,
+.instrument-config__field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.instrument-config__field-hint {
+  font-size: 10px;
+  color: var(--sidebar-foreground);
+  opacity: 0.6;
+}
+
+.instrument-config__field-row {
+  display: flex;
+  gap: 6px;
+}
+
+.instrument-config__field-row input,
+.instrument-config__field-row select {
+  flex: 1;
+}
+
+.instrument-config__refresh-btn {
+  padding: 6px 8px;
+  background-color: var(--sidebar-background);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sidebar-foreground);
+}
+
+.instrument-config__refresh-btn:hover {
+  background-color: var(--activity-bar-hover);
+}
+
+.instrument-config__refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.instrument-config__remove-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  background-color: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.instrument-config__remove-btn:hover {
+  background-color: var(--error);
+  color: white;
+}
+
+.instrument-config__remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Per-device actions container */
+.instrument-config__device-actions {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+/* Inline feedback messages */
+.instrument-config__inline-error {
+  padding: 6px 10px;
+  font-size: 10px;
+  background-color: rgba(220, 38, 38, 0.1);
+  color: var(--error);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 3px;
+  margin-top: 6px;
+}
+
+.instrument-config__inline-success {
+  padding: 6px 10px;
+  font-size: 10px;
+  background-color: rgba(0, 200, 0, 0.1);
+  color: #00c800;
+  border: 1px solid rgba(0, 200, 0, 0.3);
+  border-radius: 3px;
+  margin-top: 6px;
+}
+
+/* Cancel button for new devices */
+.instrument-config__cancel-btn {
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 11px;
+  background-color: transparent;
+  color: var(--sidebar-foreground);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+.instrument-config__cancel-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.instrument-config__message {
+  padding: 8px 12px;
+  font-size: 11px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.instrument-config__message--success {
+  background-color: rgba(0, 200, 0, 0.1);
+  color: #00c800;
+  border: 1px solid rgba(0, 200, 0, 0.3);
+}
+
+.instrument-config__message--error {
+  background-color: rgba(220, 38, 38, 0.1);
+  color: var(--error);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.instrument-config__loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--sidebar-foreground);
+  opacity: 0.7;
+  font-size: 12px;
+}

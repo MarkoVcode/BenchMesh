@@ -29,7 +29,9 @@ import { ActivityBar } from './ActivityBar/ActivityBar';
 import { Sidebar } from './Sidebar/Sidebar';
 import { EditorArea } from './EditorArea/EditorArea';
 import { BottomPanel } from './BottomPanel/BottomPanel';
+import { RightPanel } from './RightPanel/RightPanel';
 import { StatusBar } from './StatusBar/StatusBar';
+import { TutorialTooltip } from './TutorialTooltip';
 import './styles/workbench.css';
 
 export type ViewType = 'instruments' | 'settings' | 'recording' | 'metrics';
@@ -41,9 +43,8 @@ interface WorkbenchLayoutProps {
   loading: boolean;
   error: string | null;
   wsDiag: { ok: boolean; msg: string; last: number | null };
-  onOpenConfig: () => void;
+  onConfigUpdated: () => void;
   onOpenRecording: () => void;
-  onOpenDocs: () => void;
   onOpenMetrics: () => void;
   onSwitchToClassic?: () => void;
   isElectron: boolean;
@@ -56,17 +57,17 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
   loading,
   error,
   wsDiag,
-  onOpenConfig,
+  onConfigUpdated,
   onOpenRecording,
-  onOpenDocs,
   onOpenMetrics,
   onSwitchToClassic,
   isElectron
 }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [bottomPanelCollapsed, setBottomPanelCollapsed] = useState(true);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true); // Right panel not yet implemented
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [activeView, setActiveView] = useState<ViewType>('instruments');
+  const [autoAddInstrument, setAutoAddInstrument] = useState(false);
 
   // Initialize activeInstruments from localStorage
   const [activeInstruments, setActiveInstruments] = useState<string[]>(() => {
@@ -88,6 +89,30 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
     }
   }, [activeInstruments]);
 
+  // Clean up activeInstruments when instruments are removed
+  React.useEffect(() => {
+    if (!instruments) return;
+
+    // If no instruments, clear activeInstruments
+    if (instruments.length === 0) {
+      if (activeInstruments.length > 0) {
+        setActiveInstruments([]);
+      }
+      return;
+    }
+
+    const validInstrumentIds = new Set(instruments.map((i) => i.id));
+    const filteredActive = activeInstruments.filter((activeId) => {
+      // Handle class-specific IDs (format: instrumentId:classCode)
+      const [instrumentId] = activeId.includes(':') ? activeId.split(':') : [activeId];
+      return validInstrumentIds.has(instrumentId);
+    });
+
+    if (filteredActive.length !== activeInstruments.length) {
+      setActiveInstruments(filteredActive);
+    }
+  }, [instruments]);
+
   const handleInstrumentClick = (instrumentId: string) => {
     setActiveInstruments((prev) => {
       if (prev.includes(instrumentId)) {
@@ -105,6 +130,20 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
     if (sidebarCollapsed) {
       setSidebarCollapsed(false);
     }
+  };
+
+  const handleAddInstrumentClick = () => {
+    // Open settings view and trigger auto-add
+    setActiveView('settings');
+    setAutoAddInstrument(true);
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+    }
+  };
+
+  const handleAutoAddComplete = () => {
+    // Reset flag after auto-add is triggered
+    setAutoAddInstrument(false);
   };
 
   const handleToggleSidebar = () => {
@@ -147,27 +186,11 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
         <div className="topbar-center">
           <button
             className="config-button"
-            onClick={onOpenConfig}
-            title="Configure Instruments"
-          >
-            ⚙️ Configuration
-          </button>
-          <button
-            className="config-button"
             onClick={onOpenRecording}
             title="Data Recording"
           >
             📊 Recording
           </button>
-          {!isElectron && (
-            <button
-              className="config-button"
-              onClick={onOpenDocs}
-              title="View Documentation"
-            >
-              📚 Documentation
-            </button>
-          )}
           {!isElectron && (
             <button
               className="config-button"
@@ -208,9 +231,7 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
           <button
             className="panel-toggle-button"
             onClick={handleToggleRightPanel}
-            title="Right Panel (Coming Soon)"
-            disabled
-            style={{ opacity: 0.4 }}
+            title={rightPanelCollapsed ? "Show Right Panel" : "Hide Right Panel"}
           >
             {rightPanelCollapsed ? <VscLayoutSidebarRightOff size={16} /> : <VscLayoutSidebarRight size={16} />}
           </button>
@@ -254,6 +275,7 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
               activeView={activeView}
               onInstrumentClick={handleInstrumentClick}
               onViewChange={handleViewChange}
+              onAddInstrumentClick={handleAddInstrumentClick}
             />
           </Panel>
 
@@ -266,7 +288,11 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
                   activeView={activeView}
                   instruments={instruments}
                   registry={registry}
+                  apiBase={apiBase}
+                  onConfigUpdated={onConfigUpdated}
                   onClose={handleToggleSidebar}
+                  autoAddInstrument={autoAddInstrument}
+                  onAutoAddComplete={handleAutoAddComplete}
                 />
               </Panel>
             </>
@@ -314,6 +340,17 @@ export const WorkbenchLayout: React.FC<WorkbenchLayoutProps> = ({
         onToggleSidebar={handleToggleSidebar}
         onToggleBottomPanel={handleToggleBottomPanel}
       />
+
+      {/* Right Panel - Overlays main content */}
+      {!rightPanelCollapsed && (
+        <RightPanel
+          apiBase={apiBase}
+          onClose={handleToggleRightPanel}
+        />
+      )}
+
+      {/* Tutorial Tooltip - Shows when no instruments configured */}
+      <TutorialTooltip show={!loading && !error && instruments.length === 0} />
     </div>
   );
 };

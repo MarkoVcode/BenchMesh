@@ -145,12 +145,14 @@ class USBTMCDeviceInfo(BaseModel):
         description="Device name",
         example="usbtmc0"
     )
-    vendor_id: str = Field(
-        description="USB vendor ID in hex format",
+    vendor_id: Optional[str] = Field(
+        None,
+        description="USB vendor ID in hex format (if available from sysfs)",
         example="0x1ab1"
     )
-    product_id: str = Field(
-        description="USB product ID in hex format",
+    product_id: Optional[str] = Field(
+        None,
+        description="USB product ID in hex format (if available from sysfs)",
         example="0x04ce"
     )
     manufacturer: Optional[str] = Field(

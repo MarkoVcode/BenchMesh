@@ -3,6 +3,7 @@ import { TimeSeriesGraph } from './TimeSeriesGraph'
 import { useMeasurement } from '../../MeasurementContext'
 import { SamplingStats } from '../../SamplingStats'
 import { RemoteLockWarning } from '../../components/RemoteLockWarning'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 // PSU face with two columns: Settings (editable V/A) and Readings (readonly V/A/P)
 // - Settings: V and A stacked vertically. 5-digit display limit for both V and A (digits only; '.' not counted)
@@ -10,6 +11,7 @@ import { RemoteLockWarning } from '../../components/RemoteLockWarning'
 export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
+  const { addLog } = useRequestLog()
 
   const [voltage, setVoltage] = useState('0')
   const [current, setCurrent] = useState('0')
@@ -85,12 +87,38 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
     let cancelled = false
     async function loadInitial() {
       if (!channelPath) return
+      const deviceId = channelPath.split('/')[3] || 'unknown'
+      const channel = channelPath.split('/')[4] || '1'
       try {
         const [rv, rc, rvl, rcl] = await Promise.all([
-          fetch(`${apiBase}${channelPath}/voltage`),
-          fetch(`${apiBase}${channelPath}/current`),
-          fetch(`${apiBase}${channelPath}/voltage_limit`),
-          fetch(`${apiBase}${channelPath}/current_limit`),
+          loggedFetch(`${apiBase}${channelPath}/voltage`, {
+            method: 'GET',
+            instrument: deviceId,
+            channel,
+            action: 'Query Voltage',
+            addLog,
+          }),
+          loggedFetch(`${apiBase}${channelPath}/current`, {
+            method: 'GET',
+            instrument: deviceId,
+            channel,
+            action: 'Query Current',
+            addLog,
+          }),
+          loggedFetch(`${apiBase}${channelPath}/voltage_limit`, {
+            method: 'GET',
+            instrument: deviceId,
+            channel,
+            action: 'Query Voltage Limit',
+            addLog,
+          }),
+          loggedFetch(`${apiBase}${channelPath}/current_limit`, {
+            method: 'GET',
+            instrument: deviceId,
+            channel,
+            action: 'Query Current Limit',
+            addLog,
+          }),
         ])
         if (!cancelled) {
           if (rv.ok) {
@@ -122,7 +150,7 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
     }
     loadInitial()
     return () => { cancelled = true }
-  }, [channelPath])
+  }, [channelPath, addLog])
 
   // Load manifest features (lock settings)
   useEffect(() => {
@@ -133,9 +161,17 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
       if (parts.length < 3) return
       const klass = parts[1]
       const deviceId = parts[2]
+      const channel = parts[3] || '1'
       const url = `${apiBase}/instruments/${klass}/${deviceId}`
       try {
-        const r = await fetch(url, { cache: 'no-store' })
+        const r = await loggedFetch(url, {
+          method: 'GET',
+          cache: 'no-store',
+          instrument: deviceId,
+          channel,
+          action: 'Query Features',
+          addLog,
+        })
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
@@ -150,7 +186,7 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
     }
     loadFeatures()
     return () => { cancelled = true }
-  }, [apiBase, channelPath])
+  }, [apiBase, channelPath, addLog])
 
   // Monitor WebSocket registry for readings (VOUT, IOUT, POUT)
   useEffect(() => {
@@ -204,10 +240,18 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
   const handleRemoteToggle = async () => {
     if (!channelPath || busyRemote) return
     setBusyRemote(true)
+    const deviceId = channelPath.split('/')[3] || 'unknown'
+    const channel = channelPath.split('/')[4] || '1'
     try {
       const next = !remoteMode
       const cmd = next ? 'ON' : 'OFF'
-      await fetch(`${apiBase}${channelPath}/remote/${cmd}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}${channelPath}/remote/${cmd}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel,
+        action: next ? 'Enable Remote Mode' : 'Disable Remote Mode',
+        addLog,
+      })
       setRemoteMode(next)
     } catch (err) {
       console.debug('Remote toggle failed', err)
@@ -263,11 +307,11 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
           {/* Settings controls - visibility depends on lock settings */}
           {shouldShowControls && (
             <>
-              <EditableBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet channelPath={channelPath} apiBase={apiBase} />
-              <EditableBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet channelPath={channelPath} apiBase={apiBase} />
+              <EditableBigNumber kind="U" label={<Label symbol="U" unit="V"/>} value={vDisp} onChange={onChangeVoltage} withSet channelPath={channelPath} apiBase={apiBase} addLog={addLog} />
+              <EditableBigNumber kind="I" label={<Label symbol="I" unit="A"/>} value={aDisp} onChange={onChangeCurrent} withSet channelPath={channelPath} apiBase={apiBase} addLog={addLog} />
               <div className="psu-section-title" style={{ marginTop: '16px' }}>Limits</div>
-              <EditableBigNumber kind="UL" label={<Label symbol="U Limit" unit="V"/>} value={vLimitDisp} onChange={onChangeVoltageLimit} withSet channelPath={channelPath} apiBase={apiBase} />
-              <EditableBigNumber kind="IL" label={<Label symbol="I Limit" unit="A"/>} value={aLimitDisp} onChange={onChangeCurrentLimit} withSet channelPath={channelPath} apiBase={apiBase} />
+              <EditableBigNumber kind="UL" label={<Label symbol="U Limit" unit="V"/>} value={vLimitDisp} onChange={onChangeVoltageLimit} withSet channelPath={channelPath} apiBase={apiBase} addLog={addLog} />
+              <EditableBigNumber kind="IL" label={<Label symbol="I Limit" unit="A"/>} value={aLimitDisp} onChange={onChangeCurrentLimit} withSet channelPath={channelPath} apiBase={apiBase} addLog={addLog} />
             </>
           )}
 
@@ -290,11 +334,19 @@ export function GenericOWONPSU({ channelPath, registry }: { channelPath?: string
             e.preventDefault(); e.stopPropagation();
             if (!channelPath || busyOutput) return
             setBusyOutput(true)
+            const deviceId = channelPath.split('/')[3] || 'unknown'
+            const channel = channelPath.split('/')[4] || '1'
             try {
               const next = !outputEnabled
               const cmd = next ? 'ON' : 'OFF'
               // Use partial name - API will resolve to set_output
-              await fetch(`${apiBase}${channelPath}/output/${cmd}`, { method: 'POST' })
+              await loggedFetch(`${apiBase}${channelPath}/output/${cmd}`, {
+                method: 'POST',
+                instrument: deviceId,
+                channel,
+                action: next ? 'Enable Output' : 'Disable Output',
+                addLog,
+              })
               setOutputEnabled(next)
             } catch {} finally { setBusyOutput(false) }
           }}
@@ -350,7 +402,7 @@ function numberToDisplay(n: number): string {
   return frac.length ? `${i}.${frac}` : i
 }
 
-function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath, apiBase }: { kind?: 'U' | 'I' | 'UL' | 'IL', label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string, apiBase?: string }) {
+function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath, apiBase, addLog }: { kind?: 'U' | 'I' | 'UL' | 'IL', label: React.ReactNode, value: string, onChange: (v: string) => void, withSet?: boolean, channelPath?: string, apiBase?: string, addLog?: (entry: any) => void }) {
   const [busy, setBusy] = useState(false)
   return (
     <div className="psu-block">
@@ -374,15 +426,44 @@ function EditableBigNumber({ kind, label, value, onChange, withSet, channelPath,
             e.preventDefault(); e.stopPropagation();
             if (busy) return
             setBusy(true)
+            const deviceId = channelPath?.split('/')[3] || 'unknown'
+            const channel = channelPath?.split('/')[4] || '1'
             try {
               const endp = (kind as string | undefined) || ((label as any)?.props?.symbol as string | undefined)
               const val = value || '0'
               let url: string | undefined
-              if (endp === 'U') url = `${apiBase}${channelPath}/voltage/${val}`
-              if (endp === 'I') url = `${apiBase}${channelPath}/current/${val}`
-              if (endp === 'UL') url = `${apiBase}${channelPath}/voltage_limit/${val}`
-              if (endp === 'IL') url = `${apiBase}${channelPath}/current_limit/${val}`
-              if (url) await fetch(url, { method: 'POST' })
+              let action = 'Set'
+              let paramName = ''
+              if (endp === 'U') {
+                url = `${apiBase}${channelPath}/voltage/${val}`
+                action = 'Set Voltage'
+                paramName = 'voltage'
+              }
+              if (endp === 'I') {
+                url = `${apiBase}${channelPath}/current/${val}`
+                action = 'Set Current'
+                paramName = 'current'
+              }
+              if (endp === 'UL') {
+                url = `${apiBase}${channelPath}/voltage_limit/${val}`
+                action = 'Set Voltage Limit'
+                paramName = 'voltage_limit'
+              }
+              if (endp === 'IL') {
+                url = `${apiBase}${channelPath}/current_limit/${val}`
+                action = 'Set Current Limit'
+                paramName = 'current_limit'
+              }
+              if (url && addLog) {
+                await loggedFetch(url, {
+                  method: 'POST',
+                  instrument: deviceId,
+                  channel,
+                  action,
+                  parameters: { [paramName]: parseFloat(val) },
+                  addLog,
+                })
+              }
             } catch (err) {
               console.debug('SET failed', err)
             } finally { setBusy(false) }

@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { VscAdd } from 'react-icons/vsc';
 import { ActivityBarItem } from './ActivityBarItem';
 import { getInstrumentIcon, getViewIcon } from '../icons';
 import { HealthStatus } from './LEDBadge';
@@ -20,6 +21,7 @@ interface ActivityBarProps {
   activeView: ViewType;
   onInstrumentClick: (id: string) => void;
   onViewChange: (view: ViewType) => void;
+  onAddInstrumentClick?: () => void; // Optional callback for "+" button
 }
 
 export const ActivityBar: React.FC<ActivityBarProps> = ({
@@ -29,6 +31,7 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({
   activeView,
   onInstrumentClick,
   onViewChange,
+  onAddInstrumentClick,
 }) => {
   const getHealthStatus = (deviceId: string): HealthStatus | undefined => {
     const deviceData = registry[deviceId];
@@ -113,6 +116,15 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({
 
           return null;
         })}
+
+        {/* Add Instrument button */}
+        <ActivityBarItem
+          id="add-instrument"
+          icon={VscAdd}
+          label="Add Instrument"
+          active={false}
+          onClick={onAddInstrumentClick || (() => onViewChange('settings'))}
+        />
       </div>
 
       <div className="activity-bar__separator" />

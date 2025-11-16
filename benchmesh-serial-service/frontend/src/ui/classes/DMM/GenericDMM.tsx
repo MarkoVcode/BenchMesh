@@ -3,6 +3,7 @@ import { useMeasurement } from '../../MeasurementContext'
 import { GenericRange } from './GenericRange'
 import { GenericTemp } from './GenericTemp'
 import { CompactReading } from '../../components/CompactReading'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 // Generic DMM component styled similarly to GenericPSU
 // - Before rendering, fetch GET /instruments/DMM/{device_id} to obtain features (modes list)
@@ -11,6 +12,7 @@ import { CompactReading } from '../../components/CompactReading'
 export function GenericDMM({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
+  const { addLog } = useRequestLog()
 
   // Parse class, device id, and channel from channelPath like /instruments/DMM/{id}/{ch}
   const { klass, deviceId, channel } = useMemo(() => parsePath(channelPath), [channelPath])
@@ -90,7 +92,13 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     async function loadFeatures() {
       if (!deviceId || !klass) return
       try {
-        const r = await fetch(`${apiBase}/instruments/${klass}/${deviceId}`)
+        const r = await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}`, {
+          method: 'GET',
+          instrument: deviceId,
+          channel,
+          action: 'Query Features',
+          addLog,
+        })
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
@@ -126,7 +134,7 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     }
     loadFeatures()
     return () => { cancelled = true }
-  }, [apiBase, deviceId, klass, mode])
+  }, [apiBase, deviceId, klass, mode, channel, addLog])
 
   const endpointTemplate = useMemo(() => {
     const k = klass || 'DMM'
@@ -142,7 +150,14 @@ export function GenericDMM({ channelPath, registry }: { channelPath?: string, re
     try {
       const ch = channel || '1'
       // Use partial name - API will resolve to set_mode
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: 'Set Mode',
+        parameters: { mode: newMode },
+        addLog,
+      })
     } catch (err) {
       console.debug('Mode change failed', err)
     } finally {

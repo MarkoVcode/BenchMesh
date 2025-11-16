@@ -1,0 +1,100 @@
+/**
+ * Tutorial Tooltip Styles
+ *
+ * Onboarding tooltip that points to the Add Instrument button
+ */
+
+.tutorial-tooltip {
+  position: fixed;
+  left: 80px; /* Position next to Activity Bar */
+  top: 120px; /* Positioned near the "+" button */
+  z-index: 1000;
+  animation: tooltipFadeIn 0.3s ease-out;
+}
+
+.tutorial-tooltip__content {
+  position: relative;
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: #ffffff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 250px;
+  min-width: 200px;
+}
+
+.tutorial-tooltip__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.tutorial-tooltip__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.tutorial-tooltip__title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-right: 24px; /* Space for close button */
+}
+
+.tutorial-tooltip__text {
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.95;
+}
+
+.tutorial-tooltip__text strong {
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.tutorial-tooltip__arrow {
+  position: absolute;
+  left: -8px;
+  top: 24px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid #4a90e2;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tutorial-tooltip {
+    left: 60px;
+    top: 100px;
+  }
+
+  .tutorial-tooltip__content {
+    max-width: 200px;
+    padding: 12px 16px;
+  }
+}

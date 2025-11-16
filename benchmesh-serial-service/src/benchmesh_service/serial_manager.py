@@ -56,6 +56,7 @@ class SerialManager:
         self.logger.info(f"Initializing SerialManager with config: {config_source}")
         self.devices: List[Dict] = self._load_devices(config_source)
         self.keep_running = True
+        self._devices_lock = threading.RLock()  # Lock for devices list modifications (hot-reload)
         self.dev_locks: Dict[str, threading.RLock] = {d.get('id'): threading.RLock() for d in self.devices if d.get('id')}
         self.dev_threads: Dict[str, threading.Thread] = {}
         self.registry_obj = DeviceRegistry({d.get('id'): {} for d in self.devices if d.get('id')})
@@ -449,6 +450,11 @@ class SerialManager:
         logger.info(f"Device worker {dev_id} starting in queue mode")
 
         while self.keep_running:
+            # HOT-RELOAD: Exit if device was removed
+            if not any(d.get('id') == dev_id for d in self.devices):
+                logger.info(f"Device {dev_id} removed, worker exiting")
+                break
+
             # Get next request from priority queue (blocking with timeout)
             priority_request = queue.dequeue(timeout=1.0)
 
@@ -560,6 +566,11 @@ class SerialManager:
         logger.info(f"Device worker {dev_id} starting in legacy mode")
 
         while self.keep_running:
+            # HOT-RELOAD: Exit if device was removed
+            if not any(d.get('id') == dev_id for d in self.devices):
+                logger.info(f"Device {dev_id} removed, worker exiting")
+                break
+
             lock = self.dev_locks.get(dev_id)
             if not lock:
                 time.sleep(0.5)
@@ -786,4 +797,267 @@ class SerialManager:
                     self.logger.error(f"Error closing connection {dev_id}: {e}")
 
         self.logger.info("SerialManager shutdown complete, all connections closed")
+
+    def add_device(self, device_config: dict) -> None:
+        """
+        Add a new device dynamically while service is running.
+
+        Args:
+            device_config: Device configuration dict with keys:
+                - id (required): Unique device identifier
+                - driver (required): Driver name
+                - port/device (required): Serial port or USB TMC device path
+                - baud (optional): Baud rate (for serial)
+                - serial (optional): Serial mode (for serial)
+                - transport (optional): Transport type (serial/usbtmc/tcpip)
+                - model (optional): Model override
+
+        Raises:
+            ValueError: If device_id already exists or config is invalid
+            RuntimeError: If service is not running
+        """
+        dev_id = device_config.get('id')
+
+        # Validation
+        if not dev_id:
+            raise ValueError("Device config must have 'id' field")
+
+        if not self.keep_running:
+            raise RuntimeError("Cannot add device: SerialManager not running")
+
+        device_added = False  # Track if we successfully added to devices list
+
+        # Validation - raises ValueError if invalid
+        with self._devices_lock:
+            if any(d.get('id') == dev_id for d in self.devices):
+                raise ValueError(f"Device {dev_id} already exists")
+
+        try:
+            # Step 1: Add to devices list
+            with self._devices_lock:
+                self.devices.append(device_config)
+                device_added = True
+
+            # Step 2: Create per-device lock
+            self.dev_locks[dev_id] = threading.RLock()
+
+            # Step 3: Initialize registry entry
+            self.registry_obj.data[dev_id] = {}
+
+            # Step 4: Create device connection (with health monitoring)
+            transport_type = device_config.get('transport', 'serial')
+            conn = DeviceConnection(
+                None,
+                self.clock,
+                failure_threshold=settings.health_failure_threshold,
+                degraded_threshold=settings.health_degraded_threshold,
+                enable_quality_monitoring=settings.adaptive_throttling_enabled,
+                quality_window_size=settings.quality_window_size,
+                quality_success_points=settings.quality_success_points,
+                quality_timeout_penalty=settings.quality_timeout_penalty,
+                quality_error_penalty=settings.quality_error_penalty,
+                transport_type=transport_type
+            )
+            self.dev_conns[dev_id] = conn
+            self.connections[dev_id] = None
+
+            # Step 5: Create priority queue (if unified polling enabled)
+            if self.unified_polling_enabled:
+                self.device_queues[dev_id] = DeviceRequestQueue(dev_id)
+
+            # Step 6: Initialize backward-compat tracking dicts
+            self.last_open_attempt[dev_id] = 0.0
+            self.last_ok[dev_id] = 0.0
+            self.last_probe[dev_id] = 0.0
+            self.dev_class_channels[dev_id] = {}
+            self.dev_class_poll_interval[dev_id] = {}
+            self.last_probe_class[dev_id] = {}
+
+            # Step 7: Attempt initial connection
+            try:
+                self._open_or_identify(device_config)
+            except Exception as e:
+                self.logger.warning(f"Initial connection to {dev_id} failed: {e}")
+
+            # Step 8: Create worker instance
+            probe_map = self.last_probe_class[dev_id]
+            self.workers[dev_id] = DeviceWorker(
+                device_config,
+                conn.driver,
+                self.registry_obj,
+                self.resolver,
+                self.metrics,
+                probe_map,
+                metrics_collector=self.metrics_collector,
+                connection=conn,
+                unified_scheduler=self.unified_scheduler
+            )
+
+            # Step 9: Register with unified scheduler (if enabled)
+            if self.unified_polling_enabled and self.unified_scheduler:
+                # Calculate device-specific interval
+                interval_ms = None
+                multi_class_config = self.resolver.get_multi_class_poll_config(device_config)
+                if multi_class_config:
+                    interval_ms = multi_class_config['interval'] * 1000.0
+                else:
+                    poll_intervals = self.resolver.get_poll_intervals(device_config)
+                    if poll_intervals:
+                        min_interval_s = min(poll_intervals.values())
+                        interval_ms = min_interval_s * 1000.0
+
+                self.unified_scheduler.register_device(
+                    dev_id,
+                    self.device_queues[dev_id],
+                    interval_ms=interval_ms
+                )
+
+            # Step 10: Start worker thread
+            t = threading.Thread(
+                target=self._device_worker,
+                args=(dev_id,),
+                name=f"dev-worker-{dev_id}",
+                daemon=True
+            )
+            self.dev_threads[dev_id] = t
+            t.start()
+
+            self.logger.info(f"Hot-add complete: Device {dev_id} added and started")
+
+        except Exception as e:
+            # Rollback: remove partial state ONLY if device was actually added
+            if device_added:
+                self.logger.error(f"Failed to add device {dev_id}: {e}. Rolling back...")
+                try:
+                    self.remove_device(dev_id)
+                except Exception as rollback_err:
+                    self.logger.error(f"Rollback failed for {dev_id}: {rollback_err}")
+            raise
+
+    def remove_device(self, device_id: str) -> None:
+        """
+        Remove device and clean up all resources.
+
+        Stops worker thread, closes connection, clears registry,
+        removes from scheduler, and cleans up all tracking state.
+
+        Args:
+            device_id: ID of device to remove
+
+        Raises:
+            ValueError: If device not found
+            RuntimeError: If service is not running
+        """
+        # Validation
+        if not self.keep_running:
+            raise RuntimeError("Cannot remove device: SerialManager not running")
+
+        with self._devices_lock:
+            if not any(d.get('id') == device_id for d in self.devices):
+                raise ValueError(f"Device {device_id} not found")
+
+        self.logger.info(f"Hot-remove: Removing device {device_id}")
+
+        # Step 1: Unregister from unified scheduler (if enabled)
+        # Do this FIRST to stop new poll requests being enqueued
+        if self.unified_polling_enabled and self.unified_scheduler:
+            try:
+                self.unified_scheduler.unregister_device(device_id)
+            except Exception as e:
+                self.logger.warning(f"Error unregistering device {device_id} from scheduler: {e}")
+
+        # Step 2: Acquire device lock to prevent new operations
+        lock = self.dev_locks.get(device_id)
+        if lock:
+            with lock:
+                # Step 3: Close driver connection
+                conn = self.dev_conns.get(device_id)
+                if conn and conn.driver:
+                    try:
+                        conn.driver.close()
+                        self.logger.info(f"Closed connection for {device_id}")
+                    except Exception as e:
+                        self.logger.error(f"Error closing connection {device_id}: {e}")
+
+                # Step 4: Clear connection references
+                self.connections[device_id] = None
+                if device_id in self.dev_conns:
+                    self.dev_conns[device_id].driver = None
+
+        # Step 5: Remove from devices list (this stops worker from re-running)
+        with self._devices_lock:
+            self.devices = [d for d in self.devices if d.get('id') != device_id]
+
+        # Step 6: Join worker thread with timeout
+        thread = self.dev_threads.get(device_id)
+        if thread and thread.is_alive():
+            # Wait for thread to finish current iteration (max 2 seconds)
+            # Thread will exit when it finds device no longer in self.devices
+            thread.join(timeout=2.0)
+            if thread.is_alive():
+                self.logger.warning(
+                    f"Worker thread {device_id} did not stop within timeout"
+                )
+
+        # Step 7: Clean up all dictionaries
+        self.dev_threads.pop(device_id, None)
+        self.dev_locks.pop(device_id, None)
+        self.connections.pop(device_id, None)
+        self.dev_conns.pop(device_id, None)
+        self.workers.pop(device_id, None)
+        self.device_queues.pop(device_id, None)
+
+        # Backward-compat tracking dicts
+        self.last_open_attempt.pop(device_id, None)
+        self.last_ok.pop(device_id, None)
+        self.last_probe.pop(device_id, None)
+        self.dev_class_channels.pop(device_id, None)
+        self.dev_class_poll_interval.pop(device_id, None)
+        self.last_probe_class.pop(device_id, None)
+        self.detected_eol.pop(device_id, None)
+        self.initial_connect_tested.discard(device_id)
+
+        # Step 8: Clear registry
+        self.registry_obj.clear_device(device_id)
+        if device_id in self.registry_obj.data:
+            del self.registry_obj.data[device_id]
+
+        self.logger.info(f"Hot-remove complete: Device {device_id} removed")
+
+    def update_device(self, device_id: str, new_config: dict) -> None:
+        """
+        Update device configuration and reconnect.
+
+        This is implemented as atomic remove + add to ensure clean state.
+
+        Args:
+            device_id: ID of device to update
+            new_config: New device configuration (must have same 'id')
+
+        Raises:
+            ValueError: If device not found or new_config has different id
+            RuntimeError: If service is not running
+        """
+        # Validation
+        if not self.keep_running:
+            raise RuntimeError("Cannot update device: SerialManager not running")
+
+        new_id = new_config.get('id')
+        if new_id != device_id:
+            raise ValueError(
+                f"Config id '{new_id}' doesn't match device_id '{device_id}'"
+            )
+
+        with self._devices_lock:
+            if not any(d.get('id') == device_id for d in self.devices):
+                raise ValueError(f"Device {device_id} not found")
+
+        self.logger.info(f"Hot-update: Updating device {device_id}")
+
+        # Atomic update: remove old, add new
+        # This ensures clean state and reuses existing cleanup/setup logic
+        self.remove_device(device_id)
+        self.add_device(new_config)
+
+        self.logger.info(f"Hot-update complete: Device {device_id} updated")
 

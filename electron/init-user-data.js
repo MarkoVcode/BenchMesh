@@ -115,7 +115,7 @@ function getOrCreateCredentialSecret(nodeRedDir) {
 }
 
 /**
- * Update Node-RED settings.js with credential secret
+ * Update Node-RED settings.js with credential secret and iframe embedding support
  * @param {string} nodeRedDir - Path to Node-RED user directory
  * @param {string} credentialSecret - The credential secret to configure
  */
@@ -129,25 +129,48 @@ function updateNodeRedSettings(nodeRedDir, credentialSecret) {
 
   try {
     let settings = fs.readFileSync(settingsPath, 'utf8')
+    let modified = false
 
-    // Check if credentialSecret is already set (not commented)
+    // Configure credentialSecret
     const activeSecretRegex = /^\s*credentialSecret:\s*["'].*["']/m
-    if (activeSecretRegex.test(settings)) {
-      console.log('Node-RED credentialSecret already configured')
-      return
+    if (!activeSecretRegex.test(settings)) {
+      const commentedSecretRegex = /(\s*)\/\/credentialSecret:\s*["'].*["']/
+      if (commentedSecretRegex.test(settings)) {
+        settings = settings.replace(
+          commentedSecretRegex,
+          `$1credentialSecret: "${credentialSecret}"`
+        )
+        console.log('✓ Configured Node-RED credentialSecret')
+        modified = true
+      } else {
+        console.warn('Could not find credentialSecret line in settings.js')
+      }
     }
 
-    // Replace commented credentialSecret line with active configuration
-    const commentedSecretRegex = /(\s*)\/\/credentialSecret:\s*["'].*["']/
-    if (commentedSecretRegex.test(settings)) {
-      settings = settings.replace(
-        commentedSecretRegex,
-        `$1credentialSecret: "${credentialSecret}"`
-      )
+    // Configure httpAdminMiddleware for iframe embedding
+    const activeMiddlewareRegex = /^\s*httpAdminMiddleware:\s*function/m
+    if (!activeMiddlewareRegex.test(settings)) {
+      // Replace commented httpAdminMiddleware with active configuration
+      const commentedMiddlewareRegex = /(\s*)\/\/ httpAdminMiddleware: function\(req,res,next\) \{[\s\S]*?\/\/\s*next\(\);\s*\/\/ \}/
+      if (commentedMiddlewareRegex.test(settings)) {
+        const middlewareConfig = `$1httpAdminMiddleware: function(req,res,next) {
+$1    // Allow embedding in iframe from same origin (for BenchMesh workbench integration)
+$1    res.removeHeader('X-Frame-Options');
+$1    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+$1    next();
+$1}`
+        settings = settings.replace(commentedMiddlewareRegex, middlewareConfig)
+        console.log('✓ Configured Node-RED iframe embedding support')
+        modified = true
+      }
+    }
+
+    // Write changes if any modifications were made
+    if (modified) {
       fs.writeFileSync(settingsPath, settings, 'utf8')
-      console.log('✓ Configured Node-RED credentialSecret in settings.js')
+      console.log('✓ Node-RED settings.js updated successfully')
     } else {
-      console.warn('Could not find credentialSecret line in settings.js')
+      console.log('Node-RED settings.js already configured')
     }
   } catch (error) {
     console.error('Failed to update Node-RED settings:', error.message)

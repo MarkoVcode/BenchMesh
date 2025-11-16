@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMeasurement } from '../../MeasurementContext'
 import { TestingInstrumentGrid } from '../../TestingInstrumentGrid'
+import { useRequestLog, loggedFetch } from '../../RequestLogContext'
 
 // Generic Electronic Load component
 // - Settings: Mode dropdown (like DMM) populated from /instruments/ELL/{device_id}
@@ -8,6 +9,7 @@ import { TestingInstrumentGrid } from '../../TestingInstrumentGrid'
 export function GenericELL({ channelPath, registry }: { channelPath?: string, registry?: any }) {
   const apiBase = `${window.location.protocol}//${window.location.hostname}:57666`
   const { registerSource } = useMeasurement()
+  const { addLog } = useRequestLog()
 
   // Parse class, device id, and channel from channelPath
   const { klass, deviceId, channel } = useMemo(() => parsePath(channelPath), [channelPath])
@@ -57,7 +59,13 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
       if (!deviceId || !klass) return
       const url = `${apiBase}/instruments/${klass}/${deviceId}`
       try {
-        const r = await fetch(url)
+        const r = await loggedFetch(url, {
+          method: 'GET',
+          instrument: deviceId,
+          channel,
+          action: 'Query Features',
+          addLog,
+        })
         if (!r.ok) return
         const j = await r.json().catch(() => ({} as any))
         if (!cancelled) {
@@ -79,7 +87,7 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
     }
     loadFeatures()
     return () => { cancelled = true }
-  }, [apiBase, deviceId, klass, channelPath, mode])
+  }, [apiBase, deviceId, klass, channelPath, mode, channel, addLog])
 
   const endpointTemplate = useMemo(() => {
     const k = klass || 'ELL'
@@ -95,7 +103,14 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
     try {
       const ch = channel || '1'
       // Use partial name - API will resolve to set_mode
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/mode/${encodeURIComponent(newMode)}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: 'Set Mode',
+        parameters: { mode: newMode },
+        addLog,
+      })
     } catch (err) {
       console.debug('Mode change failed', err)
     } finally {
@@ -111,7 +126,13 @@ export function GenericELL({ channelPath, registry }: { channelPath?: string, re
       const next = !inputEnabled
       const cmd = next ? 'ON' : 'OFF'
       // Use partial name - API will resolve to set_input
-      await fetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/input/${cmd}`, { method: 'POST' })
+      await loggedFetch(`${apiBase}/instruments/${klass}/${deviceId}/${ch}/input/${cmd}`, {
+        method: 'POST',
+        instrument: deviceId,
+        channel: ch,
+        action: next ? 'Enable Input' : 'Disable Input',
+        addLog,
+      })
       setInputEnabled(next)
     } catch (err) {
       console.debug('Input toggle failed', err)

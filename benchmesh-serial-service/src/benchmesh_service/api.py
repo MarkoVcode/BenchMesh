@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse, JSONResponse
 from .serial_manager import SerialManager, _load_manifest
 from .manifest_resolver import ManifestResolver
-from .config import load_config, save_config
+from .config import load_config, save_config, add_device_to_config, update_device_in_config, remove_device_from_config
 from .settings import settings
 from .api_recording import create_recording_router
 import benchmesh_service.services.recording_service as recording_service_module
@@ -945,6 +945,172 @@ def update_config(config: ConfigUpdate = Body(...)):
         message=f"Configuration updated with {len(devices)} device(s) and saved to {cfg_path}",
         devices=_manager.devices
     )
+
+@app.post(
+    "/devices",
+    tags=["configuration"],
+    summary="Add new device dynamically",
+    responses={
+        200: {"description": "Device added successfully"},
+        400: {"description": "Invalid device config"},
+        409: {"description": "Device already exists"},
+        500: {"description": "Failed to add device"}
+    }
+)
+def add_device(device_config: dict = Body(...)):
+    """
+    Add a new device to the running system without restarting.
+
+    The device will be immediately connected and start polling.
+    Other devices continue operating normally.
+
+    **Request Body (device_config):**
+    - id (required): Unique device identifier
+    - name (required): Display name
+    - driver (required): Driver name
+    - port/device (required): Serial port or USB TMC device path
+    - baud (optional): Baud rate for serial (default: 115200)
+    - serial (optional): Serial mode (default: "8N1")
+    - transport (optional): Transport type (serial/usbtmc/tcpip, default: serial)
+    - model (optional): Model override
+    """
+    global _manager
+
+    if not _manager:
+        raise HTTPException(status_code=500, detail="SerialManager not initialized")
+
+    # Persist to config file
+    cfg_path = os.getenv("BENCHMESH_CONFIG", "config.yaml")
+    try:
+        add_device_to_config(cfg_path, device_config)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save config: {str(e)}")
+
+    # Hot-add to running manager
+    try:
+        _manager.add_device(device_config)
+    except ValueError as e:
+        # Rollback config file change
+        try:
+            remove_device_from_config(cfg_path, device_config.get('id'))
+        except Exception:
+            pass
+        raise HTTPException(status_code=409, detail=str(e))
+    except RuntimeError as e:
+        # Rollback config file change
+        try:
+            remove_device_from_config(cfg_path, device_config.get('id'))
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        # Rollback config file change
+        try:
+            remove_device_from_config(cfg_path, device_config.get('id'))
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Failed to add device: {str(e)}")
+
+    return {"status": "success", "message": f"Device {device_config.get('id')} added and started"}
+
+@app.put(
+    "/devices/{device_id}",
+    tags=["configuration"],
+    summary="Update device configuration",
+    responses={
+        200: {"description": "Device updated successfully"},
+        404: {"description": "Device not found"},
+        400: {"description": "Invalid device config"},
+        500: {"description": "Failed to update device"}
+    }
+)
+def update_device(device_id: str, device_config: dict = Body(...)):
+    """
+    Update device configuration and reconnect.
+
+    The device will be briefly disconnected during the update, then
+    reconnected with the new configuration. Other devices continue
+    operating normally.
+
+    **Note**: The device_id in the URL must match the 'id' field in the config.
+    """
+    global _manager
+
+    if not _manager:
+        raise HTTPException(status_code=500, detail="SerialManager not initialized")
+
+    # Validate ID match
+    if device_config.get('id') != device_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Config id '{device_config.get('id')}' doesn't match URL device_id '{device_id}'"
+        )
+
+    # Persist to config file
+    cfg_path = os.getenv("BENCHMESH_CONFIG", "config.yaml")
+    try:
+        update_device_in_config(cfg_path, device_id, device_config)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save config: {str(e)}")
+
+    # Hot-update in running manager
+    try:
+        _manager.update_device(device_id, device_config)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update device: {str(e)}")
+
+    return {"status": "success", "message": f"Device {device_id} updated and reconnected"}
+
+@app.delete(
+    "/devices/{device_id}",
+    tags=["configuration"],
+    summary="Remove device",
+    responses={
+        200: {"description": "Device removed successfully"},
+        404: {"description": "Device not found"},
+        500: {"description": "Failed to remove device"}
+    }
+)
+def remove_device(device_id: str):
+    """
+    Remove device and clean up all resources.
+
+    The device will be stopped and removed from the system.
+    Other devices continue operating normally.
+    """
+    global _manager
+
+    if not _manager:
+        raise HTTPException(status_code=500, detail="SerialManager not initialized")
+
+    # Remove from config file
+    cfg_path = os.getenv("BENCHMESH_CONFIG", "config.yaml")
+    try:
+        remove_device_from_config(cfg_path, device_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save config: {str(e)}")
+
+    # Hot-remove from running manager
+    try:
+        _manager.remove_device(device_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove device: {str(e)}")
+
+    return {"status": "success", "message": f"Device {device_id} removed"}
 
 def _build_instruments_list(class_filter: str | None = None) -> List[Dict[str, Any]]:
     """
